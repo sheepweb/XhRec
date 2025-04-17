@@ -1,31 +1,36 @@
 package github.rikacelery
 
 import github.rikacelery.utils.toLocalDateTime
-import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.runBlocking
 import java.io.BufferedOutputStream
-import java.io.BufferedWriter
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.time.format.DateTimeFormatter
 import java.util.*
 
-class Writer(val name: String) {
+class Writer(private val name: String, private val destFolder:String, private val tmpfolder:String = "./") {
+    init {
+        if (File(tmpfolder).exists().not()) {
+            File(tmpfolder).mkdirs()
+        }
+        if (File(destFolder).exists().not()) {
+            File(destFolder).mkdirs()
+        }
+    }
     private lateinit var file: File
     private lateinit var bufferedWriter: BufferedOutputStream
     private lateinit var timeStarted: Date
     private var inited = false
     private var n = 0
     val ext = "mp4"
-    val folder = "./"
+
 
     //    val folder = "/Volumes/mnt/12t/rec/"
-    val destFolder = "/mnt/download/_Crawler/Video/R18/rec/raw"
+
 
     fun init() {
         timeStarted = Date()
-        file = File(folder, "rec_${name}-${formatedStartTime()}_init.${ext}")
+        file = File(tmpfolder, "rec_${name}-${formatedStartTime()}_init.${ext}")
         bufferedWriter = file.outputStream().buffered(bufferSize = 1024 * 1024 * 8)
         inited = true
     }
@@ -61,9 +66,9 @@ class Writer(val name: String) {
         if (!inited) return
         bufferedWriter.close()
         val duration = Date().time - timeStarted.time
-        val input = File(folder, "rec_${name}-${formatedStartTime()}-${format(duration)}.$ext")
+        val input = File(tmpfolder, "rec_${name}-${formatedStartTime()}-${format(duration)}.$ext")
         if (file.renameTo(input)) {
-            val output = File(folder, "rec_${name}-${formatedStartTime()}-${format(duration)}.fixed.$ext")
+            val output = File(tmpfolder, "rec_${name}-${formatedStartTime()}-${format(duration)}.fixed.$ext")
             val builder = ProcessBuilder(
                 "ffmpeg",
                 "-hide_banner",

@@ -32,6 +32,8 @@ dependencies {
     implementation("org.jsoup:jsoup:1.18.1")
     // https://mvnrepository.com/artifact/org.jline/jline
     implementation("org.jline:jline:3.29.0")
+    // https://mvnrepository.com/artifact/commons-cli/commons-cli
+    implementation("commons-cli:commons-cli:1.9.0")
 
     testImplementation("io.ktor:ktor-server-test-host-jvm")
     testImplementation("org.jetbrains.kotlin:kotlin-test")

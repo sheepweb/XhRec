@@ -19,9 +19,15 @@ import kotlin.coroutines.CoroutineContext
 class RoomRecorder(
     val room: Room,
     private val client: HttpClient,
-    private val writer: Writer = Writer(room.name),
+    private val destFolder: String,
+    private val tmpFolder: String,
 ) : CoroutineScope {
-    private var active = false
+    private val writer: Writer = Writer(room.name, destFolder,tmpFolder)
+    var active = false
+        get() = field
+        set(value) {
+            field = value
+        }
     private var counter = 0
     var onLiveSegmentDownloaded: (b: ByteArray, sum: Long) -> Unit = { bytes, total ->
         writer.append(bytes)
