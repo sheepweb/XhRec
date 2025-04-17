@@ -1,40 +1,29 @@
 package github.rikacelery
 
-import github.rikacelery.utils.bytesToHumanReadable
-import github.rikacelery.utils.withRetry
 import github.rikacelery.utils.withRetryOrNull
 import io.ktor.client.*
 import io.ktor.client.engine.okhttp.*
 import io.ktor.client.plugins.*
-import io.ktor.client.plugins.cache.*
-import io.ktor.client.plugins.cache.storage.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.toList
 import okhttp3.ConnectionPool
 import java.io.File
 import java.util.*
-import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.system.exitProcess
 
-val _clients = List(2) {
+val _clients = List(5) {
     HttpClient(OkHttp) {
         expectSuccess = true
-        install(HttpCache) {
-            this.isShared = true
-            this.publicStorage(
-                FileStorage(File("./cache"))
-            )
-            this.privateStorage(
-                FileStorage(File("./cache_private"))
-            )
-        }
         install(HttpTimeout) {
             connectTimeoutMillis = 5_000
-            socketTimeoutMillis = 5_000
-            requestTimeoutMillis = 50_000
+            socketTimeoutMillis = 10_000
+            requestTimeoutMillis = 30_000
         }
         install(DefaultRequest) {
             headers {
@@ -48,7 +37,7 @@ val _clients = List(2) {
         }
         engine {
             config {
-                connectionPool(ConnectionPool(30, 60, TimeUnit.SECONDS))
+                connectionPool(ConnectionPool(10, 20, TimeUnit.SECONDS))
                 followSslRedirects(true)
                 followRedirects(true)
             }
@@ -58,8 +47,15 @@ val _clients = List(2) {
 }
 val client: HttpClient
     get() = _clients.random()
-val proxiedClient = client
-val logs = Hashtable<Long, String>()
+val proxiedClient = client.config {
+    engine {
+//        proxy = Proxy(Proxy.Type.SOCKS, InetSocketAddress(InetAddress.getByAddress(byteArrayOf(10,0,2,1)),7890))
+    }
+}
+
+data class LogInfo(val name: String, val size: String, val progress: Pair<Int, Int> = 0 to 0, val latency: Long = 0)
+
+val logs = Hashtable<Long, LogInfo>()
 val BUILTIN = setOf(
     "https://zh.xhamsterlive.com/lu_lisa",
     "https://zh.xhamsterlive.com/skinnyandcute",
@@ -119,71 +115,40 @@ val BUILTIN = setOf(
     "https://zh.xhamsterlive.com/Monica_Lane_",
     "https://zh.xhamsterlive.com/choi_ara",
 )
+val mt = MyTerminal()
 
 suspend fun main() = supervisorScope {
     val logger = launch {
         while (isActive) {
             synchronized(logs) {
-                print(buildString {
-                    append("\r")
-                    logs.toSortedMap().forEach { (t, u) ->
-                        append("[$u], ")
-                    }
-                })
+                mt.status(logs.toSortedMap())
             }
-            delay(1000)
+            delay(100)
         }
     }
-    val rooms = channelFlow {
-        val file = File("list.txt")
-        if (!file.exists())
-            file.writeText(BUILTIN.joinToString("\n"))
-        for (line in file.bufferedReader().lines().filter { !it.startsWith("#") && it.isNotBlank() }) {
+    val jobFile = File("list.conf")
+    val regex = "(#)?(https://)".toRegex()
+    val recorders = channelFlow {
+        if (!jobFile.exists())
+            jobFile.writeText(BUILTIN.joinToString("\n"))
+        for (line in jobFile.bufferedReader().lines().filter { it.isNotBlank() }) {
             send(line)
         }
     }.map { it: String ->
+        mt.println(it)
         async {
-            println(it)
             val split = it.split("q:")
             val url = split[0].trim()
             val q = if (split.size > 1) split[1].trim() else "720p"
             val room = withRetryOrNull(5, { it.message?.contains("404") == true }) {
                 proxiedClient.fetchRoomFromUrl(url, q)
             } ?: return@async null
-
-            val writer = Writer(room.name)
-            println(room)
-            RoomRecorder(room, client).apply {
-                onRecordingStarted = { room ->
-                    writer.init()
-                    synchronized(logs) {
-                        if (!logs.containsKey(room.id)) {
-                            println("\n+[${room.id}-https://zh.xhamsterlive.com/${room.name}]")
-                        }
-                    }
-                }
-                onRecordingStopped = { room ->
-                    synchronized(logs) {
-                        if (logs.containsKey(room.id)) {
-                            println("\n-[${room.id}-https://zh.xhamsterlive.com/${room.name}]")
-                        }
-                        logs.remove(room.id)
-                    }
-                    writer.done()
-                    println("\nfinished [${room.id}-https://zh.xhamsterlive.com/${room.name}]")
-
-                }
-                var counter = 0
-                onLiveSegmentDownloaded = { bytes, total ->
-                    writer.append(bytes)
-                    logs[room.id] = room.name + " " + bytesToHumanReadable(total)+"-\\|/"[counter++]
-                    if (counter==3) counter = 0
-                }
-            }
+            mt.println(room)
+            RoomRecorder(room, client)
         }
-    }.toList().awaitAll().filterNotNull()
-    val jobList = rooms.map { recorder ->
-        println("Start ${recorder.room.name}")
+    }.toList().awaitAll().filterNotNull().toMutableList()
+    val jobList = recorders.map { recorder ->
+        mt.println("Start ${recorder.room.name}")
         recorder to launch {
             while (isActive) {
                 if (recorder.isOpen())
@@ -191,19 +156,103 @@ suspend fun main() = supervisorScope {
                 delay(60_000)
             }
         }
-    }.toList()
-    println("-".repeat(10) + "DONE" + "-".repeat(10))
+    }.toList().toMutableList()
+    mt.println("-".repeat(10) + "DONE" + "-".repeat(10))
 
-    readln()
-    logger.cancel()
+    val running = AtomicBoolean(true)
+    // REPL 主线程
+    while (running.get()) {
+        val line = try {
+            mt.readLine()
+        } catch (e: Exception) {
+            running.set(false)
+            break
+        }
+        val tokens = line.split(" ")
+        when (tokens.firstOrNull()) {
+            "add" -> tokens.getOrNull(1)?.let {
+                val split = it.split("q:")
+                val url = split[0].trim()
+                val q = if (split.size > 1) split[1].trim() else "720p"
+                val room = withRetryOrNull(5, { it.message?.contains("404") == true }) {
+                    proxiedClient.fetchRoomFromUrl(url, q)
+                } ?: return@let null
+                mt.println(room)
+                val recorder = RoomRecorder(room, client)
+                recorders.add(recorder)
+                mt.println("Start ${recorder.room.name}")
+                jobList.add(
+                    recorder to launch {
+                        while (isActive) {
+                            if (recorder.isOpen())
+                                recorder.start().join()
+                            delay(60_000)
+                        }
+                    })
+                jobFile.appendText("\n$it")
+            }
+
+            "remove" -> tokens.getOrNull(1)?.let { input ->
+                val job =
+                    jobList.find { it.first.room.id.toString() == input || it.first.room.name == input } ?: return@let
+                job.second.cancel()
+                job.first.stop()
+                mt.println("[${job.first.room.name}] removed")
+                jobFile.writeText(jobFile.readText().lines().filterNot { it.contains(input) }.joinToString("\n"))
+            }
+
+            "stop" -> tokens.getOrNull(1)?.let { input ->
+                val job =
+                    jobList.find { it.first.room.id.toString() == input || it.first.room.name == input } ?: return@let
+                job.second.cancel()
+                job.first.stop()
+                mt.println("[${job.first.room.name}] stopped")
+            }
+
+            "start" -> tokens.getOrNull(1)?.let { input ->
+                val recorder =
+                    recorders.find { it.room.id.toString() == input || it.room.name == input } ?: return@let
+                jobList.add(
+                    recorder to launch {
+                        while (isActive) {
+                            if (recorder.isOpen())
+                                recorder.start().join()
+                            delay(60_000)
+                        }
+                    })
+                mt.println("[${recorder.room.name}] started")
+
+            }
+
+            "fatal" -> {
+                exitProcess(1)
+            }
+
+            "list" -> {
+                jobList.forEach { (recorder, job) ->
+                    mt.println(recorder.room, if (job.isActive) "active" else "idle")
+                }
+            }
+
+            "active" -> tokens.getOrNull(1)?.let { TaskManager.activateTask(it) }
+            "deactive" -> tokens.getOrNull(1)?.let { TaskManager.deactivateTask(it) }
+            "exit" -> running.set(false)
+            else -> {
+                mt.println("Unknown command. Try: add/remove/pause/resume/active/deactive/list/exit")
+            }
+        }
+    }
     jobList.map { (rec, job) ->
         job.cancel()
         launch { rec.stop() }
     }.joinAll()
 
-    println("all done")
+    logger.cancel()
+    mt.println("all done")
+    proxiedClient.close()
     _clients.forEach {
         it.close()
     }
+    mt.terminal.close()
 }
 

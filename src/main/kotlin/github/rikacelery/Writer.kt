@@ -81,20 +81,24 @@ class Writer(val name: String) {
             p.inputStream.bufferedReader().use {
                 while (true) {
                     val char = it.readLine() ?: break
-                    println("[$name] ${char.replace("\r", "")}")
+                    mt.println("[$name] ${char.replace("\r", "")}")
                 }
             }
-            p.waitFor()
-            println("[$name] moving...")
-            try {
-                Files.move(
-                    output.toPath(),
-                    File(destFolder).resolve(output.name).toPath(),
-                    StandardCopyOption.REPLACE_EXISTING
-                )
+            if (p.waitFor() == 0) {
                 input.delete()
-            } catch (e: Exception) {
-                e.printStackTrace()
+                mt.println("[$name] moving...")
+                try {
+                    Files.move(
+                        output.toPath(),
+                        File(destFolder).resolve(output.name).toPath(),
+                        StandardCopyOption.REPLACE_EXISTING
+                    )
+                    mt.println("[$name] 移动成功")
+                } catch (e: Exception) {
+                    mt.println("[$name] 无法移动文件$e")
+                }
+            } else {
+                mt.println("[$name] 转码失败，请查看命令输出")
             }
         }
     }
