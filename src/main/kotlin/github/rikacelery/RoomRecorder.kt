@@ -92,7 +92,7 @@ class RoomRecorder(
                 runCatching {
                     if (flag) return@runCatching
                     val qualities = withRetry(10) {
-                        client.get(
+                        proxiedClient.get(
                             "https://b-hls-06.doppiocdn.live/hls/%d/%d.m3u8?playlistType=lowLatency".format(
                                 room.id, room.id
                             )
@@ -119,14 +119,14 @@ class RoomRecorder(
                 val videos = lines.filter { it.startsWith("#EXT-X-PART") && it.contains("URI=\"") }
                     .map { it.substringAfter("URI=\"").substringBefore("\"") }
                 if (!started) {
+                    started = true
+                    onRecordingStarted(room)
                     channel.send(Event.LiveSegmentInit(initUrl, room))
                     videos.forEach {
                         if (!cache.contains(it)) {
                             cache.add(it)
                         }
                     }
-                    started = true
-                    onRecordingStarted(room)
                     continue
                 }
                 videos.forEach {
@@ -232,7 +232,7 @@ class RoomRecorder(
                     }
 
                     is Event.LiveSegmentInit ->
-                        outputChannel.send(async { client.get(segment.url).readBytes().also { initBytes = it } })
+                        outputChannel.send(async { proxiedClient.get(segment.url).readBytes().also { initBytes = it } })
 
                 }
             }

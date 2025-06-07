@@ -8,15 +8,7 @@ import java.nio.file.StandardCopyOption
 import java.time.format.DateTimeFormatter
 import java.util.*
 
-class Writer(private val name: String, private val destFolder:String, private val tmpfolder:String = "./") {
-    init {
-        if (File(tmpfolder).exists().not()) {
-            File(tmpfolder).mkdirs()
-        }
-        if (File(destFolder).exists().not()) {
-            File(destFolder).mkdirs()
-        }
-    }
+class Writer(private val name: String, private val destFolder:String, private val tmpfolder:String) {
     private lateinit var file: File
     private lateinit var bufferedWriter: BufferedOutputStream
     private lateinit var timeStarted: Date
@@ -33,6 +25,12 @@ class Writer(private val name: String, private val destFolder:String, private va
         file = File(tmpfolder, "rec_${name}-${formatedStartTime()}_init.${ext}")
         bufferedWriter = file.outputStream().buffered(bufferSize = 1024 * 1024 * 8)
         inited = true
+        if (File(tmpfolder).exists().not()) {
+            File(tmpfolder).mkdirs()
+        }
+        if (File(destFolder).exists().not()) {
+            File(destFolder).mkdirs()
+        }
     }
 
     private fun format(time: Long): String {

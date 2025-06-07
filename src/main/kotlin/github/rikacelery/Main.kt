@@ -6,6 +6,7 @@ import io.ktor.client.engine.okhttp.*
 import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.http.*
+import io.ktor.network.sockets.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.map
@@ -13,6 +14,10 @@ import kotlinx.coroutines.flow.toList
 import okhttp3.ConnectionPool
 import org.apache.commons.cli.*
 import java.io.File
+import java.net.InetAddress
+import java.net.InetSocketAddress
+import java.net.Proxy
+import java.net.SocketAddress
 import java.util.*
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -49,9 +54,30 @@ val _clients = List(5) {
 }
 val client: HttpClient
     get() = _clients.random()
-val proxiedClient = client.config {
+val proxiedClient = HttpClient(OkHttp) {
+    expectSuccess = true
+    install(HttpTimeout) {
+        connectTimeoutMillis = 5_000
+        socketTimeoutMillis = 10_000
+        requestTimeoutMillis = 30_000
+    }
+    install(DefaultRequest) {
+        headers {
+            append(
+                HttpHeaders.Accept,
+                "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"
+            )
+            append(HttpHeaders.AcceptLanguage, "en,zh-CN;q=0.9,zh;q=0.8")
+            append(HttpHeaders.Connection, "keep-alive")
+        }
+    }
     engine {
-//        proxy = Proxy(Proxy.Type.SOCKS, InetSocketAddress(InetAddress.getByAddress(byteArrayOf(10,0,2,1)),7890))
+        config {
+            proxy(Proxy(Proxy.Type.HTTP, InetSocketAddress(7890)))
+            connectionPool(ConnectionPool(10, 20, TimeUnit.SECONDS))
+            followSslRedirects(true)
+            followRedirects(true)
+        }
     }
 }
 
@@ -152,7 +178,7 @@ suspend fun main(vararg args: String) = supervisorScope {
         }
     }
     val jobFile = File(commandLine.getOptionValue("f", "list.conf"))
-    val regex = "(#)?(https://zh.xhamsterlive.com/\\S+)(?: (.+))?".toRegex()
+    val regex = "(#)?(https://(?:zh.)?xhamsterlive.com/\\S+)(?: (.+))?".toRegex()
     val recorders = channelFlow {
         if (!jobFile.exists())
             jobFile.writeText(BUILTIN.joinToString("\n"))
@@ -160,8 +186,7 @@ suspend fun main(vararg args: String) = supervisorScope {
             send(line)
         }
     }.map { it: String ->
-        val match = regex.find(it)
-        requireNotNull(match)
+        val match = regex.find(it) ?: return@map null
         val active = match.groupValues[1].isBlank()
         val url = match.groupValues[2]
         val q = extract(match.groupValues[3], "q:(\\S+)".toRegex(), "720p")
@@ -175,12 +200,12 @@ suspend fun main(vararg args: String) = supervisorScope {
                 room,
                 client,
                 commandLine.getOptionValue("o", "/mnt/download/_Crawler/Video/R18/rec/raw"),
-                commandLine.getOptionValue("tmp", "./"),
+                commandLine.getOptionValue("t", "./"),
             ).apply {
                 this.active = active
             }
         }
-    }.toList().awaitAll().filterNotNull().toMutableList()
+    }.toList().filterNotNull().awaitAll().filterNotNull().toMutableList()
     val jobList = recorders.map { recorder ->
         mt.println("Start ${recorder.room.name}")
         recorder to launch {
@@ -205,21 +230,24 @@ suspend fun main(vararg args: String) = supervisorScope {
         val tokens = line.split(" ")
         when (tokens.firstOrNull()) {
             "add" -> tokens.getOrNull(1)?.let {
-                val match = regex.find(it)
-                requireNotNull(match)
+                val match = regex.find(it) ?: return@let
                 val active = match.groupValues[1].isBlank()
                 val url = match.groupValues[2]
                 val q = extract(match.groupValues[3], "q:(\\S+)".toRegex(), "720p")
                 mt.println("${if (active) "[+]" else "[X]"} $q $url")
                 val room = withRetryOrNull(5, { it.message?.contains("404") == true }) {
                     proxiedClient.fetchRoomFromUrl(url, q)
-                } ?: return@let null
+                } ?: return@let
+                if (recorders.any { it.room.name==room.name }){
+                    mt.println("Exist ${room.name}")
+                    return@let
+                }
                 mt.println(room)
                 val recorder = RoomRecorder(
                     room,
                     client,
                     commandLine.getOptionValue("o", "/mnt/download/_Crawler/Video/R18/rec/raw"),
-                    commandLine.getOptionValue("tmp", "./"),
+                    commandLine.getOptionValue("t", "./"),
                 )
                 recorder.active = active
                 recorders.add(recorder)
@@ -232,16 +260,23 @@ suspend fun main(vararg args: String) = supervisorScope {
                             delay(60_000)
                         }
                     })
-                jobFile.appendText("\n$it")
+
+                jobFile.writeText(recorders.joinToString("\n") {
+                    "${if (it.active) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
+                })
             }
 
             "remove" -> tokens.getOrNull(1)?.let { input ->
                 val job =
                     jobList.find { it.first.room.id.toString() == input || it.first.room.name == input } ?: return@let
+                recorders.removeIf{ input.contains(it.room.name) }
                 job.second.cancel()
                 job.first.stop()
                 mt.println("[${job.first.room.name}] removed")
-                jobFile.writeText(jobFile.readText().lines().filterNot { it.contains(input) }.joinToString("\n"))
+
+                jobFile.writeText(recorders.joinToString("\n") {
+                    "${if (it.active) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
+                })
             }
 
             "stop" -> tokens.getOrNull(1)?.let { input ->
@@ -272,6 +307,9 @@ suspend fun main(vararg args: String) = supervisorScope {
                     recorders.find { it.room.id.toString() == input || it.room.name == input } ?: return@let
                 recorder.active = true
                 mt.println("[${recorder.room.name}] active")
+                jobFile.writeText(recorders.joinToString("\n") {
+                    "${if (it.active) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
+                })
             }
 
             "deactivate" -> tokens.getOrNull(1)?.let { input ->
@@ -279,6 +317,9 @@ suspend fun main(vararg args: String) = supervisorScope {
                     recorders.find { it.room.id.toString() == input || it.room.name == input } ?: return@let
                 recorder.active = false
                 mt.println("[${recorder.room.name}] deactivate")
+                jobFile.writeText(recorders.joinToString("\n") {
+                    "${if (it.active) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
+                })
             }
 
             "fatal" -> {
@@ -289,15 +330,19 @@ suspend fun main(vararg args: String) = supervisorScope {
                 mt.println(
                     "streaming recorder job room room_id quality"
                 )
-                jobList.forEach { (recorder, job) ->
-                    mt.println(
-                        if (recorder.isOpen()) "[*]" else "[ ]",
-                        if (recorder.active) "active" else "idle  ",
-                        if (job.isActive) "job running" else "job stopped",
-                        recorder.room.name,
-                        recorder.room.id,
-                        recorder.room.quality,
-                    )
+                jobList.map { (recorder, job) ->
+                    async {
+                        listOf(
+                            if (recorder.isOpen()) "[*]" else "[ ]",
+                            if (recorder.active) "active" else "idle  ",
+                            if (job.isActive) "job running" else "job stopped",
+                            recorder.room.name,
+                            recorder.room.id,
+                            recorder.room.quality,
+                        ).joinToString(" ")
+                    }
+                }.awaitAll().forEach {
+                    mt.println(it)
                 }
             }
 
