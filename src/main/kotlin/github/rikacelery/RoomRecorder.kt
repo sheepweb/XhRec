@@ -11,6 +11,7 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
+import java.time.LocalDateTime
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import javax.net.ssl.SSLHandshakeException
@@ -22,7 +23,7 @@ class RoomRecorder(
     private val destFolder: String,
     private val tmpFolder: String,
 ) : CoroutineScope {
-    private val writer: Writer = Writer(room.name, destFolder,tmpFolder)
+    private val writer: Writer = Writer(room.name, destFolder, tmpFolder)
     var active = false
         get() = field
         set(value) {
@@ -73,10 +74,13 @@ class RoomRecorder(
     private var job: Job? = null
 
     private val streamUrl: String
-        get() = if (room.quality.isNotBlank()) "https://b-hls-11.doppiocdn.live/hls/%d/%d_%s.m3u8?playlistType=lowLatency".format(
-            room.id, room.id, room.quality
-        )
-        else "https://b-hls-11.doppiocdn.live/hls/%d/%d.m3u8?playlistType=lowLatency".format(room.id, room.id)
+        get() {
+
+            return if (room.quality != "raw" && room.quality.isNotBlank()) "https://b-hls-11.doppiocdn.live/hls/%d/%d_%s.m3u8?playlistType=lowLatency".format(
+                room.id, room.id, room.quality
+            )
+            else "https://b-hls-11.doppiocdn.live/hls/%d/%d.m3u8?playlistType=lowLatency".format(room.id, room.id)
+        }
 
 
     private suspend fun segmentGenerator(channel: Channel<Event>) {
@@ -88,31 +92,6 @@ class RoomRecorder(
             try {
                 val lines = withTimeout(1000) {
                     proxiedClient.get(streamUrl).bodyAsText().lines()
-                }
-                runCatching {
-                    if (flag) return@runCatching
-                    val qualities = withRetry(10) {
-                        proxiedClient.get(
-                            "https://b-hls-06.doppiocdn.live/hls/%d/%d.m3u8?playlistType=lowLatency".format(
-                                room.id, room.id
-                            )
-                        ).bodyAsText().lines().filter {
-                            it.startsWith("#EXT-X-RENDITION-REPORT") && !it.contains("blurred")
-                        }.map {
-                            it.substringAfter(":URI=\"").substringBefore("\"").substringAfter("_")
-                                .substringBefore(".")
-                        }
-                    }
-                    if (room.quality.isNotBlank() && !qualities.contains(room.quality)) {
-                        mt.println("[${room.name}] 正在更正清晰度设置")
-                        val q = qualities.lastOrNull { it.contains("720p") } ?: qualities.last()
-                        room.quality = q
-                        mt.println("[${room.name}] 更正清晰度设置 ${q}")
-                    }
-                }.onFailure {
-                    mt.println("[${room.name}] 无法更正清晰度设置 $it")
-                }.onSuccess {
-                    flag = true
                 }
                 initUrl = lines.first { it.startsWith("#EXT-X-MAP") }.substringAfter("#EXT-X-MAP:URI=")
                     .removeSurrounding("\"")
@@ -167,6 +146,7 @@ class RoomRecorder(
         var initBytes = ByteArray(0)
         val idReg = "_\\d+p(?:\\d+)?_(\\d+)".toRegex()
         var total = 0
+        var failed = AtomicInteger(0)
         var done = AtomicInteger(0)
         supervisorScope {
             for (segment in channel) {
@@ -175,21 +155,28 @@ class RoomRecorder(
                         total++
                         synchronized(logs) {
                             val log = logs[room.id] ?: LogInfo(room.name, "")
-                            logs[room.id] = log.copy(progress = done.get() to total)
+                            logs[room.id] = log.copy(progress = Triple(done.get() ,failed.get(), total))
                         }
                         async {
                             val bytes = runCatching {
                                 val start = System.currentTimeMillis()
                                 val data =
-                                    withRetry(30, {
-                                        it is ClientRequestException && it.response.status == HttpStatusCode.NotFound ||
-                                                it is CancellationException
-                                    }) {
-                                        withTimeout(30_000) {
-                                            client.get(segment.url)
-                                                .readBytes()
+                                    withTimeoutOrNull(15_000L) {
+                                        withRetry(15, {
+                                            it is ClientRequestException && it.response.status == HttpStatusCode.NotFound ||
+                                                    it is CancellationException
+                                        }) { n ->
+                                            withTimeout(5_000){
+                                                client.get(segment.url)
+                                                    .readBytes()
+                                            }
                                         }
-                                    }
+                                    } ?: runCatching {
+                                        mt.println("proxy download: ${room.name}")
+                                        proxiedClient.get(segment.url).readBytes()
+                                    }.onFailure {
+                                        mt.println("${LocalDateTime.now()}[${room.name}] download failed $it")
+                                    }.getOrNull()
 
                                 data.also {
                                     synchronized(logs) {
@@ -220,10 +207,14 @@ class RoomRecorder(
                                         mt.println("[${room.name}] downloader job error " + e.message)
                                     }
                                 }
+                                synchronized(logs) {
+                                    val log = logs[room.id] ?: LogInfo(room.name)
+                                    logs[room.id] = log.copy(progress = Triple(done.get() ,failed.incrementAndGet(), total))
+                                }
                             }.getOrNull() ?: initBytes
                             synchronized(logs) {
                                 val log = logs[room.id] ?: LogInfo(room.name, "")
-                                logs[room.id] = log.copy(progress = done.incrementAndGet() to total)
+                                logs[room.id] = log.copy(progress = Triple(done.incrementAndGet() ,failed.get(), total))
                             }
                             bytes
                         }.let {
@@ -239,15 +230,38 @@ class RoomRecorder(
         }
     }
 
+    var isOpenCached: Boolean = false
+        private set
+
     suspend fun isOpen(): Boolean {
-        return withRetryOrNull(10) {
+        val b = withRetryOrNull(3) {
             try {
-                proxiedClient.get(streamUrl)
+                val qualities =
+                    withTimeout(3_000){
+                        proxiedClient.get(
+                            "https://b-hls-06.doppiocdn.live/hls/%d/%d.m3u8?playlistType=lowLatency".format(
+                                room.id, room.id
+                            )
+                        )
+                    }.bodyAsText().lines().filter {
+                        it.startsWith("#EXT-X-RENDITION-REPORT") && !it.contains("blurred")
+                    }.map {
+                        it.substringAfter(":URI=\"").substringBefore("\"").substringAfter("_")
+                            .substringBefore(".")
+                    }
+                val q = qualities.lastOrNull { it.contains("720p") } ?: qualities.lastOrNull()
+                val new = q ?: "raw"
+                if (room.quality != new) {
+                    mt.println("[${room.name}] 更正清晰度设置 ${room.quality} -> ${new}")
+                    room.quality = new
+                }
                 true
             } catch (e: ClientRequestException) {
                 false
             }
         } ?: false
+        isOpenCached = b
+        return b
     }
 
     fun start(): Job {

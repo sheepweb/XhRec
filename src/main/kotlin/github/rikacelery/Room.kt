@@ -11,10 +11,11 @@ import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.util.*
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.jsoup.Jsoup
 import java.io.File
-
+@Serializable
 data class Room(val name: String, val id: Long, var quality: String, val lastSeen: String? = null)
 
 suspend fun HttpClient.fetchRoomFromUrl(url: String, quality: String): Room {

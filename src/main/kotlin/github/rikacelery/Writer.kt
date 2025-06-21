@@ -71,7 +71,7 @@ class Writer(private val name: String, private val destFolder:String, private va
                 "ffmpeg",
                 "-hide_banner",
                 "-loglevel",
-                "warning",
+                "error",
                 "-stats",
                 "-i",
                 input.absolutePath,

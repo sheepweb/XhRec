@@ -34,6 +34,9 @@ dependencies {
     implementation("org.jline:jline:3.29.0")
     // https://mvnrepository.com/artifact/commons-cli/commons-cli
     implementation("commons-cli:commons-cli:1.9.0")
+    implementation("io.ktor:ktor-server-cors:2.3.12")
+    implementation("io.ktor:ktor-client-cio-jvm:2.3.12")
+    implementation("io.ktor:ktor-client-jetty:2.3.12")
 
     testImplementation("io.ktor:ktor-server-test-host-jvm")
     testImplementation("org.jetbrains.kotlin:kotlin-test")

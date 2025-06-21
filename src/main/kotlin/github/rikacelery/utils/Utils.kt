@@ -26,11 +26,11 @@ fun bytesToHumanReadable(bytes: Long): String {
     return "${"%.3f".format(bytesLeft)}${units[unitIndex]}"
 }
 
-suspend fun <T> withRetry(i: Int, stopIf: (Throwable) -> Boolean = { false }, function: suspend () -> T): T {
+suspend fun <T> withRetry(i: Int, stopIf: (Throwable) -> Boolean = { false }, function: suspend (n:Int) -> T): T {
     var err: Throwable? = null
     for (j in 0 until i) {
         runCatching {
-            return function()
+            return function(i)
         }.onFailure {
             if (stopIf(it)) {
                 throw it

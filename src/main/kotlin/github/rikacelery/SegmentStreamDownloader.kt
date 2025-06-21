@@ -23,7 +23,7 @@ suspend fun splitDownload(client: HttpClient, segmentUrl: String) = coroutineSco
                 val d = withRetry(10, {
                     // stop retry if 404
                     (it as? ClientRequestException)?.response?.status == HttpStatusCode.NotFound
-                }) {
+                }) { _->
                     client.get(segmentUrl) {
                         headers {
                             append("Range", "bytes=${it.first}-${it.last}")
