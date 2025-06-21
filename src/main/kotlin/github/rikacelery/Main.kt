@@ -1,8 +1,8 @@
 package github.rikacelery
 
 import github.rikacelery.utils.withRetryOrNull
+import github.rikacelery.v2.Scheduler
 import io.ktor.client.*
-import io.ktor.client.engine.cio.*
 import io.ktor.client.engine.okhttp.*
 import io.ktor.client.plugins.*
 import io.ktor.client.request.*
@@ -24,9 +24,8 @@ import java.io.File
 import java.net.InetSocketAddress
 import java.net.Proxy
 import java.util.*
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.TimeUnit
 import kotlin.math.max
-import kotlin.system.exitProcess
 
 
 val _clients = List(5) {
@@ -154,20 +153,26 @@ val BUILTIN = setOf(
     "https://zh.xhamsterlive.com/Monica_Lane_",
     "https://zh.xhamsterlive.com/choi_ara",
 )
-val mt = MyTerminal()
 
 fun extract(text: String, regex: Regex, default: String): String {
     return regex.find(text)?.groupValues?.get(1)?.ifBlank { default } ?: default
 }
 
 suspend fun main(vararg args: String) = supervisorScope {
-
+//    val sess =
+//        Session(proxiedClient.fetchRoomFromUrl("https://zh.xhamsterlive.com/zhizhi0000", "720p"), client, proxiedClient)
+//    launch { sess.start() }
+//    readln()
+//    sess.stop()
+//    client.close()
+//    proxiedClient.close()
+//    _clients.forEach { it.close() }
     val parser: CommandLineParser = DefaultParser()
     val options: Options = Options()
     options.addOption("f", "file", true, "Room List File")
     options.addOption("o", "output", true, "Output Dir")
     options.addOption("t", "tmp", true, "Temp Dir")
-    options.addOption("s", "server", false, "Server Mode")
+//    options.addOption("s", "server", false, "Server Mode")
     options.addOption("p", "port", true, "Server Port [default:8090]")
 
     val commandLine: CommandLine = try {
@@ -182,17 +187,9 @@ suspend fun main(vararg args: String) = supervisorScope {
         formatter.printHelp("CommandLineParameters", options)
     }
 
-    val logger = launch {
-        while (isActive) {
-            synchronized(logs) {
-                mt.status(logs.toSortedMap())
-            }
-            delay(100)
-        }
-    }
     val jobFile = File(commandLine.getOptionValue("f", "list.conf"))
     val regex = "(#)?(https://(?:zh.)?xhamsterlive.com/\\S+)(?: (.+))?".toRegex()
-    val recorders = channelFlow {
+    val rooms = channelFlow {
         if (!jobFile.exists())
             jobFile.writeText(BUILTIN.joinToString("\n"))
         for (line in jobFile.bufferedReader().lines().filter { it.isNotBlank() }) {
@@ -203,7 +200,7 @@ suspend fun main(vararg args: String) = supervisorScope {
         val active = match.groupValues[1].isBlank()
         val url = match.groupValues[2]
         val q = extract(match.groupValues[3], "q:(\\S+)".toRegex(), "720p")
-        mt.println("${if (active) "[+]" else "[X]"} $q $url")
+        println("${if (active) "[+]" else "[X]"} $q $url")
         async {
             val room = withRetryOrNull(5, { it.message?.contains("404") == true }) {
                 proxiedClient.fetchRoomFromUrl(url, q)
@@ -211,378 +208,161 @@ suspend fun main(vararg args: String) = supervisorScope {
                 println("failed " + url)
                 return@async null
             }
-            mt.println(room)
-            RoomRecorder(
-                room,
-                client,
-                commandLine.getOptionValue("o", "/mnt/download/_Crawler/Video/R18/rec/raw"),
-                commandLine.getOptionValue("t", "./"),
-            ).apply {
-                this.active = active
-            }
+            println(room)
+            room to active
         }
     }.toList().filterNotNull().awaitAll().filterNotNull().toMutableList()
-    val jobList = recorders.map { recorder ->
-        mt.println("Start ${recorder.room.name}")
-        recorder to launch {
-            while (isActive) {
-                if (recorder.isOpen() && recorder.active)
-                    recorder.start().join()
-                delay(60_000)
-            }
-        }
-    }.toList().toMutableList()
+
+    val scheduler = Scheduler(commandLine.getOptionValue("o", "out"), commandLine.getOptionValue("t", "tmp"))
+    rooms.forEach {
+        scheduler.add(it.first, it.second)
+    }
+    println("-".repeat(10) + "DONE" + "-".repeat(10))
+
     // 开启截图协程
-    val sc = launch {
-        while (isActive) {
-            recorders.filter(RoomRecorder::isOpenCached).map {
-                launch {
-                    File("screenshot/${it.room.name}").mkdirs()
+    val sc = launch(Dispatchers.IO) {
+        while (currentCoroutineContext().isActive) {
+            scheduler.sessions.filterValues { it.testAndConfigure() }.map {
+                async {
+                    File("screenshot/${it.key.room.name}").mkdirs()
                     val builder = ProcessBuilder(
                         "ffmpeg",
+                        "-hide_banner",
+                        "-v",
+                        "error",
                         "-i",
-                        "https://b-hls-16.doppiocdn.live/hls/${it.room.id}/${it.room.id}.m3u8",
+                        "https://b-hls-16.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}.m3u8",
                         "-vf",
-                        "scale=1280:-1",
+                        "scale=480:-1",
                         "-vframes",
                         "1",
                         "-q:v",
                         "2",
-                        "screenshot/${it.room.name}/%d.jpg".format(System.currentTimeMillis() / 1000)
+                        "screenshot/${it.key.room.name}/%d.jpg".format(System.currentTimeMillis() / 1000)
                     )
 
                     runCatching {
                         val p = builder.start()
-                        if (p.waitFor() != 0) {
-                            builder.start().waitFor()
-                        }
+                        p
                     }.onFailure {
                         it.printStackTrace()
                     }
                 }
-            }
+            }.awaitAll().map {
+                launch {
+                    it.getOrNull()?.waitFor(30, TimeUnit.SECONDS)
+                    it.getOrNull()?.destroyForcibly()
+                }
+            }.joinAll()
             delay(3 * 60_000)
         }
     }
-    mt.println("-".repeat(10) + "DONE" + "-".repeat(10))
-
-    val running = AtomicBoolean(true)
-
     // web server
-    val server = if (mt.terminal == null || commandLine.hasOption("s")) launch {
-        var engine: ApplicationEngine? = null
-        engine = embeddedServer(
-            io.ktor.server.cio.CIO,
-            port = commandLine.getOptionValue("p", "8090").toInt(),
-            host = "0.0.0.0"
-        ) {
-            install(ContentNegotiation) {
-                json()
-            }
-            install(CORS) {
-                anyHost() // @TODO: Don't do this in production if possible. Try to limit it.
-            }
-            routing {
-                get("/add") {
-                    val active = call.request.queryParameters["active"].toBoolean()
-                    val slug = call.request.queryParameters["slug"]
-                    if (slug == null) {
-                        call.respond(HttpStatusCode.NotAcceptable, "Room slug not provided.")
-                        return@get
-                    }
-                    val url = "https://zh.xhamsterlive.com/${slug.substringAfterLast("/").substringBefore("#")}"
-                    val q = call.request.queryParameters["slug"] ?: "720p"
-                    mt.println("${if (active) "[+]" else "[X]"} $q $slug")
-                    val room = withRetryOrNull(5, { it.message?.contains("404") == true }) {
-                        proxiedClient.fetchRoomFromUrl(url, q)
-                    }
-                    if (room == null) {
-                        call.respond(HttpStatusCode.InternalServerError, "Failed to get room info.")
-                        return@get
-                    }
-                    if (recorders.any { it.room.name == room.name }) {
-                        mt.println("Exist ${room.name}")
-                        call.respond(HttpStatusCode.InternalServerError, "Exist ${room.name}.")
-                        return@get
-                    }
-                    mt.println(room)
-                    val recorder = RoomRecorder(
-                        room,
-                        client,
-                        commandLine.getOptionValue("o", "/mnt/download/_Crawler/Video/R18/rec/raw"),
-                        commandLine.getOptionValue("t", "./"),
-                    )
-                    recorder.active = active
-                    recorders.add(recorder)
-                    mt.println("Start ${recorder.room.name}")
-                    jobList.add(
-                        recorder to launch {
-                            while (isActive) {
-                                if (recorder.isOpen() && recorder.active)
-                                    recorder.start().join()
-                                delay(60_000)
-                            }
-                        })
-
-                    jobFile.writeText(recorders.joinToString("\n") {
-                        "${if (it.active) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
-                    })
-                    call.respond("OK")
-                }
-                get("/remove") {
-                    val slug = call.request.queryParameters["slug"]
-                    if (slug == null) {
-                        call.respond(HttpStatusCode.NotAcceptable, "Room slug not provided.")
-                        return@get
-                    }
-                    val job =
-                        jobList.find { it.first.room.id.toString() == slug || it.first.room.name == slug }
-                    if (job == null) {
-                        call.respond(HttpStatusCode.NotAcceptable, "Job not found.")
-                        return@get
-                    }
-                    recorders.removeIf { slug.contains(it.room.name) }
-                    job.second.cancel()
-                    job.first.stop()
-                    mt.println("[${job.first.room.name}] removed")
-
-                    jobFile.writeText(recorders.joinToString("\n") {
-                        "${if (it.active) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
-                    })
-                    call.respond("OK")
-                }
-                get("/start") {
-                    call.respond(HttpStatusCode.InternalServerError, "Not implement.")
-
-                }
-                get("/stop") {
-                    call.respond(HttpStatusCode.InternalServerError, "Not implement.")
-                }
-                get("/activate") {
-                    val slug = call.request.queryParameters["slug"]
-                    if (slug == null) {
-                        call.respond(HttpStatusCode.NotAcceptable, "Room slug not provided.")
-                        return@get
-                    }
-                    val recorder =
-                        recorders.find { it.room.id.toString() == slug || it.room.name == slug }
-                    if (recorder == null) {
-                        call.respond(HttpStatusCode.NotAcceptable, "Recorder not found.")
-                        return@get
-                    }
-                    recorder.active = true
-                    mt.println("[${recorder.room.name}] active")
-                    jobFile.writeText(recorders.joinToString("\n") {
-                        "${if (it.active) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
-                    })
-                    call.respond("OK")
-
-                }
-                get("/deactivate") {
-
-                    val slug = call.request.queryParameters["slug"]
-                    if (slug == null) {
-                        call.respond(HttpStatusCode.NotAcceptable, "Room slug not provided.")
-                        return@get
-                    }
-                    val recorder =
-                        recorders.find { it.room.id.toString() == slug || it.room.name == slug }
-
-                    if (recorder == null) {
-                        call.respond(HttpStatusCode.NotAcceptable, "Recorder not found.")
-                        return@get
-                    }
-                    recorder.active = false
-                    mt.println("[${recorder.room.name}] deactivate")
-                    jobFile.writeText(recorders.joinToString("\n") {
-                        "${if (it.active) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
-                    })
-                    call.respond("OK")
-                }
-                get("/list") {
-                    mt.println(
-                        "streaming recorder job room room_id quality"
-                    )
-                    val list = jobList.map { (recorder, job) ->
-                        async {
-                            listOf(
-                                if (recorder.isOpen()) "[*]" else "[ ]",
-                                if (recorder.active) "active" else "idle  ",
-                                if (job.isActive) "listening" else "X stopped",
-                                recorder.room.name,
-                                recorder.room.id.toString(),
-                                recorder.room.quality,
-                            )
-                        }
-                    }.awaitAll().also {
-                        // column
-                        it.associateWith { it.map(String::length) }.let {
-                            val maxLen = it.values.reduce { acc, ints ->
-                                acc.zip(ints).map { max(it.first, it.second) }
-                            }
-                            it.keys.map { strings ->
-                                strings.zip(maxLen).map { pair ->
-                                    pair.first.padEnd(pair.second)
-                                }
-                            }
-                        }.sortedBy { it[0] + it[1] + it[3] }.forEach {
-                            mt.println(it.joinToString(" "))
-                        }
-                    }
-
-                    call.respond(list)
-                }
-                get("/status") {
-                    synchronized(logs) {
-                        runBlocking {
-                            call.respond(logs.toMap())
-                        }
-                    }
-                }
-                get("/recorders") {
-                    synchronized(recorders) {
-                        runBlocking {
-                            call.respond(recorders.map { it.room })
-                        }
-                    }
-                }
-                get("/stop-server") {
-                    running.set(false)
-                    engine?.stop(1000)
-                }
-            }
+    var engine: ApplicationEngine? = null
+    engine = embeddedServer(
+        io.ktor.server.cio.CIO,
+        port = commandLine.getOptionValue("p", "8090").toInt(),
+        host = "0.0.0.0"
+    ) {
+        install(ContentNegotiation) {
+            json()
         }
-            .start(wait = true)
-    } else null
-    // REPL 主线程
-    while (mt.terminal != null && running.get() && !commandLine.hasOption("s")) {
-        val line = try {
-            mt.readLine().trim()
-        } catch (e: Exception) {
-            running.set(false)
-            break
+        install(CORS) {
+            anyHost() // @TODO: Don't do this in production if possible. Try to limit it.
         }
-        val tokens = line.split(" ", limit = 2)
-        when (tokens.firstOrNull()) {
-            "add" -> tokens.getOrNull(1)?.let {
-                val match = regex.find(it) ?: return@let
-                val active = match.groupValues[1].isBlank()
-                val url = match.groupValues[2]
-                val q = extract(match.groupValues[3], "q:(\\S+)".toRegex(), "720p")
-                mt.println("${if (active) "[+]" else "[X]"} $q $url")
+        routing {
+            get("/add") {
+                val active = call.request.queryParameters["active"].toBoolean()
+                val slug = call.request.queryParameters["slug"]
+                if (slug == null) {
+                    call.respond(HttpStatusCode.NotAcceptable, "Room slug not provided.")
+                    return@get
+                }
+                val url = "https://zh.xhamsterlive.com/${slug.substringAfterLast("/").substringBefore("#")}"
+                val q = call.request.queryParameters["slug"] ?: "720p"
+                println("${if (active) "[+]" else "[X]"} $q $slug")
                 val room = withRetryOrNull(5, { it.message?.contains("404") == true }) {
                     proxiedClient.fetchRoomFromUrl(url, q)
-                } ?: return@let
-                if (recorders.any { it.room.name == room.name }) {
-                    mt.println("Exist ${room.name}")
-                    return@let
                 }
-                mt.println(room)
-                val recorder = RoomRecorder(
-                    room,
-                    client,
-                    commandLine.getOptionValue("o", "/mnt/download/_Crawler/Video/R18/rec/raw"),
-                    commandLine.getOptionValue("t", "./"),
-                )
-                recorder.active = active
-                recorders.add(recorder)
-                mt.println("Start ${recorder.room.name}")
-                jobList.add(
-                    recorder to launch {
-                        while (isActive) {
-                            if (recorder.isOpen() && recorder.active)
-                                recorder.start().join()
-                            delay(60_000)
-                        }
-                    })
-
-                jobFile.writeText(recorders.joinToString("\n") {
-                    "${if (it.active) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
+                if (room == null) {
+                    call.respond(HttpStatusCode.InternalServerError, "Failed to get room info.")
+                    return@get
+                }
+                if (scheduler.sessions.keys.any { it.room.name == room.name }) {
+                    println("Exist ${room.name}")
+                    call.respond(HttpStatusCode.InternalServerError, "Exist ${room.name}.")
+                    return@get
+                }
+                println(room)
+                scheduler.add(room, active)
+                jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
+                    "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
                 })
+                call.respond("OK")
             }
-
-            "remove" -> tokens.getOrNull(1)?.let { input ->
-                val job =
-                    jobList.find { it.first.room.id.toString() == input || it.first.room.name == input } ?: return@let
-                recorders.removeIf { input.contains(it.room.name) }
-                job.second.cancel()
-                job.first.stop()
-                mt.println("[${job.first.room.name}] removed")
-
-                jobFile.writeText(recorders.joinToString("\n") {
-                    "${if (it.active) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
+            get("/remove") {
+                val slug = call.request.queryParameters["slug"]
+                if (slug == null) {
+                    call.respond(HttpStatusCode.NotAcceptable, "Room slug not provided.")
+                    return@get
+                }
+                scheduler.remove(slug)
+                jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
+                    "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
                 })
+                call.respond("OK")
             }
-
-            "stop" -> tokens.getOrNull(1)?.let { input ->
-                val job =
-                    jobList.find { it.first.room.id.toString() == input || it.first.room.name == input } ?: return@let
-                job.second.cancel()
-                job.first.stop()
-                mt.println("[${job.first.room.name}] stopped")
-            }
-
-            "start" -> tokens.getOrNull(1)?.let { input ->
-                val recorder =
-                    recorders.find { it.room.id.toString() == input || it.room.name == input } ?: return@let
-                jobList.add(
-                    recorder to launch {
-                        val old = recorder.active
-                        recorder.active = true
-                        while (isActive) {
-                            if (recorder.isOpen() && recorder.active) {
-                                recorder.start().join()
-                                recorder.active = old
-                            }
-                            delay(60_000)
-                        }
-                    })
-                mt.println("[${recorder.room.name}] started")
+            get("/start") {
+                call.respond(HttpStatusCode.InternalServerError, "Not implement.")
 
             }
-
-            "active" -> tokens.getOrNull(1)?.let { input ->
-                val recorder =
-                    recorders.find { it.room.id.toString() == input || it.room.name == input } ?: return@let
-                recorder.active = true
-                mt.println("[${recorder.room.name}] active")
-                jobFile.writeText(recorders.joinToString("\n") {
-                    "${if (it.active) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
+            get("/stop") {
+                call.respond(HttpStatusCode.InternalServerError, "Not implement.")
+            }
+            get("/activate") {
+                val slug = call.request.queryParameters["slug"]
+                if (slug == null) {
+                    call.respond(HttpStatusCode.NotAcceptable, "Room slug not provided.")
+                    return@get
+                }
+                scheduler.active(slug)
+                jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
+                    "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
                 })
-            }
+                call.respond("OK")
 
-            "deactivate" -> tokens.getOrNull(1)?.let { input ->
-                val recorder =
-                    recorders.find { it.room.id.toString() == input || it.room.name == input } ?: return@let
-                recorder.active = false
-                mt.println("[${recorder.room.name}] deactivate")
-                jobFile.writeText(recorders.joinToString("\n") {
-                    "${if (it.active) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
+            }
+            get("/deactivate") {
+
+                val slug = call.request.queryParameters["slug"]
+                if (slug == null) {
+                    call.respond(HttpStatusCode.NotAcceptable, "Room slug not provided.")
+                    return@get
+                }
+                scheduler.deactivate(slug)
+                jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
+                    "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
                 })
+                call.respond("OK")
             }
-
-            "fatal" -> {
-                exitProcess(1)
-            }
-
-            "list" -> {
-                mt.println(
+            get("/list") {
+                println(
                     "streaming recorder job room room_id quality"
                 )
-                jobList.map { (recorder, job) ->
+                val list = scheduler.sessions.map { (state, session) ->
                     async {
                         listOf(
-                            if (recorder.isOpen()) "[*]" else "[ ]",
-                            if (recorder.active) "active" else "idle  ",
-                            if (job.isActive) "listening" else "X stopped",
-                            recorder.room.name,
-                            recorder.room.id.toString(),
-                            recorder.room.quality,
+                            if (session.testAndConfigure()) "[*]" else "[ ]",
+                            if (state.listen) "listening" else "         ",
+                            if (session.isActive) "recording" else "         ",
+                            state.room.name,
+                            state.room.id.toString(),
+                            state.room.quality,
                         )
                     }
-                }.awaitAll()
+                }.awaitAll().also {
                     // column
-                    .associateWith { it.map(String::length) }.let {
+                    it.associateWith { it.map(String::length) }.let {
                         val maxLen = it.values.reduce { acc, ints ->
                             acc.zip(ints).map { max(it.first, it.second) }
                         }
@@ -592,30 +372,464 @@ suspend fun main(vararg args: String) = supervisorScope {
                             }
                         }
                     }.sortedBy { it[0] + it[1] + it[3] }.forEach {
-                        mt.println(it.joinToString(" "))
+                        println(it.joinToString(" "))
                     }
-            }
+                }
 
-            "exit" -> running.set(false)
-            else -> {
-                mt.println("Unknown command. Try: add/remove/start/stop/active/deactivate/list/exit/fatal")
+                call.respond(list)
+            }
+            get("/status") {
+                call.respond(scheduler.sessions.filter { it.value.isActive }
+                    .map { it.key.room.name to it.value.status() }.toMap())
+            }
+//            get("/recorders") {
+//                synchronized(recorders) {
+//                    runBlocking {
+//                        call.respond(recorders.map { it.room })
+//                    }
+//                }
+//            }
+            get("/stop-server") {
+                scheduler.stop()
+                call.respond("OK")
+                engine?.stop(1000)
             }
         }
     }
-    server?.join()
-    sc.cancel()
-    jobList.map { (rec, job) ->
-        job.cancel()
-        launch { rec.stop() }
-    }.joinAll()
+        .start(wait = false)
 
-    logger.cancel()
-    mt.println("all done")
+    scheduler.start()
+    println("all done")
     proxiedClient.close()
     _clients.forEach {
         it.close()
     }
-    mt.terminal?.close()
-    exitProcess(0)
+    return@supervisorScope
+//    val recorders = channelFlow {
+//        if (!jobFile.exists())
+//            jobFile.writeText(BUILTIN.joinToString("\n"))
+//        for (line in jobFile.bufferedReader().lines().filter { it.isNotBlank() }) {
+//            send(line)
+//        }
+//    }.map { it: String ->
+//        val match = regex.find(it) ?: return@map null
+//        val active = match.groupValues[1].isBlank()
+//        val url = match.groupValues[2]
+//        val q = extract(match.groupValues[3], "q:(\\S+)".toRegex(), "720p")
+//        println("${if (active) "[+]" else "[X]"} $q $url")
+//        async {
+//            val room = withRetryOrNull(5, { it.message?.contains("404") == true }) {
+//                proxiedClient.fetchRoomFromUrl(url, q)
+//            } ?: run {
+//                println("failed " + url)
+//                return@async null
+//            }
+//            println(room)
+//            RoomRecorder(
+//                room,
+//                client,
+//                commandLine.getOptionValue("o", "/mnt/download/_Crawler/Video/R18/rec/raw"),
+//                commandLine.getOptionValue("t", "./"),
+//            ).apply {
+//                this.active = active
+//            }
+//        }
+//    }.toList().filterNotNull().awaitAll().filterNotNull().toMutableList()
+//
+//    val jobList = recorders.map { recorder ->
+//        println("Start ${recorder.room.name}")
+//        recorder to launch {
+//            while (isActive) {
+//                if (recorder.isOpen() && recorder.active)
+//                    recorder.start().join()
+//                delay(60_000)
+//            }
+//        }
+//    }.toList().toMutableList()
+//    // 开启截图协程
+//    val sc = launch {
+//        while (isActive) {
+//            recorders.filter(RoomRecorder::isOpenCached).map {
+//                launch {
+//                    File("screenshot/${it.room.name}").mkdirs()
+//                    val builder = ProcessBuilder(
+//                        "ffmpeg",
+//                        "-i",
+//                        "https://b-hls-16.doppiocdn.live/hls/${it.room.id}/${it.room.id}.m3u8",
+//                        "-vf",
+//                        "scale=1280:-1",
+//                        "-vframes",
+//                        "1",
+//                        "-q:v",
+//                        "2",
+//                        "screenshot/${it.room.name}/%d.jpg".format(System.currentTimeMillis() / 1000)
+//                    )
+//
+//                    runCatching {
+//                        val p = builder.start()
+//                        if (p.waitFor() != 0) {
+//                            builder.start().waitFor()
+//                        }
+//                    }.onFailure {
+//                        it.printStackTrace()
+//                    }
+//                }
+//            }
+//            delay(3 * 60_000)
+//        }
+//    }
+//    println("-".repeat(10) + "DONE" + "-".repeat(10))
+//
+//    val running = AtomicBoolean(true)
+//
+//    // web server
+//    val server = if (terminal == null || commandLine.hasOption("s")) launch {
+//        var engine: ApplicationEngine? = null
+//        engine = embeddedServer(
+//            io.ktor.server.cio.CIO,
+//            port = commandLine.getOptionValue("p", "8090").toInt(),
+//            host = "0.0.0.0"
+//        ) {
+//            install(ContentNegotiation) {
+//                json()
+//            }
+//            install(CORS) {
+//                anyHost() // @TODO: Don't do this in production if possible. Try to limit it.
+//            }
+//            routing {
+//                get("/add") {
+//                    val active = call.request.queryParameters["active"].toBoolean()
+//                    val slug = call.request.queryParameters["slug"]
+//                    if (slug == null) {
+//                        call.respond(HttpStatusCode.NotAcceptable, "Room slug not provided.")
+//                        return@get
+//                    }
+//                    val url = "https://zh.xhamsterlive.com/${slug.substringAfterLast("/").substringBefore("#")}"
+//                    val q = call.request.queryParameters["slug"] ?: "720p"
+//                    println("${if (active) "[+]" else "[X]"} $q $slug")
+//                    val room = withRetryOrNull(5, { it.message?.contains("404") == true }) {
+//                        proxiedClient.fetchRoomFromUrl(url, q)
+//                    }
+//                    if (room == null) {
+//                        call.respond(HttpStatusCode.InternalServerError, "Failed to get room info.")
+//                        return@get
+//                    }
+//                    if (recorders.any { it.room.name == room.name }) {
+//                        println("Exist ${room.name}")
+//                        call.respond(HttpStatusCode.InternalServerError, "Exist ${room.name}.")
+//                        return@get
+//                    }
+//                    println(room)
+//                    val recorder = RoomRecorder(
+//                        room,
+//                        client,
+//                        commandLine.getOptionValue("o", "/mnt/download/_Crawler/Video/R18/rec/raw"),
+//                        commandLine.getOptionValue("t", "./"),
+//                    )
+//                    recorder.active = active
+//                    recorders.add(recorder)
+//                    println("Start ${recorder.room.name}")
+//                    jobList.add(
+//                        recorder to launch {
+//                            while (isActive) {
+//                                if (recorder.isOpen() && recorder.active)
+//                                    recorder.start().join()
+//                                delay(60_000)
+//                            }
+//                        })
+//
+//                    jobFile.writeText(recorders.joinToString("\n") {
+//                        "${if (it.active) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
+//                    })
+//                    call.respond("OK")
+//                }
+//                get("/remove") {
+//                    val slug = call.request.queryParameters["slug"]
+//                    if (slug == null) {
+//                        call.respond(HttpStatusCode.NotAcceptable, "Room slug not provided.")
+//                        return@get
+//                    }
+//                    val job =
+//                        jobList.find { it.first.room.id.toString() == slug || it.first.room.name == slug }
+//                    if (job == null) {
+//                        call.respond(HttpStatusCode.NotAcceptable, "Job not found.")
+//                        return@get
+//                    }
+//                    recorders.removeIf { slug.contains(it.room.name) }
+//                    job.second.cancel()
+//                    job.first.stop()
+//                    println("[${job.first.room.name}] removed")
+//
+//                    jobFile.writeText(recorders.joinToString("\n") {
+//                        "${if (it.active) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
+//                    })
+//                    call.respond("OK")
+//                }
+//                get("/start") {
+//                    call.respond(HttpStatusCode.InternalServerError, "Not implement.")
+//
+//                }
+//                get("/stop") {
+//                    call.respond(HttpStatusCode.InternalServerError, "Not implement.")
+//                }
+//                get("/activate") {
+//                    val slug = call.request.queryParameters["slug"]
+//                    if (slug == null) {
+//                        call.respond(HttpStatusCode.NotAcceptable, "Room slug not provided.")
+//                        return@get
+//                    }
+//                    val recorder =
+//                        recorders.find { it.room.id.toString() == slug || it.room.name == slug }
+//                    if (recorder == null) {
+//                        call.respond(HttpStatusCode.NotAcceptable, "Recorder not found.")
+//                        return@get
+//                    }
+//                    recorder.active = true
+//                    println("[${recorder.room.name}] active")
+//                    jobFile.writeText(recorders.joinToString("\n") {
+//                        "${if (it.active) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
+//                    })
+//                    call.respond("OK")
+//
+//                }
+//                get("/deactivate") {
+//
+//                    val slug = call.request.queryParameters["slug"]
+//                    if (slug == null) {
+//                        call.respond(HttpStatusCode.NotAcceptable, "Room slug not provided.")
+//                        return@get
+//                    }
+//                    val recorder =
+//                        recorders.find { it.room.id.toString() == slug || it.room.name == slug }
+//
+//                    if (recorder == null) {
+//                        call.respond(HttpStatusCode.NotAcceptable, "Recorder not found.")
+//                        return@get
+//                    }
+//                    recorder.active = false
+//                    println("[${recorder.room.name}] deactivate")
+//                    jobFile.writeText(recorders.joinToString("\n") {
+//                        "${if (it.active) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
+//                    })
+//                    call.respond("OK")
+//                }
+//                get("/list") {
+//                    println(
+//                        "streaming recorder job room room_id quality"
+//                    )
+//                    val list = jobList.map { (recorder, job) ->
+//                        async {
+//                            listOf(
+//                                if (recorder.isOpen()) "[*]" else "[ ]",
+//                                if (recorder.active) "active" else "idle  ",
+//                                if (job.isActive) "listening" else "X stopped",
+//                                recorder.room.name,
+//                                recorder.room.id.toString(),
+//                                recorder.room.quality,
+//                            )
+//                        }
+//                    }.awaitAll().also {
+//                        // column
+//                        it.associateWith { it.map(String::length) }.let {
+//                            val maxLen = it.values.reduce { acc, ints ->
+//                                acc.zip(ints).map { max(it.first, it.second) }
+//                            }
+//                            it.keys.map { strings ->
+//                                strings.zip(maxLen).map { pair ->
+//                                    pair.first.padEnd(pair.second)
+//                                }
+//                            }
+//                        }.sortedBy { it[0] + it[1] + it[3] }.forEach {
+//                            println(it.joinToString(" "))
+//                        }
+//                    }
+//
+//                    call.respond(list)
+//                }
+//                get("/status") {
+//                    synchronized(logs) {
+//                        runBlocking {
+//                            call.respond(logs.toMap())
+//                        }
+//                    }
+//                }
+//                get("/recorders") {
+//                    synchronized(recorders) {
+//                        runBlocking {
+//                            call.respond(recorders.map { it.room })
+//                        }
+//                    }
+//                }
+//                get("/stop-server") {
+//                    running.set(false)
+//                    engine?.stop(1000)
+//                }
+//            }
+//        }
+//            .start(wait = true)
+//    } else null
+//    // REPL 主线程
+//    while (terminal != null && running.get() && !commandLine.hasOption("s")) {
+//        val line = try {
+//            readLine().trim()
+//        } catch (e: Exception) {
+//            running.set(false)
+//            break
+//        }
+//        val tokens = line.split(" ", limit = 2)
+//        when (tokens.firstOrNull()) {
+//            "add" -> tokens.getOrNull(1)?.let {
+//                val match = regex.find(it) ?: return@let
+//                val active = match.groupValues[1].isBlank()
+//                val url = match.groupValues[2]
+//                val q = extract(match.groupValues[3], "q:(\\S+)".toRegex(), "720p")
+//                println("${if (active) "[+]" else "[X]"} $q $url")
+//                val room = withRetryOrNull(5, { it.message?.contains("404") == true }) {
+//                    proxiedClient.fetchRoomFromUrl(url, q)
+//                } ?: return@let
+//                if (recorders.any { it.room.name == room.name }) {
+//                    println("Exist ${room.name}")
+//                    return@let
+//                }
+//                println(room)
+//                val recorder = RoomRecorder(
+//                    room,
+//                    client,
+//                    commandLine.getOptionValue("o", "/mnt/download/_Crawler/Video/R18/rec/raw"),
+//                    commandLine.getOptionValue("t", "./"),
+//                )
+//                recorder.active = active
+//                recorders.add(recorder)
+//                println("Start ${recorder.room.name}")
+//                jobList.add(
+//                    recorder to launch {
+//                        while (isActive) {
+//                            if (recorder.isOpen() && recorder.active)
+//                                recorder.start().join()
+//                            delay(60_000)
+//                        }
+//                    })
+//
+//                jobFile.writeText(recorders.joinToString("\n") {
+//                    "${if (it.active) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
+//                })
+//            }
+//
+//            "remove" -> tokens.getOrNull(1)?.let { input ->
+//                val job =
+//                    jobList.find { it.first.room.id.toString() == input || it.first.room.name == input } ?: return@let
+//                recorders.removeIf { input.contains(it.room.name) }
+//                job.second.cancel()
+//                job.first.stop()
+//                println("[${job.first.room.name}] removed")
+//
+//                jobFile.writeText(recorders.joinToString("\n") {
+//                    "${if (it.active) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
+//                })
+//            }
+//
+//            "stop" -> tokens.getOrNull(1)?.let { input ->
+//                val job =
+//                    jobList.find { it.first.room.id.toString() == input || it.first.room.name == input } ?: return@let
+//                job.second.cancel()
+//                job.first.stop()
+//                println("[${job.first.room.name}] stopped")
+//            }
+//
+//            "start" -> tokens.getOrNull(1)?.let { input ->
+//                val recorder =
+//                    recorders.find { it.room.id.toString() == input || it.room.name == input } ?: return@let
+//                jobList.add(
+//                    recorder to launch {
+//                        val old = recorder.active
+//                        recorder.active = true
+//                        while (isActive) {
+//                            if (recorder.isOpen() && recorder.active) {
+//                                recorder.start().join()
+//                                recorder.active = old
+//                            }
+//                            delay(60_000)
+//                        }
+//                    })
+//                println("[${recorder.room.name}] started")
+//
+//            }
+//
+//            "active" -> tokens.getOrNull(1)?.let { input ->
+//                val recorder =
+//                    recorders.find { it.room.id.toString() == input || it.room.name == input } ?: return@let
+//                recorder.active = true
+//                println("[${recorder.room.name}] active")
+//                jobFile.writeText(recorders.joinToString("\n") {
+//                    "${if (it.active) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
+//                })
+//            }
+//
+//            "deactivate" -> tokens.getOrNull(1)?.let { input ->
+//                val recorder =
+//                    recorders.find { it.room.id.toString() == input || it.room.name == input } ?: return@let
+//                recorder.active = false
+//                println("[${recorder.room.name}] deactivate")
+//                jobFile.writeText(recorders.joinToString("\n") {
+//                    "${if (it.active) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
+//                })
+//            }
+//
+//            "fatal" -> {
+//                exitProcess(1)
+//            }
+//
+//            "list" -> {
+//                println(
+//                    "streaming recorder job room room_id quality"
+//                )
+//                jobList.map { (recorder, job) ->
+//                    async {
+//                        listOf(
+//                            if (recorder.isOpen()) "[*]" else "[ ]",
+//                            if (recorder.active) "active" else "idle  ",
+//                            if (job.isActive) "listening" else "X stopped",
+//                            recorder.room.name,
+//                            recorder.room.id.toString(),
+//                            recorder.room.quality,
+//                        )
+//                    }
+//                }.awaitAll()
+//                    // column
+//                    .associateWith { it.map(String::length) }.let {
+//                        val maxLen = it.values.reduce { acc, ints ->
+//                            acc.zip(ints).map { max(it.first, it.second) }
+//                        }
+//                        it.keys.map { strings ->
+//                            strings.zip(maxLen).map { pair ->
+//                                pair.first.padEnd(pair.second)
+//                            }
+//                        }
+//                    }.sortedBy { it[0] + it[1] + it[3] }.forEach {
+//                        println(it.joinToString(" "))
+//                    }
+//            }
+//
+//            "exit" -> running.set(false)
+//            else -> {
+//                println("Unknown command. Try: add/remove/start/stop/active/deactivate/list/exit/fatal")
+//            }
+//        }
+//    }
+//    server?.join()
+//    sc.cancel()
+//    jobList.map { (rec, job) ->
+//        job.cancel()
+//        launch { rec.stop() }
+//    }.joinAll()
+//
+//    logger.cancel()
+//    println("all done")
+//    proxiedClient.close()
+//    _clients.forEach {
+//        it.close()
+//    }
+//    terminal?.close()
+//    exitProcess(0)
 }
 

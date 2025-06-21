@@ -1,4 +1,4 @@
-package github.rikacelery
+package github.rikacelery.v2
 
 import github.rikacelery.utils.toLocalDateTime
 import java.io.BufferedOutputStream
@@ -13,7 +13,7 @@ class Writer(private val name: String, private val destFolder:String, private va
     private lateinit var bufferedWriter: BufferedOutputStream
     private lateinit var timeStarted: Date
     private var inited = false
-    private var n = 0
+    private var     n = 0
     val ext = "mp4"
 
 
@@ -22,7 +22,7 @@ class Writer(private val name: String, private val destFolder:String, private va
 
     fun init() {
         timeStarted = Date()
-        file = File(tmpfolder, "rec_${name}-${formatedStartTime()}_init.${ext}")
+        file = File(tmpfolder, "${name}-${formatedStartTime()}-init.${ext}")
         bufferedWriter = file.outputStream().buffered(bufferSize = 1024 * 1024 * 8)
         inited = true
         if (File(tmpfolder).exists().not()) {
@@ -58,15 +58,15 @@ class Writer(private val name: String, private val destFolder:String, private va
     }
 
     private fun formatedStartTime(): String? =
-        timeStarted.toLocalDateTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
+        timeStarted.toLocalDateTime().format(DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm_ss"))
 
     fun done() {
         if (!inited) return
         bufferedWriter.close()
         val duration = Date().time - timeStarted.time
-        val input = File(tmpfolder, "rec_${name}-${formatedStartTime()}-${format(duration)}.$ext")
+        val input = File(tmpfolder, "${name}-${formatedStartTime()}-${format(duration)}.$ext")
         if (file.renameTo(input)) {
-            val output = File(tmpfolder, "rec_${name}-${formatedStartTime()}-${format(duration)}.fixed.$ext")
+            val output = File(tmpfolder, "${name}-${formatedStartTime()}-${format(duration)}.fixed.$ext")
             val builder = ProcessBuilder(
                 "ffmpeg",
                 "-hide_banner",
@@ -84,26 +84,25 @@ class Writer(private val name: String, private val destFolder:String, private va
             p.inputStream.bufferedReader().use {
                 while (true) {
                     val char = it.readLine() ?: break
-                    mt.println("[$name] ${char.replace("\r", "")}")
+                    println("[$name] ${char.replace("\r", "")}")
                 }
             }
             if (p.waitFor() == 0) {
                 input.delete()
-                mt.println("[$name] moving...")
+                println("[$name] moving...")
                 try {
                     Files.move(
                         output.toPath(),
                         File(destFolder).resolve(output.name).toPath(),
                         StandardCopyOption.REPLACE_EXISTING
                     )
-                    mt.println("[$name] 移动成功")
+                    println("[$name] 移动成功")
                 } catch (e: Exception) {
-                    mt.println("[$name] 无法移动文件$e")
+                    println("[$name] 无法移动文件$e")
                 }
             } else {
-                mt.println("[$name] 转码失败，请查看命令输出")
+                println("[$name] 转码失败，请查看命令输出")
             }
         }
     }
-
 }

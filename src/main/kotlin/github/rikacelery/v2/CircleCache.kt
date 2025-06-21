@@ -1,4 +1,4 @@
-package github.rikacelery
+package github.rikacelery.v2
 
 class CircleCache(private val maxSize: Int) {
     private val cache = mutableListOf<String>()

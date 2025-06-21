@@ -18,7 +18,7 @@ suspend fun splitDownload(client: HttpClient, segmentUrl: String) = coroutineSco
     }.withMeasureTime {
         chunked(1024 * 10).asFlow().map {
             // cold flow doesn't allow concurrent download
-//            mt.println(segmentUrl.hashCode().mod(30).toString(16) + " ${it.first}" + " Start")
+//            println(segmentUrl.hashCode().mod(30).toString(16) + " ${it.first}" + " Start")
             async {
                 val d = withRetry(10, {
                     // stop retry if 404
