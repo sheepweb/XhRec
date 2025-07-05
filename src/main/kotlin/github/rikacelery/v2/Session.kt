@@ -2,10 +2,10 @@ package github.rikacelery.v2
 
 import github.rikacelery.Event
 import github.rikacelery.Room
+import github.rikacelery.client
 import github.rikacelery.proxiedClient
 import github.rikacelery.utils.withRetry
 import github.rikacelery.utils.withRetryOrNull
-import io.ktor.client.*
 import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -20,22 +20,24 @@ import kotlinx.serialization.Serializable
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.math.abs
 
 class Session(
 
     private val room: Room,
-    private val client: HttpClient,
-    private val clientProxy: HttpClient,
-    private val dest:String,
-    private val tmp:String,
-    private val dispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val dest: String,
+    private val tmp: String,
+    dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
     private val job = SupervisorJob()
     private val scope = CoroutineScope(dispatcher + job)
 
+    private val _isOpen = AtomicBoolean(false)
     private val _isActive = AtomicBoolean(false)
     val isActive: Boolean get() = _isActive.get()
+    val isOpen: Boolean get() = _isOpen.get()
     var currentQuality = room.quality
 
     private val writerReference = AtomicReference<Writer?>(null)
@@ -45,7 +47,7 @@ class Session(
     private val success = AtomicInteger(0)
     private val failed = AtomicInteger(0)
     private val running = AtomicInteger(0)
-    private val bytesWrite = AtomicInteger(0)
+    private val bytesWrite = AtomicLong(0)
 
     private val runningUrl = Hashtable<String, UrlInfo>()
 
@@ -62,7 +64,7 @@ class Session(
         val total: Int,
         val success: Int,
         val failed: Int,
-        val bytesWrite: Int,
+        val bytesWrite: Long,
         val running: Map<String, UrlInfo>
     )
 
@@ -75,30 +77,54 @@ class Session(
     suspend fun testAndConfigure(): Boolean {
         val b = withRetryOrNull(3) {
             try {
-                val qualities =
-                    withTimeout(3_000) {
-                        proxiedClient.get(
-                            "https://b-hls-06.doppiocdn.live/hls/%d/%d.m3u8?playlistType=lowLatency".format(
-                                room.id, room.id
+                if (room.quality != "raw") {
+                    val qualities =
+                        withTimeout(3_000) {
+                            val response = proxiedClient.get(
+                                "https://b-hls-06.doppiocdn.live/hls/%d/%d.m3u8?playlistType=lowLatency".format(
+                                    room.id, room.id
+                                )
                             )
-                        )
-                    }.bodyAsText().lines().filter {
-                        it.startsWith("#EXT-X-RENDITION-REPORT") && !it.contains("blurred")
-                    }.map {
-                        it.substringAfter(":URI=\"").substringBefore("\"").substringAfter("_")
-                            .substringBefore(".")
+                            require(response.status == HttpStatusCode.OK) {
+                                "[${room.name}] 直播未开始"
+                            }
+                            response
+                        }.bodyAsText().lines().filter {
+                            it.startsWith("#EXT-X-RENDITION-REPORT") && !it.contains("blurred")
+                        }.map {
+                            it.substringAfter(":URI=\"").substringBefore("\"").substringAfter("_")
+                                .substringBefore(".")
+                        }
+                    val q = qualities.lastOrNull { it.contains(room.quality) } ?: qualities.minByOrNull {
+                        val split = it.split("p")
+                        val split1 = room.quality.split("p")
+                        if (split1.size == 2) {
+                            // 尝试获取帧率和清晰度都接近的
+                            abs(split[0].toInt() - split1[0].toInt()) + abs(split1[1].toInt() - split.getOrElse(1) { "30" }
+                                .toInt())
+                        } else {
+                            // 只判断清晰度，选到什么纯看运气
+                            abs(split[0].toInt() - split1[0].toInt())
+                        }
                     }
-                val q = qualities.lastOrNull { it.contains("720p") } ?: qualities.lastOrNull()
-                val new = q ?: "raw"
-                if (currentQuality != new) {
-                    println("[${room.name}] 更正清晰度设置 ${currentQuality} -> ${new}, 期望${room.quality}")
-                    currentQuality = new
+                    val new = q ?: "raw" // 只有一种清晰度的
+                    if (currentQuality != new) {
+                        println("[${room.name}] 更正清晰度设置 ${currentQuality} -> ${new}, 期望${room.quality}")
+                        currentQuality = new
+                    }
+                }else{
+                    currentQuality = room.quality
+                }
+                runCatching { proxiedClient.get(streamUrl) }.getOrElse {
+                    println("[${room.name}] 更正清晰度后目标直播流依然不可用: $streamUrl $it")
+                    throw it
                 }
                 true
             } catch (e: ClientRequestException) {
                 false
             }
         } ?: false
+        _isOpen.set(b)
         return b
     }
 
@@ -106,6 +132,7 @@ class Session(
         if (!_isActive.compareAndSet(false, true)) {
             throw IllegalStateException("Session is already active")
         }
+        println("[+] ${room.name} ${room.quality} ${currentQuality} $streamUrl")
 
         val writer = Writer(room.name, dest, tmp).apply { init() }
         writerReference.set(writer)
@@ -128,17 +155,16 @@ class Session(
                         index to scope.async {
                             running.incrementAndGet()
                             total.incrementAndGet()
-                            println("${success.get()}/${total.get()}(${failed.get()})[${running.get()}]")
                             val result = runCatching {
                                 synchronized(runningUrl) {
                                     runningUrl[event.url()] = UrlInfo(ClientType.DIRECT, System.currentTimeMillis())
                                 }
                                 tryDownload(event).await() ?: run {
-                                    println("Falling back to proxy download for ${room.name}")
+//                                    println("Falling back to proxy download for ${room.name}")
                                     synchronized(runningUrl) {
-                                        runningUrl[event.url()] = UrlInfo(ClientType.DIRECT, System.currentTimeMillis())
+                                        runningUrl[event.url()] = UrlInfo(ClientType.PROXY, System.currentTimeMillis())
                                     }
-                                    clientProxy.get(event.url()).readBytes()
+                                    proxiedClient.get(event.url()).readBytes()
                                 }
                             }
                             synchronized(runningUrl) {
@@ -163,13 +189,12 @@ class Session(
                             if (result != null && result.isSuccess) {
                                 success.incrementAndGet()
                                 val data = result.getOrThrow()
-                                bytesWrite.addAndGet(data.size)
+                                bytesWrite.addAndGet(data.size.toLong())
                                 writer.append(data)
                             } else {
                                 failed.incrementAndGet()
-                                println("Download failed: ${result?.exceptionOrNull()?.message}")
+                                println("[${room.name}] Download failed: ${result?.exceptionOrNull()?.message}")
                             }
-                            println("${success.get()}/${total.get()}(${failed.get()})[${running.get()}]")
                             emittedIndex++
                         }
                     }
@@ -177,25 +202,23 @@ class Session(
 
             generatorJob?.join()
         } finally {
-            cleanup()
+            println("[-] ${room.name} ${room.quality} ${currentQuality} $streamUrl")
         }
     }
 
     suspend fun stop() {
         if (_isActive.compareAndSet(true, false)) {
             generatorJob?.cancelAndJoin()
-            cleanup()
         }
-    }
-
-    fun dispose() {
-        scope.launch { stop() }
-    }
-
-    private fun cleanup() {
         writerReference.getAndSet(null)?.done()
-        job.complete()
     }
+
+    suspend fun dispose() {
+        stop()
+        job.complete()
+        println("[${room.name}] Cleanup")
+    }
+
 
     private val streamUrl: String
         get() {
@@ -214,9 +237,7 @@ class Session(
 
         while (currentCoroutineContext().isActive) {
             try {
-                val lines = withTimeout(5000) {
-                    clientProxy.get(streamUrl).bodyAsText().lines()
-                }
+                val lines = client.get(streamUrl).bodyAsText().lines()
 
                 initUrl = parseInitUrl(lines)
                 val videos = parseSegmentUrl(lines)
@@ -233,22 +254,23 @@ class Session(
                     }
                 }
             } catch (e: TimeoutCancellationException) {
-                println("Segment generator timeout, retrying...")
+                println("[${room.name}] Segment generator timeout, retrying...")
             } catch (e: ClientRequestException) {
                 if (shouldStop()(e)) {
                     scope.launch { stop() }
                 } else {
-                    println("Generator error: ${e.message}")
+                    println("[${room.name}] Generator error: ${e.message}")
                 }
             } catch (_: CancellationException) {
-                println("Segment generator is cancelled, exiting...")
+                println("[${room.name}] Segment generator is cancelled, exiting...")
                 break
             } catch (e: Exception) {
-                println("Unexpected error in segment generator: ${e.message}")
+                println("[${room.name}] Unexpected error in segment generator: ${e.message}")
             }
 
             delay(500)
         }
+        println("[${room.name}] Segment generator exited.")
     }
 
     private fun parseSegmentUrl(lines: List<String>): List<String> {
@@ -278,10 +300,10 @@ class Session(
     private fun tryDownload(event: Event): Deferred<ByteArray?> = scope.async {
         val c = when (event) {
             is Event.LiveSegmentData -> client
-            is Event.LiveSegmentInit -> clientProxy
+            is Event.LiveSegmentInit -> proxiedClient
         }
-        withTimeoutOrNull(10_000L) {
-            withRetry(15) { attempt ->
+        withTimeoutOrNull(8_000L) {
+            withRetry(25) { attempt ->
                 try {
                     c.get(event.url()).readBytes()
                 } catch (_: TimeoutCancellationException) {
@@ -289,7 +311,7 @@ class Session(
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    println("Download attempt $attempt failed: ${e.message}")
+//                    println("Download attempt $attempt failed: ${e.message}")
                     throw e
                 }
             }

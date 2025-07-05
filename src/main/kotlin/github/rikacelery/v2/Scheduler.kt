@@ -1,8 +1,6 @@
 package github.rikacelery.v2
 
 import github.rikacelery.Room
-import github.rikacelery.client
-import github.rikacelery.proxiedClient
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -28,7 +26,9 @@ class Scheduler(
     }
 
     val sessions = Hashtable<State, Session>()
-    val scope = CoroutineScope(SupervisorJob())
+    val scope = CoroutineScope(SupervisorJob()+ CoroutineExceptionHandler { coroutineContext, throwable ->
+        throwable.printStackTrace()
+    })
     val opLock = Mutex()
     var job: Job? = null
 
@@ -55,16 +55,17 @@ class Scheduler(
     }
 
     fun loop() {
-        println("loop")
+//        println("loop")
         sessions.onEach {
-            println("${it.key.listen} ${it.key.room.name}")
+//            println("${it.key.listen} ${it.key.room.name}")
         }.filterKeys { it.listen }.forEach { (k, v) ->
             if (v.isActive) return@forEach
             scope.launch {
-                println("loop launch ${k.room.name}")
-                if (!v.testAndConfigure()) return@launch
-                v.start()
-                v.stop()
+//                println("loop launch ${k.room.name}")
+                if (v.testAndConfigure()) {
+                    v.start()
+                    v.stop()
+                }
             }
         }
     }
@@ -74,7 +75,7 @@ class Scheduler(
             if (sessions.containsKey(State(room, listen))) {
                 return
             }
-            sessions[State(room, listen)] = Session(room, client, proxiedClient, dest,tmp)
+            sessions[State(room, listen)] = Session(room, dest,tmp)
         }
     }
 
@@ -98,6 +99,18 @@ class Scheduler(
                 scope.launch { entry.value.stop() }
             }
             entry.key.listen = false
+        }
+    }
+
+    suspend fun stopRecorder(roomName: String){
+        val entry = sessions.filterKeys { it.room.name == roomName }.entries.singleOrNull()
+        if (entry == null) {
+            return
+        }
+        opLock.withLock {
+            if (entry.value.isActive){
+                entry.value.stop()
+            }
         }
     }
 

@@ -12,19 +12,15 @@ class Writer(private val name: String, private val destFolder:String, private va
     private lateinit var file: File
     private lateinit var bufferedWriter: BufferedOutputStream
     private lateinit var timeStarted: Date
-    private var inited = false
-    private var     n = 0
-    val ext = "mp4"
-
-
-    //    val folder = "/Volumes/mnt/12t/rec/"
+    private var isInit = false
+    private val ext = "mp4"
 
 
     fun init() {
         timeStarted = Date()
         file = File(tmpfolder, "${name}-${formatedStartTime()}-init.${ext}")
         bufferedWriter = file.outputStream().buffered(bufferSize = 1024 * 1024 * 8)
-        inited = true
+        isInit = true
         if (File(tmpfolder).exists().not()) {
             File(tmpfolder).mkdirs()
         }
@@ -47,21 +43,13 @@ class Writer(private val name: String, private val destFolder:String, private va
 
     fun append(data: ByteArray) {
         bufferedWriter.write(data)
-        rename()
-    }
-
-    private fun rename() {
-//        val duration = Date().time - timeStarted.time
-//        val file1 = File(folder, "rec_${name}-${formatedStartTime()}-${format(duration)}.${ext}")
-//        file.renameTo(file1)
-//        file = file1
     }
 
     private fun formatedStartTime(): String? =
         timeStarted.toLocalDateTime().format(DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm_ss"))
 
     fun done() {
-        if (!inited) return
+        if (!isInit) return
         bufferedWriter.close()
         val duration = Date().time - timeStarted.time
         val input = File(tmpfolder, "${name}-${formatedStartTime()}-${format(duration)}.$ext")
