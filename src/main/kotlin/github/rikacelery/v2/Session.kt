@@ -112,12 +112,17 @@ class Session(
                         println("[${room.name}] 更正清晰度设置 ${currentQuality} -> ${new}, 期望${room.quality}")
                         currentQuality = new
                     }
+                    runCatching { proxiedClient.get(streamUrl) }.getOrElse {
+                        println("[${room.name}] 更正清晰度后目标直播流依然不可用: $streamUrl $it")
+                        throw it
+                    }
                 }else{
                     currentQuality = room.quality
-                }
-                runCatching { proxiedClient.get(streamUrl) }.getOrElse {
-                    println("[${room.name}] 更正清晰度后目标直播流依然不可用: $streamUrl $it")
-                    throw it
+                    proxiedClient.get(
+                        "https://b-hls-06.doppiocdn.live/hls/%d/%d.m3u8?playlistType=lowLatency".format(
+                            room.id, room.id
+                        )
+                    )
                 }
                 true
             } catch (e: ClientRequestException) {
