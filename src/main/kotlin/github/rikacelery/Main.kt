@@ -75,8 +75,11 @@ val proxiedClient = HttpClient(OkHttp) {
         }
     }
     engine {
-        val url = Url(System.getenv("HTTP_PROXY")?:"http://localhost:7890")
-        proxy = Proxy(Proxy.Type.HTTP, InetSocketAddress(url.host,url.port))
+        val proxyEnv = System.getenv("HTTP_PROXY")
+        if (proxyEnv != null) {
+            val url = Url(proxyEnv ?:"http://localhost:7890")
+            proxy = Proxy(Proxy.Type.HTTP, InetSocketAddress(url.host,url.port))
+        }
         config {
             connectionPool(ConnectionPool(3, 120, TimeUnit.SECONDS))
             followSslRedirects(true)
