@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.selects.select
 import kotlinx.serialization.Serializable
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
@@ -116,7 +117,7 @@ class Session(
                         println("[${room.name}] 更正清晰度后目标直播流依然不可用: $streamUrl $it")
                         throw it
                     }
-                }else{
+                } else {
                     currentQuality = room.quality
                     proxiedClient.get(
                         "https://b-hls-06.doppiocdn.live/hls/%d/%d.m3u8?playlistType=lowLatency".format(
@@ -242,8 +243,20 @@ class Session(
 
         while (currentCoroutineContext().isActive) {
             try {
-                val lines = client.get(streamUrl).bodyAsText().lines()
-
+                val lines = withTimeout(4000) {
+                    select {
+                        scope.async {
+                            withRetry(100, stopIf = shouldStop()) {
+                                client.get(streamUrl).bodyAsText().lines()
+                            }
+                        }.onAwait { it }
+                        scope.async {
+                            withRetry(100, stopIf = shouldStop()) {
+                                proxiedClient.get(streamUrl).bodyAsText().lines()
+                            }
+                        }.onAwait { it }
+                    }
+                }
                 initUrl = parseInitUrl(lines)
                 val videos = parseSegmentUrl(lines)
 
