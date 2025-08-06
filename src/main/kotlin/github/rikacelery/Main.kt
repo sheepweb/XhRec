@@ -29,7 +29,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.math.max
 
 
-val _clients = List(10) {
+val _clients = List(5) {
     HttpClient(OkHttp) {
         expectSuccess = true
         install(DefaultRequest) {
@@ -43,12 +43,12 @@ val _clients = List(10) {
             }
         }
         install(HttpRequestRetry) {
-            retryOnException(maxRetries = 5, retryOnTimeout = true)
-            constantDelay(100)
+            retryOnException(maxRetries = 3, retryOnTimeout = true)
+            constantDelay(300)
         }
         engine {
             config {
-                connectionPool(ConnectionPool(3, 120, TimeUnit.SECONDS))
+                connectionPool(ConnectionPool(15, 5, TimeUnit.MINUTES))
                 followSslRedirects(true)
                 followRedirects(true)
             }
@@ -59,11 +59,6 @@ val client: HttpClient
     get() = _clients.random()
 val proxiedClient = HttpClient(OkHttp) {
     expectSuccess = true
-    install(HttpTimeout) {
-        connectTimeoutMillis = 5_000
-        socketTimeoutMillis = 10_000
-        requestTimeoutMillis = 30_000
-    }
     install(DefaultRequest) {
         headers {
             append(
@@ -77,11 +72,11 @@ val proxiedClient = HttpClient(OkHttp) {
     engine {
         val proxyEnv = System.getenv("HTTP_PROXY")
         if (proxyEnv != null) {
-            val url = Url(proxyEnv ?:"http://localhost:7890")
-            proxy = Proxy(Proxy.Type.HTTP, InetSocketAddress(url.host,url.port))
+            val url = Url(proxyEnv)
+            proxy = Proxy(Proxy.Type.HTTP, InetSocketAddress(url.host, url.port))
         }
         config {
-            connectionPool(ConnectionPool(3, 120, TimeUnit.SECONDS))
+            connectionPool(ConnectionPool(15, 5, TimeUnit.MINUTES))
             followSslRedirects(true)
             followRedirects(true)
         }
