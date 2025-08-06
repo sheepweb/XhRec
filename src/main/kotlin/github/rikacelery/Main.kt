@@ -278,7 +278,28 @@ suspend fun main(vararg args: String) = supervisorScope {
                     "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
                 })
                 call.respond("OK")
-
+            }
+            get("/quality") {
+                val slug = call.request.queryParameters["slug"]
+                if (slug == null) {
+                    call.respond(HttpStatusCode.NotAcceptable, "Room slug not provided.")
+                    return@get
+                }
+                val q = call.request.queryParameters["quality"]
+                if (q == null) {
+                    call.respond(HttpStatusCode.NotAcceptable, "Quality not provided.")
+                    return@get
+                }
+                val room = scheduler.sessions.keys.find { it.room.name.equals(slug, true) }?.room
+                if (room == null) {
+                    call.respond(HttpStatusCode.NotAcceptable, "Room $slug not found.")
+                    return@get
+                }
+                room.quality = q
+                jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
+                    "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
+                })
+                call.respond(room)
             }
             get("/deactivate") {
 
