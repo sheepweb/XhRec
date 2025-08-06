@@ -172,15 +172,17 @@ suspend fun main(vararg args: String) = supervisorScope {
 //                    println("[INFO] screenshot ${it.key.room.name}:${it.key.room.id}")
                     File("/screenshot/${it.key.room.name}").mkdir()
                     val url =
-                        proxiedClient.testFast(listOf(
-                            "https://b-hls-04.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}_160p.m3u8",
-                            "https://b-hls-04.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}_240p.m3u8",
-                            "https://b-hls-04.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}_560p.m3u8",
-                            "https://b-hls-04.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}_720p.m3u8",
-                            "https://b-hls-04.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}_720p60.m3u8",
-                            "https://b-hls-04.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}.m3u8",
-                        ))
-                    if (url != null) {
+                        proxiedClient.testFast(
+                            listOf(
+                                "https://b-hls-04.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}_160p.m3u8",
+                                "https://b-hls-04.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}_240p.m3u8",
+                                "https://b-hls-04.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}_560p.m3u8",
+                                "https://b-hls-04.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}_720p.m3u8",
+                                "https://b-hls-04.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}_720p60.m3u8",
+                                "https://b-hls-04.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}.m3u8",
+                            )
+                        )
+                    if (url == null) {
                         return@async
                     }
                     runCatching {
@@ -199,7 +201,10 @@ suspend fun main(vararg args: String) = supervisorScope {
                             "2",
                             "/screenshot/${it.key.room.name}/%d.jpg".format(System.currentTimeMillis() / 1000)
                         )
-                        builder.environment()["http_proxy"] = System.getenv("http_proxy") ?: System.getenv("HTTP_PROXY")
+                        val proxyEnv = System.getenv("http_proxy") ?: System.getenv("HTTP_PROXY")
+                        if (proxyEnv != null) {
+                            builder.environment()["http_proxy"] = proxyEnv
+                        }
                         val p = builder.start()
                         if (p.waitFor() != 0) {
                             println("[ERROR] screenshot exited ${p.exitValue()}")
@@ -213,7 +218,7 @@ suspend fun main(vararg args: String) = supervisorScope {
                     }
                 }
             }.awaitAll()
-            delay(10 * 60_000)
+            delay(5 * 60_000)
         }
     }
     // web server
