@@ -4,6 +4,7 @@ import github.rikacelery.Event
 import github.rikacelery.Room
 import github.rikacelery.client
 import github.rikacelery.proxiedClient
+import github.rikacelery.utils.resilientSelect
 import github.rikacelery.utils.withRetry
 import github.rikacelery.utils.withRetryOrNull
 import io.ktor.client.plugins.*
@@ -16,8 +17,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.selects.select
 import kotlinx.serialization.Serializable
+import okhttp3.internal.toLongOrDefault
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -46,6 +47,8 @@ class Session(
 
     private val total = AtomicInteger(0)
     private val success = AtomicInteger(0)
+    private val successProxied = AtomicInteger(0)
+    private val successDirect = AtomicInteger(0)
     private val failed = AtomicInteger(0)
     private val running = AtomicInteger(0)
     private val bytesWrite = AtomicLong(0)
@@ -80,12 +83,23 @@ class Session(
             try {
                 if (room.quality != "raw") {
                     val qualities =
-                        withTimeout(3_000) {
-                            val response = proxiedClient.get(
-                                "https://b-hls-06.doppiocdn.live/hls/%d/%d.m3u8?playlistType=lowLatency".format(
-                                    room.id, room.id
-                                )
-                            )
+                        withTimeout(5_000) {
+                            val response = resilientSelect {
+                                on {
+                                    proxiedClient.get(
+                                        "https://b-hls-06.doppiocdn.live/hls/%d/%d.m3u8?playlistType=lowLatency".format(
+                                            room.id, room.id
+                                        )
+                                    )
+                                }
+                                on {
+                                    client.get(
+                                        "https://b-hls-06.doppiocdn.live/hls/%d/%d.m3u8?playlistType=lowLatency".format(
+                                            room.id, room.id
+                                        )
+                                    )
+                                }
+                            }
                             require(response.status == HttpStatusCode.OK) {
                                 "[${room.name}] 直播未开始"
                             }
@@ -109,21 +123,37 @@ class Session(
                         }
                     }
                     val new = q ?: "raw" // 只有一种清晰度的
-                    if (currentQuality != new) {
+                    if (currentQuality != new && !isActive) {
                         println("[${room.name}] 更正清晰度设置 ${currentQuality} -> ${new}, 期望${room.quality}")
                         currentQuality = new
                     }
-                    runCatching { proxiedClient.get(streamUrl) }.getOrElse {
+                    runCatching {
+                        resilientSelect {
+                            on { proxiedClient.get(streamUrl) }
+                            on { client.get(streamUrl) }
+                        }
+                    }.getOrElse {
                         println("[${room.name}] 更正清晰度后目标直播流依然不可用: $streamUrl $it")
                         throw it
                     }
                 } else {
                     currentQuality = room.quality
-                    proxiedClient.get(
-                        "https://b-hls-06.doppiocdn.live/hls/%d/%d.m3u8?playlistType=lowLatency".format(
-                            room.id, room.id
-                        )
-                    )
+                    resilientSelect {
+                        on {
+                            proxiedClient.get(
+                                "https://b-hls-06.doppiocdn.live/hls/%d/%d.m3u8?playlistType=lowLatency".format(
+                                    room.id, room.id
+                                )
+                            )
+                        }
+                        on {
+                            client.get(
+                                "https://b-hls-06.doppiocdn.live/hls/%d/%d.m3u8?playlistType=lowLatency".format(
+                                    room.id, room.id
+                                )
+                            )
+                        }
+                    }
                 }
                 true
             } catch (e: ClientRequestException) {
@@ -165,12 +195,16 @@ class Session(
                                 synchronized(runningUrl) {
                                     runningUrl[event.url()] = UrlInfo(ClientType.DIRECT, System.currentTimeMillis())
                                 }
-                                tryDownload(event).await() ?: run {
+                                tryDownload(event).await()?.also {
+                                    successDirect.incrementAndGet()
+                                } ?: run {
 //                                    println("Falling back to proxy download for ${room.name}")
                                     synchronized(runningUrl) {
                                         runningUrl[event.url()] = UrlInfo(ClientType.PROXY, System.currentTimeMillis())
                                     }
-                                    proxiedClient.get(event.url()).readBytes()
+                                    proxiedClient.get(event.url()).readBytes().also {
+                                        successProxied.incrementAndGet()
+                                    }
                                 }
                             }
                             synchronized(runningUrl) {
@@ -179,6 +213,11 @@ class Session(
                             result.onFailure {
                                 if (event is Event.LiveSegmentInit) {
                                     throw InitSegmentDownloadFiledException(it)
+                                } else {
+                                    val created = (event.url().substringBeforeLast("_").substringAfterLast("_")
+                                        .toLongOrDefault(0))
+                                    val diff = System.currentTimeMillis() / 1000 - created
+                                    println("Download segment:${index} failed, delayed: ${diff}ms")
                                 }
                             }
                         }
@@ -199,7 +238,7 @@ class Session(
                                 writer.append(data)
                             } else {
                                 failed.incrementAndGet()
-                                println("[${room.name}] Download failed: ${result?.exceptionOrNull()?.message}")
+                                println("[${room.name}] Download segment:${index} failed (${result?.exceptionOrNull()?.cause?.message ?: result?.exceptionOrNull()?.message}).")
                             }
                             emittedIndex++
                         }
@@ -229,49 +268,51 @@ class Session(
     private val streamUrl: String
         get() {
             return if (currentQuality != "raw" && currentQuality.isNotBlank())
-                "https://b-hls-11.doppiocdn.live/hls/%d/%d_%s.m3u8?playlistType=lowLatency".format(
-                    room.id, room.id, currentQuality
+                "https://b-hls-%02d.doppiocdn.live/hls/%d/%d_%s.m3u8?playlistType=lowLatency".format(
+                    Random().nextInt(1, 23), room.id, room.id, currentQuality
                 )
             else
-                "https://b-hls-11.doppiocdn.live/hls/%d/%d.m3u8?playlistType=lowLatency".format(room.id, room.id)
+                "https://b-hls-%02d.doppiocdn.live/hls/%d/%d.m3u8?playlistType=lowLatency".format(
+                    Random().nextInt(
+                        1,
+                        23
+                    ), room.id, room.id
+                )
         }
 
     private fun segmentGenerator(): Flow<Event> = flow {
         var started = false
-        var initUrl: String
+        var initUrl: String = ""
         val cache = CircleCache(100)
 
         while (currentCoroutineContext().isActive) {
+            val url = streamUrl
             try {
-                val lines = withTimeout(4000) {
-                    select {
-                        scope.async {
-                            withRetry(100, stopIf = shouldStop()) {
-                                client.get(streamUrl).bodyAsText().lines()
-                            }
-                        }.onAwait { it }
-                        scope.async {
-                            withRetry(100, stopIf = shouldStop()) {
-                                proxiedClient.get(streamUrl).bodyAsText().lines()
-                            }
-                        }.onAwait { it }
-                    }
+                val lines = withTimeout(15_000) {
+                    proxiedClient.get(url).bodyAsText().lines()
                 }
-                initUrl = parseInitUrl(lines)
+                val initUrl0 = parseInitUrl(lines)
+                if (initUrl.isEmpty())
+                    initUrl = initUrl0
+                if (initUrl0 != initUrl) {
+                    println("[${room.name}] Init segment changed, exiting...")
+                    break
+                }
                 val videos = parseSegmentUrl(lines)
 
                 if (!started) {
                     started = true
-                    emit(Event.LiveSegmentInit(initUrl, room))
+                    emit(Event.LiveSegmentInit(initUrl0, room))
                 }
 
                 videos.forEach { url ->
                     if (currentCoroutineContext().isActive && !cache.contains(url)) {
                         cache.add(url)
-                        emit(Event.LiveSegmentData(url, initUrl, room))
+                        emit(Event.LiveSegmentData(url, initUrl0, room))
                     }
                 }
             } catch (e: TimeoutCancellationException) {
+                println("[ERROR]Refresh List: $url")
                 println("[${room.name}] Segment generator timeout, retrying...")
             } catch (e: ClientRequestException) {
                 if (shouldStop()(e)) {
@@ -320,7 +361,10 @@ class Session(
             is Event.LiveSegmentData -> client
             is Event.LiveSegmentInit -> proxiedClient
         }
-        withTimeoutOrNull(8_000L) {
+        val created = (event.url().substringBeforeLast("_").substringAfterLast("_").toLongOrDefault(0))
+        val diff = System.currentTimeMillis() / 1000 - created
+        val wait = (17L - diff) * 1000
+        withTimeoutOrNull(if (wait > 0) wait else 0) {
             withRetry(25) { attempt ->
                 try {
                     c.get(event.url()).readBytes()
