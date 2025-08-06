@@ -358,19 +358,19 @@ suspend fun main(vararg args: String) = supervisorScope {
                         )
                     }
                 }.awaitAll().also {
-                    // column
-                    it.associateWith { it.map(String::length) }.let {
-                        val maxLen = it.values.reduce { acc, ints ->
-                            acc.zip(ints).map { max(it.first, it.second) }
-                        }
-                        it.keys.map { strings ->
-                            strings.zip(maxLen).map { pair ->
-                                pair.first.padEnd(pair.second)
-                            }
-                        }
-                    }.sortedBy { it[0] + it[1] + it[3] }.forEach {
-                        println(it.joinToString(" "))
-                    }
+//                    // column
+//                    it.associateWith { it.map(String::length) }.let {
+//                        val maxLen = it.values.reduce { acc, ints ->
+//                            acc.zip(ints).map { max(it.first, it.second) }
+//                        }
+//                        it.keys.map { strings ->
+//                            strings.zip(maxLen).map { pair ->
+//                                pair.first.padEnd(pair.second)
+//                            }
+//                        }
+//                    }.sortedBy { it[0] + it[1] + it[3] }.forEach {
+//                        println(it.joinToString(" "))
+//                    }
                 }
 
                 call.respond(list)
