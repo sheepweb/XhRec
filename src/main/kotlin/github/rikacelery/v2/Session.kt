@@ -288,8 +288,20 @@ class Session(
         while (currentCoroutineContext().isActive) {
             val url = streamUrl
             try {
-                val lines = withTimeout(15_000) {
-                    proxiedClient.get(url).bodyAsText().lines()
+
+                val lines = withTimeout(6_000) {
+                    resilientSelect {
+                        on {
+                            proxiedClient.get(
+                                url
+                            ).bodyAsText().lines()
+                        }
+                        on {
+                            client.get(
+                                url
+                            ).bodyAsText().lines()
+                        }
+                    }
                 }
                 val initUrl0 = parseInitUrl(lines)
                 if (initUrl.isEmpty())
