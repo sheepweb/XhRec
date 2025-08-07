@@ -48,7 +48,7 @@ val _clients = List(5) {
         }
         engine {
             config {
-                connectionPool(ConnectionPool(15, 5, TimeUnit.MINUTES))
+                connectionPool(ConnectionPool(10, 3, TimeUnit.MINUTES))
                 followSslRedirects(true)
                 followRedirects(true)
             }
@@ -69,6 +69,10 @@ val proxiedClient = HttpClient(OkHttp) {
             append(HttpHeaders.Connection, "keep-alive")
         }
     }
+    install(HttpRequestRetry) {
+        retryOnException(maxRetries = 3, retryOnTimeout = true)
+        constantDelay(300)
+    }
     engine {
         val proxyEnv = System.getenv("http_proxy") ?: System.getenv("HTTP_PROXY")
         if (proxyEnv != null) {
@@ -76,7 +80,7 @@ val proxiedClient = HttpClient(OkHttp) {
             proxy = Proxy(Proxy.Type.HTTP, InetSocketAddress(url.host, url.port))
         }
         config {
-            connectionPool(ConnectionPool(15, 5, TimeUnit.MINUTES))
+            connectionPool(ConnectionPool(5, 1, TimeUnit.MINUTES))
             followSslRedirects(true)
             followRedirects(true)
         }
@@ -343,9 +347,9 @@ suspend fun main(vararg args: String) = supervisorScope {
                 call.respond("OK")
             }
             get("/list") {
-                println(
-                    "streaming recorder job room room_id quality"
-                )
+//                println(
+//                    "streaming recorder job room room_id quality"
+//                )
                 val list = scheduler.sessions.map { (state, session) ->
                     async {
                         listOf(
