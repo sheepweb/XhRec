@@ -134,22 +134,12 @@ class Session(
                 if (room.quality != "raw") {
                     val qualities =
                         withTimeout(9_000) {
-                            val response = resilientSelect {
-                                on {
-                                    proxiedClient.get(
-                                        "https://b-hls-06.doppiocdn.live/hls/%d/%d.m3u8?playlistType=lowLatency".format(
-                                            room.id, room.id
-                                        )
+                            val response =
+                                proxiedClient.get(
+                                    "https://b-hls-06.doppiocdn.live/hls/%d/%d.m3u8?playlistType=lowLatency".format(
+                                        room.id, room.id
                                     )
-                                }
-                                on {
-                                    client.get(
-                                        "https://b-hls-06.doppiocdn.live/hls/%d/%d.m3u8?playlistType=lowLatency".format(
-                                            room.id, room.id
-                                        )
-                                    )
-                                }
-                            }
+                                )
                             require(response.status == HttpStatusCode.OK) {
                                 "[${room.name}] 直播未开始"
                             }
@@ -178,32 +168,18 @@ class Session(
                         currentQuality = new
                     }
                     runCatching {
-                        resilientSelect {
-                            on { proxiedClient.get(streamUrl) }
-                            on { client.get(streamUrl) }
-                        }
+                        proxiedClient.get(streamUrl)
                     }.getOrElse {
                         println("[${room.name}] 更正清晰度后目标直播流依然不可用: $streamUrl $it")
                         throw it
                     }
                 } else {
                     currentQuality = room.quality
-                    resilientSelect {
-                        on {
-                            proxiedClient.get(
-                                "https://b-hls-06.doppiocdn.live/hls/%d/%d.m3u8?playlistType=lowLatency".format(
-                                    room.id, room.id
-                                )
-                            )
-                        }
-                        on {
-                            client.get(
-                                "https://b-hls-06.doppiocdn.live/hls/%d/%d.m3u8?playlistType=lowLatency".format(
-                                    room.id, room.id
-                                )
-                            )
-                        }
-                    }
+                    proxiedClient.get(
+                        "https://b-hls-06.doppiocdn.live/hls/%d/%d.m3u8?playlistType=lowLatency".format(
+                            room.id, room.id
+                        )
+                    )
                 }
                 true
             } catch (e: ClientRequestException) {
@@ -252,20 +228,11 @@ class Session(
                                     synchronized(runningUrl) {
                                         runningUrl[event.url()] = UrlInfo(ClientType.PROXY, System.currentTimeMillis())
                                     }
-                                    resilientSelect {
-                                        on {
-                                            proxiedClient.get(
-                                                event.url()
-                                            ).readBytes().also {
-                                                successProxied.incrementAndGet()
-                                            }
-                                        }
-                                        on {
-                                            client.get(
-                                                event.url()
-                                            ).readBytes().also {
-                                                successDirect.incrementAndGet()
-                                            }
+                                    withRetry(2){
+                                        proxiedClient.get(
+                                            event.url()
+                                        ).readBytes().also {
+                                            successProxied.incrementAndGet()
                                         }
                                     }
                                 }
@@ -332,13 +299,13 @@ class Session(
         get() {
             return if (currentQuality != "raw" && currentQuality.isNotBlank())
                 "https://b-hls-%02d.doppiocdn.live/hls/%d/%d_%s.m3u8?playlistType=lowLatency".format(
-                    Random().nextInt(10, 16), room.id, room.id, currentQuality
+                    Random().nextInt(12, 13), room.id, room.id, currentQuality
                 )
             else
                 "https://b-hls-%02d.doppiocdn.live/hls/%d/%d.m3u8?playlistType=lowLatency".format(
                     Random().nextInt(
-                        10,
-                        16
+                        12,
+                        13
                     ), room.id, room.id
                 )
         }
@@ -353,18 +320,9 @@ class Session(
             val url = streamUrl
             try {
                 val lines = withTimeout(5_000) {
-                    resilientSelect {
-                        on {
-                            proxiedClient.get(
-                                url
-                            ).bodyAsText().lines()
-                        }
-                        on {
-                            client.get(
-                                url
-                            ).bodyAsText().lines()
-                        }
-                    }
+                    proxiedClient.get(
+                        url
+                    ).bodyAsText().lines()
                 }
                 val initUrl0 = parseInitUrl(lines)
                 if (initUrl.isEmpty())
