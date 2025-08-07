@@ -2,6 +2,7 @@ package github.rikacelery.utils
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ClosedReceiveChannelException
 
 /**
  * 并行执行多个协程任务，在任意一个任务成功完成时返回结果。
@@ -20,44 +21,55 @@ suspend fun <R> resilientSelect(block: ResilientSelectBuilder<R>.() -> Unit): R 
     }
 
     return withContext(Dispatchers.IO) {
-        val deferredResults = mutableListOf<Deferred<Result<R>>>()
-
-        // 启动所有子协程
-        builder.actions.forEach { action ->
-            val deferred = async(CoroutineName("resilient-select-worker")) {
-                try {
-                    Result.success(action())
-                } catch (e: Throwable) {
-                    Result.failure(e)
-                }
-            }
-            deferredResults.add(deferred)
-        }
-
         // 创建一个通道来接收成功的结果
-        val channel = Channel<R>(Channel.UNLIMITED)
+        val channel = Channel<R>(1)
+        val completionJob = Job() // 用于统一取消所有监听
 
-        // 为每个deferred启动一个协程来监听结果
+        val exceptions = mutableListOf<Throwable>()
+        val exceptionLock = Object()
+
         val listeners = mutableListOf<Job>()
-        deferredResults.forEachIndexed { index, deferred ->
-            val listener = launch(CoroutineName("listener-$index")) {
-                val result = deferred.await()
-                if (result.isSuccess) {
-                    channel.send(result.getOrThrow())
+
+        // 启动每个任务
+        for ((index, action) in builder.actions.withIndex()) {
+            val job = launch(CoroutineName("worker-$index") + completionJob) {
+                try {
+                    val result = action()
+                    // 尝试发送成功结果
+                    if (channel.trySend(result).isSuccess) {
+                        // 发送成功后，我们不需要取消其他任务立即，但可以尽快退出
+                        completionJob.cancel() // 触发其他协程取消
+                    }
+                } catch (e: Throwable) {
+                    // 收集异常
+                    synchronized(exceptionLock) {
+                        exceptions.add(e)
+                    }
+                    // 不做任何事，等待所有完成
                 }
             }
-            listeners.add(listener)
+            listeners.add(job)
         }
 
-        // 等待第一个成功的结果
-        val firstSuccess = channel.receive()
+        // 等待：要么收到成功结果，要么所有任务都结束
+        val waitForAll = launch {
+            // 等待所有 listener 完成（成功发送 or 抛出异常）
+            listeners.joinAll()
+            // 所有都完成了，但还没发送成功结果 → 说明全失败
+            channel.close() // 关闭通道，防止 receive 挂起
+        }
 
-        // 取消所有监听协程和剩余的deferred
-        listeners.forEach { it.cancel() }
-        deferredResults.forEach { if (!it.isCompleted) it.cancel() }
-        channel.close()
-
-        firstSuccess
+        // 尝试接收成功结果
+        try {
+            val success = channel.receive()
+            completionJob.cancel() // 确保所有任务取消
+            waitForAll.cancel()
+            success
+        } catch (e: ClosedReceiveChannelException) {
+            // 通道被关闭且无元素 → 无成功结果
+            waitForAll.join() // 确保完成监听已退出
+            throw CombinedException(exceptions)
+        }
     }
 }
 
