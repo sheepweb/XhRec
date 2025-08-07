@@ -48,7 +48,7 @@ val _clients = List(5) {
         }
         engine {
             config {
-                connectionPool(ConnectionPool(10, 3, TimeUnit.MINUTES))
+                connectionPool(ConnectionPool(15, 5, TimeUnit.MINUTES))
                 followSslRedirects(true)
                 followRedirects(true)
             }
