@@ -103,10 +103,7 @@ class Session(
                         .filterNot { it.contains("blurred") || it.isEmpty() }
                     val q = qualities.lastOrNull { it == room.quality } ?: qualities.minByOrNull {
                         val split = it.split("p").filterNot(String::isEmpty)
-                        if (split.any { it.toIntOrNull() == null }) {
-                            println("[WARN] ${room.name} failed to parse quality ${it}")
-                        }
-                        val split1 = room.quality.split("p")
+                        val split1 = room.quality.split("p").filterNot(String::isEmpty)
                         if (split1.size == 2) {
                             // 尝试获取帧率和清晰度都接近的
                             abs(split[0].toInt() - split1[0].toInt()) + abs(split1[1].toInt() - split.getOrElse(1) { "30" }
