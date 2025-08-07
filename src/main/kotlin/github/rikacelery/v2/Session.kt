@@ -18,6 +18,10 @@ import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.internal.toLongOrDefault
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
@@ -79,11 +83,47 @@ class Session(
     }
 
     suspend fun testAndConfigure(): Boolean {
+        try {
+            val get = proxiedClient.get("https://zh.xhamsterlive.com/api/front/v1/broadcasts/${room.name}")
+            val element = Json.Default.parseToJsonElement(get.bodyAsText())
+            val status = element.jsonObject["item"]?.jsonObject?.get("status")?.jsonPrimitive?.content
+            val presets = element.jsonObject["item"]?.jsonObject?.get("settings")?.jsonObject?.get("presets")?.jsonArray
+            if (status != null && status != "public") {
+                return false
+            }
+            if (status != null && presets != null) {
+                val qualities = presets.map { element -> element.jsonPrimitive.content }
+                    .filterNot { it.contains("blurred") || it.isEmpty() }
+                val q = qualities.lastOrNull { it == room.quality } ?: qualities.minByOrNull {
+                    val split = it.split("p").filterNot(String::isEmpty)
+                    if (split.any { it.toIntOrNull() == null }) {
+                        println("[WARN] ${room.name} failed to parse quality ${it}")
+                    }
+                    val split1 = room.quality.split("p")
+                    if (split1.size == 2) {
+                        // 尝试获取帧率和清晰度都接近的
+                        abs(split[0].toInt() - split1[0].toInt()) + abs(split1[1].toInt() - split.getOrElse(1) { "30" }
+                            .toInt())
+                    } else {
+                        // 只判断清晰度，选到什么纯看运气
+                        abs(split[0].toInt() - split1[0].toInt())
+                    }
+                }
+                val new = q ?: "raw" // 只有一种清晰度的
+                if (currentQuality != new && !isActive) {
+                    println("[${room.name}] 更正清晰度设置 ${currentQuality} -> ${new}, 期望${room.quality}")
+                    currentQuality = new
+                }
+                return true
+            }
+        } catch (e: Exception) {
+            println(e.stackTraceToString())
+        }
         val b = withRetryOrNull(3) {
             try {
                 if (room.quality != "raw") {
                     val qualities =
-                        withTimeout(5_000) {
+                        withTimeout(9_000) {
                             val response = resilientSelect {
                                 on {
                                     proxiedClient.get(
@@ -108,9 +148,9 @@ class Session(
                             it.startsWith("#EXT-X-RENDITION-REPORT") && !it.contains("blurred")
                         }.map {
                             it.substringAfter(":URI=\"").substringBefore("\"").substringAfter("_")
-                                .substringBefore(".")
+                                .substringBefore(".m3u8")
                         }
-                    val q = qualities.lastOrNull { it.contains(room.quality) } ?: qualities.minByOrNull {
+                    val q = qualities.lastOrNull { it == room.quality } ?: qualities.minByOrNull {
                         val split = it.split("p")
                         val split1 = room.quality.split("p")
                         if (split1.size == 2) {
@@ -202,8 +242,21 @@ class Session(
                                     synchronized(runningUrl) {
                                         runningUrl[event.url()] = UrlInfo(ClientType.PROXY, System.currentTimeMillis())
                                     }
-                                    proxiedClient.get(event.url()).readBytes().also {
-                                        successProxied.incrementAndGet()
+                                    resilientSelect {
+                                        on {
+                                            proxiedClient.get(
+                                                event.url()
+                                            ).readBytes().also {
+                                                successProxied.incrementAndGet()
+                                            }
+                                        }
+                                        on {
+                                            client.get(
+                                                event.url()
+                                            ).readBytes().also {
+                                                successDirect.incrementAndGet()
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -269,13 +322,13 @@ class Session(
         get() {
             return if (currentQuality != "raw" && currentQuality.isNotBlank())
                 "https://b-hls-%02d.doppiocdn.live/hls/%d/%d_%s.m3u8?playlistType=lowLatency".format(
-                    Random().nextInt(1, 23), room.id, room.id, currentQuality
+                    Random().nextInt(10, 16), room.id, room.id, currentQuality
                 )
             else
                 "https://b-hls-%02d.doppiocdn.live/hls/%d/%d.m3u8?playlistType=lowLatency".format(
                     Random().nextInt(
-                        1,
-                        23
+                        10,
+                        16
                     ), room.id, room.id
                 )
         }
@@ -284,12 +337,12 @@ class Session(
         var started = false
         var initUrl: String = ""
         val cache = CircleCache(100)
-
+        var n = 0
         while (currentCoroutineContext().isActive) {
+            n++
             val url = streamUrl
             try {
-
-                val lines = withTimeout(6_000) {
+                val lines = withTimeout(5_000) {
                     resilientSelect {
                         on {
                             proxiedClient.get(
@@ -323,9 +376,13 @@ class Session(
                         emit(Event.LiveSegmentData(url, initUrl0, room))
                     }
                 }
+                n = 0
             } catch (e: TimeoutCancellationException) {
-                println("[ERROR]Refresh List: $url")
-                println("[${room.name}] Segment generator timeout, retrying...")
+                println("[ERROR] [${room.name}] Refresh list timeout: $url ${n}")
+                if (!testAndConfigure()) {
+                    println("[STOP] [${room.name}] Room off: $room ${n}")
+                    break
+                }
             } catch (e: ClientRequestException) {
                 if (shouldStop()(e)) {
                     scope.launch { stop() }
