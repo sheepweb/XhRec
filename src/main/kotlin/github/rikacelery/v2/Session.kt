@@ -4,6 +4,7 @@ import github.rikacelery.Event
 import github.rikacelery.Room
 import github.rikacelery.client
 import github.rikacelery.proxiedClient
+import github.rikacelery.utils.CombinedException
 import github.rikacelery.utils.resilientSelect
 import github.rikacelery.utils.withRetry
 import github.rikacelery.utils.withRetryOrNull
@@ -392,9 +393,10 @@ class Session(
                     println("[STOP] [${room.name}] Room off: $room ${n}")
                     break
                 }
-            } catch (e: ClientRequestException) {
-                if (shouldStop()(e)) {
+            } catch (e: CombinedException) {
+                if (e.exceptions.any(shouldStop())) {
                     scope.launch { stop() }
+                    break
                 } else {
                     println("[${room.name}] Generator error: ${e.message}")
                 }
@@ -403,6 +405,10 @@ class Session(
                 break
             } catch (e: Exception) {
                 println("[${room.name}] Unexpected error in segment generator: ${e.message}")
+                if (!testAndConfigure()) {
+                    println("[STOP] [${room.name}] Room off: $room ${n}")
+                    break
+                }
             }
 
             delay(500)
