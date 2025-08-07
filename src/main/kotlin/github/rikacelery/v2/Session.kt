@@ -88,37 +88,46 @@ class Session(
             val element = Json.Default.parseToJsonElement(get.bodyAsText())
             val status = element.jsonObject["item"]?.jsonObject?.get("status")?.jsonPrimitive?.content
             val presets = element.jsonObject["item"]?.jsonObject?.get("settings")?.jsonObject?.get("presets")?.jsonArray
-            if (status != null && status != "public") {
-                return false
-            }
-            if (status != null && presets != null) {
-                val qualities = presets.map { element -> element.jsonPrimitive.content }
-                    .filterNot { it.contains("blurred") || it.isEmpty() }
-                val q = qualities.lastOrNull { it == room.quality } ?: qualities.minByOrNull {
-                    val split = it.split("p").filterNot(String::isEmpty)
-                    if (split.any { it.toIntOrNull() == null }) {
-                        println("[WARN] ${room.name} failed to parse quality ${it}")
-                    }
-                    val split1 = room.quality.split("p")
-                    if (split1.size == 2) {
-                        // 尝试获取帧率和清晰度都接近的
-                        abs(split[0].toInt() - split1[0].toInt()) + abs(split1[1].toInt() - split.getOrElse(1) { "30" }
-                            .toInt())
-                    } else {
-                        // 只判断清晰度，选到什么纯看运气
-                        abs(split[0].toInt() - split1[0].toInt())
-                    }
+            if (status != null) {
+                if (status != "public") {
+                    _isOpen.set(false)
+                    return false//不开播
                 }
-                val new = q ?: "raw" // 只有一种清晰度的
-                if (currentQuality != new && !isActive) {
-                    println("[${room.name}] 更正清晰度设置 ${currentQuality} -> ${new}, 期望${room.quality}")
-                    currentQuality = new
+                if (room.quality == "raw") {
+                    _isOpen.set(true)
+                    return true
                 }
-                return true
+                if (presets != null) {
+                    val qualities = presets.map { element -> element.jsonPrimitive.content }
+                        .filterNot { it.contains("blurred") || it.isEmpty() }
+                    val q = qualities.lastOrNull { it == room.quality } ?: qualities.minByOrNull {
+                        val split = it.split("p").filterNot(String::isEmpty)
+                        if (split.any { it.toIntOrNull() == null }) {
+                            println("[WARN] ${room.name} failed to parse quality ${it}")
+                        }
+                        val split1 = room.quality.split("p")
+                        if (split1.size == 2) {
+                            // 尝试获取帧率和清晰度都接近的
+                            abs(split[0].toInt() - split1[0].toInt()) + abs(split1[1].toInt() - split.getOrElse(1) { "30" }
+                                .toInt())
+                        } else {
+                            // 只判断清晰度，选到什么纯看运气
+                            abs(split[0].toInt() - split1[0].toInt())
+                        }
+                    }
+                    val new = q ?: "raw" // 只有一种清晰度的
+                    if (currentQuality != new && !isActive) {
+                        println("[${room.name}] 更正清晰度设置 ${currentQuality} -> ${new}, 期望${room.quality}")
+                        currentQuality = new
+                    }
+                    _isOpen.set(false)
+                    return true
+                }
             }
         } catch (e: Exception) {
             println(e.stackTraceToString())
         }
+
         val b = withRetryOrNull(3) {
             try {
                 if (room.quality != "raw") {
