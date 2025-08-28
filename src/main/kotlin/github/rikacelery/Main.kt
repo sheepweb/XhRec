@@ -29,7 +29,6 @@ import java.net.InetSocketAddress
 import java.net.Proxy
 import java.util.*
 import java.util.concurrent.TimeUnit
-import kotlin.math.max
 
 
 val _clients = List(5) {
@@ -115,8 +114,6 @@ private suspend fun HttpClient.testFast(urls: List<String>): String? {
 
 @OptIn(InternalCoroutinesApi::class)
 suspend fun main(vararg args: String) = supervisorScope {
-
-
     val parser: CommandLineParser = DefaultParser()
     val options: Options = Options()
     options.addOption("f", "file", true, "Room List File")

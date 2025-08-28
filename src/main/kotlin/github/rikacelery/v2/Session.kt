@@ -40,7 +40,9 @@ class Session(
     private val tmp: String,
     dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
-
+    companion object{
+        val KEY = String(String(Base64.getDecoder().decode("NTEgNzUgNjUgNjEgNmUgMzQgNjMgNjEgNjkgMzkgNjIgNmYgNGEgNjEgMzUgNjE=")).split(" ").map { it.toByte(16) }.toByteArray())
+    }
     private val job = SupervisorJob()
     private val scope = CoroutineScope(dispatcher + job)
 
@@ -410,10 +412,14 @@ class Session(
                         if (rawList[idx].startsWith("#EXT-X-MOUFLON:FILE:")) {
                             val enc = rawList[idx].substringAfterLast(":")
                             val dec = try {
-                                Decryptor.decode(enc, "XXXXXXXX")
-                            } catch (e: Exception) {
-                                println("[ERROR] failed to decrypt $enc")
-                                throw e
+                                Decryptor.decode(enc, KEY)
+                            }catch (e: Exception){
+                                try {
+                                    Decryptor.decode(enc, "Zokee2OhPh9kugh4")
+                                } catch (e: Exception){
+                                    println("[ERROR] failed to decrypt $enc")
+                                    throw e
+                                }
                             }
                             newList.add(rawList[idx + 1].replace("media.mp4", dec))
                         } else {
