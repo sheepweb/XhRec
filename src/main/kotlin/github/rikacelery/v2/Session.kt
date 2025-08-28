@@ -5,7 +5,6 @@ import github.rikacelery.Room
 import github.rikacelery.client
 import github.rikacelery.proxiedClient
 import github.rikacelery.utils.CombinedException
-import github.rikacelery.utils.resilientSelect
 import github.rikacelery.utils.withRetry
 import github.rikacelery.utils.withRetryOrNull
 import io.ktor.client.plugins.*
@@ -18,6 +17,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
@@ -25,6 +26,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.internal.toLongOrDefault
 import java.util.*
+import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
@@ -38,6 +40,7 @@ class Session(
     private val tmp: String,
     dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
+
     private val job = SupervisorJob()
     private val scope = CoroutineScope(dispatcher + job)
 
@@ -50,6 +53,7 @@ class Session(
     private val writerReference = AtomicReference<Writer?>(null)
     private var generatorJob: Job? = null
 
+    //metrics
     private val total = AtomicInteger(0)
     private val success = AtomicInteger(0)
     private val successProxied = AtomicInteger(0)
@@ -70,11 +74,7 @@ class Session(
 
     @Serializable
     data class Status(
-        val total: Int,
-        val success: Int,
-        val failed: Int,
-        val bytesWrite: Long,
-        val running: Map<String, UrlInfo>
+        val total: Int, val success: Int, val failed: Int, val bytesWrite: Long, val running: Map<String, UrlInfo>
     )
 
     fun status(): Status {
@@ -83,9 +83,34 @@ class Session(
         }
     }
 
+    /**
+     * @throws RenameException
+     * @throws DeletedException
+     */
     suspend fun testAndConfigure(): Boolean {
         try {
-            val get = proxiedClient.get("https://zh.xhamsterlive.com/api/front/v1/broadcasts/${room.name}")
+            val get = proxiedClient.get("https://zh.xhamsterlive.com/api/front/v1/broadcasts/${room.name}") {
+                this.expectSuccess = false
+            }
+            if (get.status == HttpStatusCode.NotFound) {
+                val reason =
+                    runCatching { Json.Default.parseToJsonElement(get.bodyAsText()).jsonObject["description"]?.jsonPrimitive?.content }.getOrNull()
+                if (reason == null) {
+                    return false
+                }
+                when {
+                    reason.matches("Model has new name: newName=(.*)".toRegex()) -> {
+                        throw RenameException(
+                            "Model has new name: newName=(.*)".toRegex().find(reason)!!.groupValues[1]
+                        )
+                    }
+
+                    reason == "model already deleted" -> {
+                        throw DeletedException(room.name)
+                    }
+                }
+            }
+
             val element = Json.Default.parseToJsonElement(get.bodyAsText())
             val status = element.jsonObject["item"]?.jsonObject?.get("status")?.jsonPrimitive?.content
             val presets = element.jsonObject["item"]?.jsonObject?.get("settings")?.jsonObject?.get("presets")?.jsonArray
@@ -122,31 +147,30 @@ class Session(
                     return true
                 }
             }
-        } catch (e: Exception) {
+        } catch (e: ClientRequestException) {
+            println(e.stackTraceToString())
+        } catch (e: TimeoutException) {
             println(e.stackTraceToString())
         }
 
         val b = withRetryOrNull(3) {
             try {
                 if (room.quality != "raw") {
-                    val qualities =
-                        withTimeout(9_000) {
-                            val response =
-                                proxiedClient.get(
-                                    "https://b-hls-06.doppiocdn.live/hls/%d/%d.m3u8?playlistType=lowLatency".format(
-                                        room.id, room.id
-                                    )
-                                )
-                            require(response.status == HttpStatusCode.OK) {
-                                "[${room.name}] 直播未开始"
-                            }
-                            response
-                        }.bodyAsText().lines().filter {
-                            it.startsWith("#EXT-X-RENDITION-REPORT") && !it.contains("blurred")
-                        }.map {
-                            it.substringAfter(":URI=\"").substringBefore("\"").substringAfter("_")
-                                .substringBefore(".m3u8")
+                    val qualities = withTimeout(9_000) {
+                        val response = proxiedClient.get(
+                            "https://b-hls-06.doppiocdn.live/hls/%d/%d.m3u8?playlistType=lowLatency".format(
+                                room.id, room.id
+                            )
+                        )
+                        require(response.status == HttpStatusCode.OK) {
+                            "[${room.name}] 直播未开始"
                         }
+                        response
+                    }.bodyAsText().lines().filter {
+                        it.startsWith("#EXT-X-RENDITION-REPORT") && !it.contains("blurred")
+                    }.map {
+                        it.substringAfter(":URI=\"").substringBefore("\"").substringAfter("_").substringBefore(".m3u8")
+                    }
                     val q = qualities.lastOrNull { it == room.quality } ?: qualities.minByOrNull {
                         val split = it.split("p")
                         val split1 = room.quality.split("p")
@@ -187,6 +211,37 @@ class Session(
         return b
     }
 
+    fun createDiscontinuityCounter(): suspend (List<Int>) -> Int {
+        var lastMax: Int? = null        // 上次输入的最大值
+        var totalGaps = 0               // 累计的不连续数字个数（所有间隙之和）
+        val lock = Mutex()
+        return counter@{ numbers: List<Int> ->
+            lock.withLock {
+                if (numbers.isEmpty()) return@counter totalGaps
+
+                val currentMin = numbers.first()      // 连续递增，首项最小
+                val currentMax = numbers.last()       // 尾项最大
+
+                if (lastMax != null) {
+                    val gap = currentMin - lastMax!! - 1
+                    if (gap > 0) {
+                        totalGaps += gap
+                    }
+                    // 如果 gap <= 0，说明重叠或紧接，无新增不连续
+                }
+
+                lastMax = currentMax  // 更新状态
+                totalGaps
+            }
+        }
+    }
+
+    fun segmentIDFromUrl(url: String): Int? {
+        val parts = url.substringAfterLast("/").split("_")
+        return parts[(parts.size - 4).coerceAtLeast(0)].toIntOrNull()
+    }
+
+    var metric: MetricUpdater? = null
     suspend fun start() {
         if (!_isActive.compareAndSet(false, true)) {
             throw IllegalStateException("Session is already active")
@@ -195,6 +250,9 @@ class Session(
 
         val writer = Writer(room.name, dest, tmp).apply { init() }
         writerReference.set(writer)
+        metric = Metric.newMetric(room.id, room.name)
+        val metric = metric!!
+        val counter = createDiscontinuityCounter()
         total.set(0)
         success.set(0)
         failed.set(0)
@@ -208,73 +266,89 @@ class Session(
                 var nextIndex = 0
                 var emittedIndex = 0
 
-                segmentGenerator()
-                    .map { event ->
-                        val index = nextIndex++
-                        index to scope.async {
-                            running.incrementAndGet()
-                            total.incrementAndGet()
-                            val result = runCatching {
-                                synchronized(runningUrl) {
-                                    runningUrl[event.url()] = UrlInfo(ClientType.DIRECT, System.currentTimeMillis())
-                                }
-                                tryDownload(event).await()?.also {
-                                    successDirect.incrementAndGet()
-                                } ?: run {
-//                                    println("Falling back to proxy download for ${room.name}")
-                                    synchronized(runningUrl) {
-                                        runningUrl[event.url()] = UrlInfo(ClientType.PROXY, System.currentTimeMillis())
-                                    }
-                                    withRetry(2){
-                                        proxiedClient.get(
-                                            event.url()
-                                        ).readBytes().also {
-                                            successProxied.incrementAndGet()
-                                        }
-                                    }
-                                }
-                            }
+                segmentGenerator().map { event ->
+                    segmentIDFromUrl(event.url())?.let { segmentID ->
+                        metric.segmentID(segmentID)
+                        metric.segmentMissing(counter(listOf(segmentID)))
+                        metric.quality(currentQuality)
+                    }
+                    val index = nextIndex++
+                    index to scope.async {
+                        metric.downloadingIncrement()
+                        metric.totalIncrement()
+                        running.incrementAndGet()
+                        total.incrementAndGet()
+                        val ms = System.currentTimeMillis()
+                        val result = runCatching {
                             synchronized(runningUrl) {
-                                runningUrl.remove(event.url())
+                                runningUrl[event.url()] = UrlInfo(ClientType.DIRECT, System.currentTimeMillis())
                             }
-                            result.onFailure {
-                                if (event is Event.LiveSegmentInit) {
-                                    throw InitSegmentDownloadFiledException(it)
-                                } else {
-                                    val created = (event.url().substringBeforeLast("_").substringAfterLast("_")
-                                        .toLongOrDefault(0))
-                                    val diff = System.currentTimeMillis() / 1000 - created
-                                    println("Download segment:${index} failed, delayed: ${diff}ms")
+                            tryDownload(event).await()?.also {
+                                metric.successDirectIncrement()
+                                successDirect.incrementAndGet()
+                            } ?: run {
+//                                    println("Falling back to proxy download for ${room.name}")
+                                synchronized(runningUrl) {
+                                    runningUrl[event.url()] = UrlInfo(ClientType.PROXY, System.currentTimeMillis())
+                                }
+                                withRetry(2) {
+                                    proxiedClient.get(
+                                        event.url()
+                                    ).readBytes().also {
+                                        metric.successProxiedIncrement()
+                                        successProxied.incrementAndGet()
+                                    }
                                 }
                             }
                         }
-                    }
-                    .buffer(Channel.UNLIMITED)
-                    .collect { (index, deferred) ->
-                        pending[index] = deferred
-                        readyToEmit.add(index)
-
-                        while (readyToEmit.peek() == emittedIndex) {
-                            val current = readyToEmit.poll()
-                            val result = pending.remove(current)?.await()
-                            running.decrementAndGet()
-                            if (result != null && result.isSuccess) {
-                                success.incrementAndGet()
-                                val data = result.getOrThrow()
-                                bytesWrite.addAndGet(data.size.toLong())
-                                writer.append(data)
+                        metric.updateLatency(System.currentTimeMillis() - ms)
+                        synchronized(runningUrl) {
+                            runningUrl.remove(event.url())
+                        }
+                        result.onFailure {
+                            if (event is Event.LiveSegmentInit) {
+                                throw InitSegmentDownloadFiledException(it)
                             } else {
-                                failed.incrementAndGet()
-                                println("[${room.name}] Download segment:${index} failed (${result?.exceptionOrNull()?.cause?.message ?: result?.exceptionOrNull()?.message}).")
+                                val created = (event.url().substringBeforeLast("_").substringAfterLast("_")
+                                    .toLongOrDefault(0))
+                                val diff = System.currentTimeMillis() / 1000 - created
+                                println("Download segment:${index} failed, delayed: ${diff}ms")
                             }
-                            emittedIndex++
                         }
                     }
+                }.buffer(Channel.UNLIMITED).collect { (index, deferred) ->
+                    pending[index] = deferred
+                    readyToEmit.add(index)
+
+                    while (readyToEmit.peek() == emittedIndex) {
+                        val current = readyToEmit.poll()
+                        val result = pending.remove(current)?.await()
+                        metric.downloadingDecrement()
+                        metric.doneIncrement()
+                        running.decrementAndGet()
+                        if (result != null && result.isSuccess) {
+                            success.incrementAndGet()
+                            val data = result.getOrThrow()
+                            metric.bytesWriteIncrement(data.size.toLong())
+                            bytesWrite.addAndGet(data.size.toLong())
+                            writer.append(data)
+                        } else {
+                            metric.failedIncrement()
+                            failed.incrementAndGet()
+                            println("[${room.name}] Download segment:${index} failed (${result?.exceptionOrNull()?.cause?.message ?: result?.exceptionOrNull()?.message}).")
+                            result?.exceptionOrNull()?.printStackTrace()
+                        }
+                        emittedIndex++
+                    }
+                }
             }
 
             generatorJob?.join()
         } finally {
             println("[-] ${room.name} ${room.quality} ${currentQuality} $streamUrl")
+            withContext(NonCancellable) {
+                Metric.removeMetric(room.id)
+            }
         }
     }
 
@@ -285,26 +359,28 @@ class Session(
         writerReference.getAndSet(null)?.done()
     }
 
-    suspend fun dispose() {
-        stop()
-        job.complete()
-        println("[${room.name}] Cleanup")
-    }
-
 
     private val streamUrl: String
         get() {
-            return if (currentQuality != "raw" && currentQuality.isNotBlank())
-                "https://b-hls-%02d.doppiocdn.live/hls/%d/%d_%s.m3u8?playlistType=lowLatency".format(
-                    Random().nextInt(12, 13), room.id, room.id, currentQuality
-                )
-            else
-                "https://b-hls-%02d.doppiocdn.live/hls/%d/%d.m3u8?playlistType=lowLatency".format(
-                    Random().nextInt(
-                        12,
-                        13
-                    ), room.id, room.id
-                )
+            return if (currentQuality != "raw" && currentQuality.isNotBlank()) "https://media-hls.doppiocdn.org/b-hls-%d/%d/%d_%s.m3u8?playlistType=lowLatency".format(
+                Random().nextInt(12, 13), room.id, room.id, currentQuality
+            )
+            else "https://media-hls.doppiocdn.org/b-hls-%d/%d/%d.m3u8?playlistType=lowLatency".format(
+                Random().nextInt(
+                    12, 13
+                ), room.id, room.id
+            )
+        }
+
+
+    private val edgeUrl: String
+        get() {
+            return if (currentQuality != "raw" && currentQuality.isNotBlank()) "https://edge-hls.doppiocdn.com/hls/%d/master/%d_%s.m3u8".format(
+                room.id, room.id, currentQuality
+            )
+            else "https://edge-hls.doppiocdn.com/hls/%d/master/%d.m3u8".format(
+                room.id, room.id
+            )
         }
 
     private fun segmentGenerator(): Flow<Event> = flow {
@@ -312,18 +388,46 @@ class Session(
         var initUrl: String = ""
         val cache = CircleCache(100)
         var n = 0
+        val p = AtomicBoolean(true)
+        var ms = System.currentTimeMillis()
+        val mouflon = proxiedClient.get(edgeUrl).bodyAsText().lines().singleOrNull { it.startsWith("#EXT-X-MOUFLON") }
+        val pk = mouflon?.substringAfterLast(":")
         while (currentCoroutineContext().isActive) {
             n++
             val url = streamUrl
             try {
                 val lines = withTimeout(5_000) {
-                    proxiedClient.get(
+                    val rawList = (if (p.get()) proxiedClient else client).get(
                         url
-                    ).bodyAsText().lines()
+                    ) {
+                        if (pk != null) {
+                            parameter("psch", "v1")
+                            parameter("pkey", pk)
+                        }
+                    }.bodyAsText().lines()
+                    val newList = mutableListOf<String>()
+                    for (idx in rawList.indices) {
+                        if (rawList[idx].startsWith("#EXT-X-MOUFLON:FILE:")) {
+                            val enc = rawList[idx].substringAfterLast(":")
+                            val dec = try {
+                                Decryptor.decode(enc, "XXXXXXXX")
+                            } catch (e: Exception) {
+                                println("[ERROR] failed to decrypt $enc")
+                                throw e
+                            }
+                            newList.add(rawList[idx + 1].replace("media.mp4", dec))
+                        } else {
+                            newList.add(rawList[idx])
+                        }
+                    }
+
+                    newList.filterNot { it.contains("media.mp4") }
                 }
+
+                metric?.updateRefreshLatency(System.currentTimeMillis() - ms)
+                ms = System.currentTimeMillis()
                 val initUrl0 = parseInitUrl(lines)
-                if (initUrl.isEmpty())
-                    initUrl = initUrl0
+                if (initUrl.isEmpty()) initUrl = initUrl0
                 if (initUrl0 != initUrl) {
                     println("[${room.name}] Init segment changed, exiting...")
                     break
@@ -343,11 +447,19 @@ class Session(
                 }
                 n = 0
             } catch (e: TimeoutCancellationException) {
+//                p.set(false)
+//                GlobalScope.launch{
+//                    delay(10_000)
+//                    if (p.get()){
+//                        p.set(true)
+//                    }
+//                }
                 println("[ERROR] [${room.name}] Refresh list timeout: $url ${n}")
-                if (!testAndConfigure()) {
+                if (!runCatching { testAndConfigure() }.getOrElse { false }) {
                     println("[STOP] [${room.name}] Room off: $room ${n}")
                     break
                 }
+                continue
             } catch (e: CombinedException) {
                 if (e.exceptions.any(shouldStop())) {
                     scope.launch { stop() }
@@ -360,7 +472,8 @@ class Session(
                 break
             } catch (e: Exception) {
                 println("[${room.name}] Unexpected error in segment generator: ${e.message}")
-                if (!testAndConfigure()) {
+                e.printStackTrace()
+                if (!runCatching { testAndConfigure() }.getOrElse { false }) {
                     println("[STOP] [${room.name}] Room off: $room ${n}")
                     break
                 }
@@ -372,22 +485,19 @@ class Session(
     }
 
     private fun parseSegmentUrl(lines: List<String>): List<String> {
-        return lines.filter { it.startsWith("#EXT-X-PART") && it.contains("URI=\"") }
-            .mapNotNull { line ->
-                try {
-                    line.substringAfter("URI=\"").substringBefore("\"")
-                } catch (e: Exception) {
-                    println("Failed to parse segment URL from line: $line")
-                    null
-                }
+        return lines.filter { it.startsWith("#EXT-X-PART") && it.contains("URI=\"") }.mapNotNull { line ->
+            try {
+                line.substringAfter("URI=\"").substringBefore("\"")
+            } catch (e: Exception) {
+                println("Failed to parse segment URL from line: $line")
+                null
             }
+        }
     }
 
     private fun parseInitUrl(lines: List<String>): String {
         return try {
-            lines.first { it.startsWith("#EXT-X-MAP") }
-                .substringAfter("#EXT-X-MAP:URI=")
-                .removeSurrounding("\"")
+            lines.first { it.startsWith("#EXT-X-MAP") }.substringAfter("#EXT-X-MAP:URI=").removeSurrounding("\"")
         } catch (e: NoSuchElementException) {
             throw IllegalArgumentException("Missing #EXT-X-MAP tag in playlist", e)
         } catch (e: Exception) {
@@ -422,9 +532,6 @@ class Session(
     class InitSegmentDownloadFiledException(cause: Throwable) : Throwable(cause)
 
     private fun shouldStop(): (Throwable) -> Boolean = { error ->
-        error is ClientRequestException && error.response.status == HttpStatusCode.NotFound ||
-                error is ClientRequestException && error.response.status == HttpStatusCode.Forbidden ||
-                error is CancellationException ||
-                !isActive
+        error is ClientRequestException && error.response.status == HttpStatusCode.NotFound || error is ClientRequestException && error.response.status == HttpStatusCode.Forbidden || error is CancellationException || !isActive
     }
 }

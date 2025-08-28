@@ -1,6 +1,8 @@
 package github.rikacelery
 
 import github.rikacelery.utils.withRetryOrNull
+import github.rikacelery.v2.Decryptor
+import github.rikacelery.v2.Metric
 import github.rikacelery.v2.Scheduler
 import io.ktor.client.*
 import io.ktor.client.engine.okhttp.*
@@ -18,6 +20,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.internal.synchronized
 import kotlinx.serialization.Serializable
 import okhttp3.ConnectionPool
 import org.apache.commons.cli.*
@@ -80,7 +83,7 @@ val proxiedClient = HttpClient(OkHttp) {
             proxy = Proxy(Proxy.Type.HTTP, InetSocketAddress(url.host, url.port))
         }
         config {
-            connectionPool(ConnectionPool(5, 1, TimeUnit.MINUTES))
+            connectionPool(ConnectionPool(15, 10, TimeUnit.MINUTES))
             followSslRedirects(true)
             followRedirects(true)
         }
@@ -110,7 +113,10 @@ private suspend fun HttpClient.testFast(urls: List<String>): String? {
     return null
 }
 
+@OptIn(InternalCoroutinesApi::class)
 suspend fun main(vararg args: String) = supervisorScope {
+
+
     val parser: CommandLineParser = DefaultParser()
     val options: Options = Options()
     options.addOption("f", "file", true, "Room List File")
@@ -132,7 +138,7 @@ suspend fun main(vararg args: String) = supervisorScope {
     }
 
     val jobFile = File(commandLine.getOptionValue("f", "list.conf"))
-    val regex = "(#)?(https://(?:zh.)?xhamsterlive.com/\\S+)(?: (.+))?".toRegex()
+    val regex = "([#;])? *(https://(?:zh.)?xhamsterlive.com/\\S+)(?: (.+))?".toRegex()
     val rooms = channelFlow {
         if (!jobFile.exists())
             jobFile.writeText(BUILTIN.joinToString("\n"))
@@ -157,7 +163,14 @@ suspend fun main(vararg args: String) = supervisorScope {
         }
     }.toList().filterNotNull().awaitAll().filterNotNull().toMutableList()
 
-    val scheduler = Scheduler(commandLine.getOptionValue("o", "out"), commandLine.getOptionValue("t", "tmp"))
+    val scheduler =
+        Scheduler(commandLine.getOptionValue("o", "out"), commandLine.getOptionValue("t", "tmp")) { scheduler ->
+            synchronized(jobFile) {
+                jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
+                    "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
+                })
+            }
+        }
     rooms.forEach {
         File("/screenshot/${it.first.name}").mkdir()
         scheduler.add(it.first, it.second)
@@ -171,7 +184,7 @@ suspend fun main(vararg args: String) = supervisorScope {
     }) {
         delay(10000)
         while (true) {
-            scheduler.sessions.map {
+            scheduler.sessions.filter { it.key.room.quality != "model already deleted" }.map {
                 async {
 //                    println("[INFO] screenshot ${it.key.room.name}:${it.key.room.id}")
                     File("/screenshot/${it.key.room.name}").mkdir()
@@ -263,9 +276,11 @@ suspend fun main(vararg args: String) = supervisorScope {
                 }
                 println(room)
                 scheduler.add(room, active)
-                jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
-                    "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
-                })
+                kotlin.synchronized(jobFile) {
+                    jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
+                        "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
+                    })
+                }
                 call.respond("OK")
             }
             get("/remove") {
@@ -275,9 +290,11 @@ suspend fun main(vararg args: String) = supervisorScope {
                     return@get
                 }
                 scheduler.remove(slug)
-                jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
-                    "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
-                })
+                kotlin.synchronized(jobFile) {
+                    jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
+                        "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
+                    })
+                }
                 call.respond("OK")
             }
             get("/start") {
@@ -306,9 +323,11 @@ suspend fun main(vararg args: String) = supervisorScope {
                     return@get
                 }
                 scheduler.active(slug)
-                jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
-                    "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
-                })
+                kotlin.synchronized(jobFile) {
+                    jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
+                        "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
+                    })
+                }
                 call.respond("OK")
             }
             get("/quality") {
@@ -328,9 +347,11 @@ suspend fun main(vararg args: String) = supervisorScope {
                     return@get
                 }
                 room.quality = q
-                jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
-                    "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
-                })
+                kotlin.synchronized(jobFile) {
+                    jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
+                        "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
+                    })
+                }
                 call.respond(room)
             }
             get("/deactivate") {
@@ -341,9 +362,11 @@ suspend fun main(vararg args: String) = supervisorScope {
                     return@get
                 }
                 scheduler.deactivate(slug)
-                jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
-                    "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
-                })
+                kotlin.synchronized(jobFile) {
+                    jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
+                        "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
+                    })
+                }
                 call.respond("OK")
             }
             get("/list") {
@@ -382,6 +405,9 @@ suspend fun main(vararg args: String) = supervisorScope {
             get("/status") {
                 call.respond(scheduler.sessions.filter { it.value.isActive }
                     .map { it.key.room.name to it.value.status() }.toMap())
+            }
+            get("/metrics") {
+                call.respond(Metric.prometheus())
             }
             get("/recorders") {
                 synchronized(scheduler.sessions) {
