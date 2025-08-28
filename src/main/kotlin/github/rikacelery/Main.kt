@@ -179,65 +179,67 @@ suspend fun main(vararg args: String) = supervisorScope {
     scheduler.start(false)
 
     // 开启截图协程
-    val sc = launch(Dispatchers.IO + CoroutineExceptionHandler { coroutineContext, throwable ->
-        println(throwable.stackTraceToString())
-    }) {
-        delay(10000)
-        while (true) {
-            scheduler.sessions.filter { it.key.room.quality != "model already deleted" }.map {
-                async {
-//                    println("[INFO] screenshot ${it.key.room.name}:${it.key.room.id}")
-                    File("/screenshot/${it.key.room.name}").mkdir()
-                    val url =
-                        proxiedClient.testFast(
-                            listOf(
-                                "https://b-hls-04.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}_160p.m3u8",
-                                "https://b-hls-04.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}_240p.m3u8",
-                                "https://b-hls-04.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}_560p.m3u8",
-                                "https://b-hls-04.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}_720p.m3u8",
-                                "https://b-hls-04.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}_720p60.m3u8",
-                                "https://b-hls-04.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}.m3u8",
-                            )
-                        )
-                    if (url == null) {
-                        return@async
-                    }
-                    runCatching {
-                        val builder = ProcessBuilder(
-                            "ffmpeg",
-                            "-hide_banner",
-                            "-v",
-                            "error",
-                            "-i",
-                            url,
-                            "-vf",
-                            "scale=480:-1",
-                            "-vframes",
-                            "1",
-                            "-q:v",
-                            "2",
-                            "/screenshot/${it.key.room.name}/%d.jpg".format(System.currentTimeMillis() / 1000)
-                        )
-                        val proxyEnv = System.getenv("http_proxy") ?: System.getenv("HTTP_PROXY")
-                        if (proxyEnv != null) {
-                            builder.environment()["http_proxy"] = proxyEnv
-                        }
-                        val p = builder.start()
-                        if (p.waitFor() != 0) {
-                            println("[ERROR] screenshot exited ${p.exitValue()}")
-                        }
-                        val readText = p.errorStream.bufferedReader().readText()
-                        if (readText.isNotBlank()) {
-                            println(readText)
-                        }
-                    }.onFailure { it ->
-                        println(it.stackTraceToString())
-                    }
-                }
-            }.awaitAll()
-            delay(5 * 60_000)
-        }
-    }
+//fixme: 修复截图功能
+
+//    val sc = launch(Dispatchers.IO + CoroutineExceptionHandler { coroutineContext, throwable ->
+//        println(throwable.stackTraceToString())
+//    }) {
+//        delay(10000)
+//        while (true) {
+//            scheduler.sessions.filter { it.key.room.quality != "model already deleted" }.map {
+//                async {
+////                    println("[INFO] screenshot ${it.key.room.name}:${it.key.room.id}")
+//                    File("/screenshot/${it.key.room.name}").mkdir()
+//                    val url =
+//                        proxiedClient.testFast(
+//                            listOf(
+//                                "https://b-hls-04.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}_160p.m3u8",
+//                                "https://b-hls-04.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}_240p.m3u8",
+//                                "https://b-hls-04.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}_560p.m3u8",
+//                                "https://b-hls-04.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}_720p.m3u8",
+//                                "https://b-hls-04.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}_720p60.m3u8",
+//                                "https://b-hls-04.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}.m3u8",
+//                            )
+//                        )
+//                    if (url == null) {
+//                        return@async
+//                    }
+//                    runCatching {
+//                        val builder = ProcessBuilder(
+//                            "ffmpeg",
+//                            "-hide_banner",
+//                            "-v",
+//                            "error",
+//                            "-i",
+//                            url,
+//                            "-vf",
+//                            "scale=480:-1",
+//                            "-vframes",
+//                            "1",
+//                            "-q:v",
+//                            "2",
+//                            "/screenshot/${it.key.room.name}/%d.jpg".format(System.currentTimeMillis() / 1000)
+//                        )
+//                        val proxyEnv = System.getenv("http_proxy") ?: System.getenv("HTTP_PROXY")
+//                        if (proxyEnv != null) {
+//                            builder.environment()["http_proxy"] = proxyEnv
+//                        }
+//                        val p = builder.start()
+//                        if (p.waitFor() != 0) {
+//                            println("[ERROR] screenshot exited ${p.exitValue()}")
+//                        }
+//                        val readText = p.errorStream.bufferedReader().readText()
+//                        if (readText.isNotBlank()) {
+//                            println(readText)
+//                        }
+//                    }.onFailure { it ->
+//                        println(it.stackTraceToString())
+//                    }
+//                }
+//            }.awaitAll()
+//            delay(5 * 60_000)
+//        }
+//    }
     // web server
     var engine: ApplicationEngine? = null
     engine = embeddedServer(
@@ -417,7 +419,7 @@ suspend fun main(vararg args: String) = supervisorScope {
                 }
             }
             get("/stop-server") {
-                sc.cancel()
+//                sc.cancel()
                 scheduler.stop()
 
                 call.respond("OK")
