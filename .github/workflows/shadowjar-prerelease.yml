@@ -21,6 +21,8 @@ jobs:
         java-version: '17'
         distribution: 'zulu'
         cache: 'gradle'
+    - name: chmod
+      run: chmod +x gradlew
 
     - name: Validate Gradle wrapper
       uses: gradle/gradle-build-action@v2
