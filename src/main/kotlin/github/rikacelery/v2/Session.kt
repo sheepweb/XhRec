@@ -40,7 +40,9 @@ class Session(
     private val tmp: String,
     dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
-
+    companion object{
+        val KEY = String(String(Base64.getDecoder().decode("NTEgNzUgNjUgNjEgNmUgMzQgNjMgNjEgNjkgMzkgNjIgNmYgNGEgNjEgMzUgNjE=")).split(" ").map { it.toByte(16) }.toByteArray())
+    }
     private val job = SupervisorJob()
     private val scope = CoroutineScope(dispatcher + job)
 
@@ -411,7 +413,7 @@ class Session(
                         if (rawList[idx].startsWith("#EXT-X-MOUFLON:FILE:")){
                             val enc = rawList[idx].substringAfterLast(":")
                             val dec = try {
-                                Decryptor.decode(enc, "Quean4cai9boJa5a")
+                                Decryptor.decode(enc, KEY)
                             }catch (e: Exception){
                                 try {
                                     Decryptor.decode(enc, "Zokee2OhPh9kugh4")
