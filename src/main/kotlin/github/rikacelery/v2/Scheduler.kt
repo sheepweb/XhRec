@@ -9,6 +9,7 @@ import java.util.*
 class Scheduler(
     private val dest:String,
     private val tmp:String,
+    private val listUpdate:suspend (self: Scheduler)-> Unit = {}
 ) {
     data class State(val room: Room, var listen: Boolean) {
         override fun hashCode(): Int {
@@ -60,11 +61,21 @@ class Scheduler(
 //            println("${it.key.listen} ${it.key.room.name}")
         }.filterKeys { it.listen }.forEach { (k, v) ->
             if (v.isActive) return@forEach
+            if (k.room.quality=="model already deleted") return@forEach
             scope.launch {
 //                println("loop launch ${k.room.name}")
-                if (v.testAndConfigure()) {
-                    v.start()
-                    v.stop()
+                try {
+                    if (v.testAndConfigure()) {
+                        v.start()
+                        v.stop()
+                    }
+                }catch(ex:RenameException) {
+                    add(k.room.copy(name = ex.newName),k.listen)
+                    listUpdate(this@Scheduler)
+                }catch (e: DeletedException){
+                    deactivate(e.name)
+                    k.room.quality = "model already deleted"
+                    listUpdate(this@Scheduler)
                 }
             }
         }
