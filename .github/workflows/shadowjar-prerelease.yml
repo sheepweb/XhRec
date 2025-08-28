@@ -53,4 +53,4 @@ jobs:
         generate_release_notes: false
       env:
         # 提供 GITHUB_TOKEN 以便发布操作能与 GitHub API 交互
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
