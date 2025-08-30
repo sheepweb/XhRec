@@ -38,7 +38,7 @@ jobs:
       uses: softprops/action-gh-release@v2
       if: success()
       with:
-        tag_name: pre-v${{ format('{0}-{1}', github.run_number, github.sha) }}
+        tag_name: dev-build
         name: CI builds
         body: |
           Automated pre-release build from GitHub Actions.
