@@ -41,9 +41,14 @@ class Session(
     private val tmp: String,
     dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
-    companion object{
-        val KEY = String(String(Base64.getDecoder().decode("NTEgNzUgNjUgNjEgNmUgMzQgNjMgNjEgNjkgMzkgNjIgNmYgNGEgNjEgMzUgNjE=")).split(" ").map { it.toByte(16) }.toByteArray())
+    companion object {
+        val KEY = String(
+            String(
+                Base64.getDecoder().decode("NTEgNzUgNjUgNjEgNmUgMzQgNjMgNjEgNjkgMzkgNjIgNmYgNGEgNjEgMzUgNjE=")
+            ).split(" ").map { it.toByte(16) }.toByteArray()
+        )
     }
+
     private val job = SupervisorJob()
     private val scope = CoroutineScope(dispatcher + job)
 
@@ -412,10 +417,10 @@ class Session(
                             val enc = rawList[idx].substringAfterLast(":")
                             val dec = try {
                                 Decryptor.decode(enc, KEY)
-                            }catch (e: Exception){
+                            } catch (e: Exception) {
                                 try {
                                     Decryptor.decode(enc, "Zokee2OhPh9kugh4")
-                                } catch (e: Exception){
+                                } catch (e: Exception) {
                                     println("[ERROR] failed to decrypt $enc")
                                     throw e
                                 }
@@ -427,7 +432,7 @@ class Session(
                     }
 
                     newList.filterNot { it.contains("media.mp4") }.map {
-                        it.replace("""media-hls\.doppiocdn\.\w+/(b-hls-\d+)""".toRegex(),){
+                        it.replace("""media-hls\.doppiocdn\.\w+/(b-hls-\d+)""".toRegex()) {
                             "${it.groupValues[1]}.doppiocdn.live"
                         }
                     }
@@ -456,19 +461,31 @@ class Session(
                 }
                 n = 0
             } catch (e: TimeoutCancellationException) {
-//                p.set(false)
-//                GlobalScope.launch{
-//                    delay(10_000)
-//                    if (p.get()){
-//                        p.set(true)
-//                    }
-//                }
                 println("[ERROR] [${room.name}] Refresh list timeout: $url ${n}")
                 if (!runCatching { testAndConfigure() }.getOrElse { false }) {
-                    println("[STOP] [${room.name}] Room off: $room ${n}")
+                    println("[STOP] [${room.name}] Room off or non-public: $room ${n}")
                     break
                 }
                 continue
+            } catch (e: ClientRequestException) {
+                if (e.response.status.value == 404) {
+                    println("[STOP] [${room.name}] Room off or non-public: $room ${n}")
+                    break
+                }
+                if (e.response.status.value == 403) {
+                    if (!runCatching { testAndConfigure() }.getOrElse { false }) {
+                        println("[STOP] [${room.name}] Room off or non-public: $room ${n}")
+                        break
+                    } else if (currentQuality=="raw") {
+                        // https://github.com/RikaCelery/XhRec/issues/2
+                        println("[WARNING] [${room.name}] Unable to use 'raw' quality, try using the highest one. Room will stop record now.")
+                        room.quality = "2560p60" // try selecting the highest quality
+                        break
+                    }else{
+                        println("[ERROR] [${room.name}] Refresh list error: $url ${e.response.status}. Stop recording.")
+                        break
+                    }
+                }
             } catch (e: CombinedException) {
                 if (e.exceptions.any(shouldStop())) {
                     scope.launch { stop() }
