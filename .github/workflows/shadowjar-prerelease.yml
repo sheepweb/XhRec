@@ -3,6 +3,7 @@ name: Build and Publish ShadowJar Pre-release
 on:
   push:
     branches: [ "main" ]  # 当推送到 main 分支时触发
+  workflow_dispatch:
 
 jobs:
   build-and-publish:
