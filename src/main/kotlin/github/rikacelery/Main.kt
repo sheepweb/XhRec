@@ -147,7 +147,9 @@ suspend fun main(vararg args: String) = supervisorScope {
         val active = match.groupValues[1].isBlank()
         val url = match.groupValues[2]
         val q = extract(match.groupValues[3], "q:(\\S+)".toRegex(), "720p")
-        println("${if (active) "[+]" else "[X]"} $q $url")
+        val seg = extract(match.groupValues[3], "seg:(\\d+)".toRegex(), "0").toLong()
+        val cs = extract(match.groupValues[3], "cs:(on|off)".toRegex(), "off").equals("on", true)
+        println("${if (active) "[+]" else "[X]"} q=$q seg=$seg cs=$cs $url")
         async {
             val room = withRetryOrNull(5, { it.message?.contains("404") == true }) {
                 proxiedClient.fetchRoomFromUrl(url, q)
@@ -156,21 +158,26 @@ suspend fun main(vararg args: String) = supervisorScope {
                 return@async null
             }
             println(room)
-            room to active
+            Triple(room, active, Pair(seg, cs))
         }
     }.toList().filterNotNull().awaitAll().filterNotNull().toMutableList()
 
     val scheduler =
         Scheduler(commandLine.getOptionValue("o", "out"), commandLine.getOptionValue("t", "tmp")) { scheduler ->
             synchronized(jobFile) {
-                jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
-                    "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
+                jobFile.writeText(scheduler.sessions.keys.joinToString("\n") { state ->
+                    val session = scheduler.sessions[state]
+                    val seg = session?.segSeconds() ?: 0
+                    val cs = if (session?.isContactSheetEnabled() == true) "on" else "off"
+                    "${if (state.listen) "" else "#"}https://zh.xhamsterlive.com/${state.room.name} q:${state.room.quality} seg:${seg} cs:${cs}"
                 })
             }
         }
     rooms.forEach {
-        File("/screenshot/${it.first.name}").mkdir()
-        scheduler.add(it.first, it.second)
+        val (room, active, segCs) = it
+        val (seg, cs) = segCs
+        File("/screenshot/${room.name}").mkdir()
+        scheduler.add(room, active, seg, cs)
     }
     println("-".repeat(10) + "DONE" + "-".repeat(10))
     scheduler.start(false)
@@ -274,10 +281,13 @@ suspend fun main(vararg args: String) = supervisorScope {
                     return@get
                 }
                 println(room)
-                scheduler.add(room, active)
+                scheduler.add(room, active, seg)
                 kotlin.synchronized(jobFile) {
-                    jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
-                        "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
+                    jobFile.writeText(scheduler.sessions.keys.joinToString("\n") { state ->
+                        val session = scheduler.sessions[state]
+                        val seg = session?.segSeconds() ?: 0
+                        val cs = if (session?.isContactSheetEnabled() == true) "on" else "off"
+                        "${if (state.listen) "" else "#"}https://zh.xhamsterlive.com/${state.room.name} q:${state.room.quality} seg:${seg} cs:${cs}"
                     })
                 }
                 call.respond("OK")
@@ -290,8 +300,11 @@ suspend fun main(vararg args: String) = supervisorScope {
                 }
                 scheduler.remove(slug)
                 kotlin.synchronized(jobFile) {
-                    jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
-                        "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
+                    jobFile.writeText(scheduler.sessions.keys.joinToString("\n") { state ->
+                        val session = scheduler.sessions[state]
+                        val seg = session?.segSeconds() ?: 0
+                        val cs = if (session?.isContactSheetEnabled() == true) "on" else "off"
+                        "${if (state.listen) "" else "#"}https://zh.xhamsterlive.com/${state.room.name} q:${state.room.quality} seg:${seg} cs:${cs}"
                     })
                 }
                 call.respond("OK")
@@ -323,8 +336,11 @@ suspend fun main(vararg args: String) = supervisorScope {
                 }
                 scheduler.active(slug)
                 kotlin.synchronized(jobFile) {
-                    jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
-                        "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
+                    jobFile.writeText(scheduler.sessions.keys.joinToString("\n") { state ->
+                        val session = scheduler.sessions[state]
+                        val seg = session?.segSeconds() ?: 0
+                        val cs = if (session?.isContactSheetEnabled() == true) "on" else "off"
+                        "${if (state.listen) "" else "#"}https://zh.xhamsterlive.com/${state.room.name} q:${state.room.quality} seg:${seg} cs:${cs}"
                     })
                 }
                 call.respond("OK")
@@ -347,8 +363,11 @@ suspend fun main(vararg args: String) = supervisorScope {
                 }
                 room.quality = q
                 kotlin.synchronized(jobFile) {
-                    jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
-                        "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
+                    jobFile.writeText(scheduler.sessions.keys.joinToString("\n") { state ->
+                        val session = scheduler.sessions[state]
+                        val seg = session?.segSeconds() ?: 0
+                        val cs = if (session?.isContactSheetEnabled() == true) "on" else "off"
+                        "${if (state.listen) "" else "#"}https://zh.xhamsterlive.com/${state.room.name} q:${state.room.quality} seg:${seg} cs:${cs}"
                     })
                 }
                 call.respond(room)
@@ -362,8 +381,11 @@ suspend fun main(vararg args: String) = supervisorScope {
                 }
                 scheduler.deactivate(slug)
                 kotlin.synchronized(jobFile) {
-                    jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
-                        "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
+                    jobFile.writeText(scheduler.sessions.keys.joinToString("\n") { state ->
+                        val session = scheduler.sessions[state]
+                        val seg = session?.segSeconds() ?: 0
+                        val cs = if (session?.isContactSheetEnabled() == true) "on" else "off"
+                        "${if (state.listen) "" else "#"}https://zh.xhamsterlive.com/${state.room.name} q:${state.room.quality} seg:${seg} cs:${cs}"
                     })
                 }
                 call.respond("OK")
