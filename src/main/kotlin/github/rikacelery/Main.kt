@@ -169,7 +169,7 @@ suspend fun main(vararg args: String) = supervisorScope {
             }
         }
     rooms.forEach {
-        File("/screenshot/${it.first.name}").mkdir()
+        File("screenshot/${it.first.name}").mkdir()
         scheduler.add(it.first, it.second)
     }
     println("-".repeat(10) + "DONE" + "-".repeat(10))
