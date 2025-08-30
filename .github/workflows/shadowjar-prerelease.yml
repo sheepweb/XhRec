@@ -39,7 +39,7 @@ jobs:
       if: success()
       with:
         tag_name: pre-v${{ format('{0}-{1}', github.run_number, github.sha) }}
-        name: Pre-release ${{ github.run_number }}
+        name: CI builds
         body: |
           Automated pre-release build from GitHub Actions.
           - **Workflow Run:** [${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
