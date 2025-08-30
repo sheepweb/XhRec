@@ -98,7 +98,8 @@ class Writer(
                 println("[$name] ${line.replace("\r", "")}")
             }
         }
-        if (p.waitFor() == 0) {
+        val code = p.waitFor()
+        if (code == 0) {
             input.delete()
             try {
                 val finalBase = "${name}_${siteName}_${formatedStartTime()}"
@@ -111,6 +112,9 @@ class Writer(
             }
         } else {
             println("[$name] 分片转码失败")
+        }
+    }
+
     private fun generateContactSheet(processedVideo: File) {
         val outJpg = File(processedVideo.parentFile, processedVideo.nameWithoutExtension + ".jpg")
         val cols = 10
@@ -134,11 +138,8 @@ class Writer(
                 println("[$name] ${'$'}line")
             }
         }
-        val code = p.waitFor()
-        if (code != 0) println("[$name] contactsheet ffmpeg exited with $code")
-    }
-
-        }
+        val exitCode = p.waitFor()
+        if (exitCode != 0) println("[$name] contactsheet ffmpeg exited with $exitCode")
     }
 
     private fun formatedStartTime(): String? =
