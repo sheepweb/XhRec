@@ -281,7 +281,7 @@ suspend fun main(vararg args: String) = supervisorScope {
                     return@get
                 }
                 println(room)
-                scheduler.add(room, active, seg)
+                scheduler.add(room, active)
                 kotlin.synchronized(jobFile) {
                     jobFile.writeText(scheduler.sessions.keys.joinToString("\n") { state ->
                         val session = scheduler.sessions[state]
