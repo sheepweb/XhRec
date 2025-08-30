@@ -38,13 +38,18 @@ class Session(
     private val room: Room,
     private val dest: String,
     private val tmp: String,
-    dispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val maxDurationSeconds: Long = 0,
+    private val contactSheetEnabled: Boolean = false,
+    dispatcher: CoroutineDispatcher = Dispatchers.IO,
+
 ) {
     companion object{
         val KEY = String(String(Base64.getDecoder().decode("NTEgNzUgNjUgNjEgNmUgMzQgNjMgNjEgNjkgMzkgNjIgNmYgNGEgNjEgMzUgNjE=")).split(" ").map { it.toByte(16) }.toByteArray())
     }
     private val job = SupervisorJob()
     private val scope = CoroutineScope(dispatcher + job)
+
+    fun segSeconds(): Long = maxDurationSeconds
 
     private val _isOpen = AtomicBoolean(false)
     private val _isActive = AtomicBoolean(false)
@@ -76,14 +81,17 @@ class Session(
 
     @Serializable
     data class Status(
-        val total: Int, val success: Int, val failed: Int, val bytesWrite: Long, val running: Map<String, UrlInfo>
+        val total: Int, val success: Int, val failed: Int, val bytesWrite: Long, val running: Map<String, UrlInfo>,
+        val contactSheetEnabled: Boolean
     )
 
     fun status(): Status {
         synchronized(runningUrl) {
-            return Status(total.get(), success.get(), failed.get(), bytesWrite.get(), runningUrl.toMap())
+            return Status(total.get(), success.get(), failed.get(), bytesWrite.get(), runningUrl.toMap(), contactSheetEnabled)
         }
     }
+    fun isContactSheetEnabled(): Boolean = contactSheetEnabled
+
 
     /**
      * @throws RenameException
@@ -250,7 +258,7 @@ class Session(
         }
         println("[+] ${room.name} ${room.quality} ${currentQuality} $streamUrl")
 
-        val writer = Writer(room.name, dest, tmp).apply { init() }
+        val writer = Writer(room.name, dest, tmp, maxDurationSeconds, contactSheetEnabled).apply { init() }
         writerReference.set(writer)
         metric = Metric.newMetric(room.id, room.name)
         val metric = metric!!

@@ -81,12 +81,12 @@ class Scheduler(
         }
     }
 
-    suspend fun add(room: Room, listen: Boolean) {
+    suspend fun add(room: Room, listen: Boolean, segSeconds: Long = 0, csEnabled: Boolean = false) {
         opLock.withLock {
             if (sessions.containsKey(State(room, listen))) {
                 return
             }
-            sessions[State(room, listen)] = Session(room, dest,tmp)
+            sessions[State(room, listen)] = Session(room, dest, tmp, segSeconds, csEnabled)
         }
     }
 
