@@ -20,6 +20,20 @@ java -jar XhRec-all.jar -f list.conf -t /path/to/temp/folder -o /path/to/destnat
 
 There is no builtin GUI/CLI for now. But we provided a html for preview and a browser extension for quick control.
 
+### Browser extension
+
+![extension screenshot](PixPin_2025-09-01_00-31-44.png)
+
+1. Go to the Extensions page by entering `chrome://extensions` in a new tab. (By design `chrome://` URLs are not linkable.)
+
+    - Alternatively, click the Extensions menu puzzle button and select **Manage Extensions** at the bottom of the menu.
+    - Or, click the Chrome menu, hover over **More Tools**, then select **Extensions**.
+
+2. Enable Developer Mode by clicking the toggle switch next to **Developer mode**.
+3. Click the **Load unpacked** button and select the `extension` directory.
+![Extensions page 1(chrome://extensions)](PixPin_2025-09-01_00-38-56.png)
+![Extensions page 2(chrome://extensions)](PixPin_2025-09-01_00-36-07.png)
+
 ### API
 
 #### /add
@@ -401,17 +415,3 @@ https://zh.xhamsterlive.com/modelC q:raw
   </body>
 </html>
 ```
-
-### Browser extension
-
-![extension screenshot](PixPin_2025-09-01_00-31-44.png)
-
-1. Go to the Extensions page by entering `chrome://extensions` in a new tab. (By design `chrome://` URLs are not linkable.)
-
-    - Alternatively, click the Extensions menu puzzle button and select **Manage Extensions** at the bottom of the menu.
-    - Or, click the Chrome menu, hover over **More Tools**, then select **Extensions**.
-
-2. Enable Developer Mode by clicking the toggle switch next to **Developer mode**.
-3. Click the **Load unpacked** button and select the `extension` directory.
-![Extensions page 1(chrome://extensions)](PixPin_2025-09-01_00-38-56.png)
-![Extensions page 2(chrome://extensions)](PixPin_2025-09-01_00-36-07.png)
