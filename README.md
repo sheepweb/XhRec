@@ -2,7 +2,7 @@
 
 A kotlin application for automatic recording lives from StripChat.
 
-# Usage
+## Usage
 
 ```plain
 usage: CommandLineParameters
@@ -16,13 +16,13 @@ usage: CommandLineParameters
 java -jar XhRec-all.jar -f list.conf -t /path/to/temp/folder -o /path/to/destnation/folder
 ```
 
-# Control
+## Control
 
 There is no builtin GUI/CLI for now. But we provided a html for preview and a browser extension for quick control.
 
-## API
+### API
 
-### /add
+#### /add
 
 | Parameter | Description           |
 | --------- | --------------------- |
@@ -30,7 +30,7 @@ There is no builtin GUI/CLI for now. But we provided a html for preview and a br
 | quality   | Quality, default 720p |
 | active    | Start auto recording  |
 
-### /break
+#### /break
 
 Temporary stop recording
 
@@ -38,53 +38,36 @@ Temporary stop recording
 | --------- | --------------- |
 | slug      | Room/Model name |
 
-### /remove
+#### /remove
 
 | Parameter | Description     |
 | --------- | --------------- |
 | slug      | Room/Model name |
 
-### /activate
+#### /activate
 
 | Parameter | Description     |
 | --------- | --------------- |
 | slug      | Room/Model name |
 
-### /deactivate
+#### /deactivate
 
 | Parameter | Description     |
 | --------- | --------------- |
 | slug      | Room/Model name |
 
-### /quality
+#### /quality
 
 | Parameter | Description     |
 | --------- | --------------- |
 | slug      | Room/Model name |
 | quality   | Quality         |
 
-### /list (Deprecated)
+#### /list (Deprecated)
 
 Simple json status list
 
-```json lines
-[
-  [
-    //is streaming?
-    "[ ]",
-    //listening
-    "         ",
-    //recording
-    "         ",
-    "Model Name",
-    "Model Id",
-    "720p60"
-  ],
-  ["[ ]", "listening", "recording", "milli_sun_", "173611239", "720p"]
-]
-```
-
-### /status
+##$# /status
 
 Json status
 
@@ -116,7 +99,7 @@ Json status
 }
 ```
 
-### /recorders
+#### /recorders
 
 ```json lines
 [
@@ -130,19 +113,19 @@ Json status
 ]
 ```
 
-### /stop-server
+#### /stop-server
 
 Finish all recording tasks.
 The server won't shut down for some reason, but it's safe to kill the process when this api responds.
 
-### /metrics
+#### /metrics
 
 Prometheus metrics
 
 You can build monitor like this:
 ![img_2.png](img_2.png)
 
-# Configuration
+## Configuration
 
 ```plain
 # https://zh.xhamsterlive.com/modelA q:720p
@@ -155,9 +138,9 @@ https://zh.xhamsterlive.com/modelC q:raw
   **_If not quality matches, program will select closest one._**
 - `zh.` is optional, dont care about it.
 
-# UI
+## UI
 
-## HTML
+### HTML
 
 ![img.png](img.png)
 
@@ -419,7 +402,7 @@ https://zh.xhamsterlive.com/modelC q:raw
 </html>
 ```
 
-## Browser extension
+### Browser extension
 
 ![extension screenshot](PixPin_2025-09-01_00-31-44.png)
 
