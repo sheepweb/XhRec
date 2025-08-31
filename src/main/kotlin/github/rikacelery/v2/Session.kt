@@ -160,7 +160,7 @@ class Session(
         } catch (e: TimeoutException) {
             println(e.stackTraceToString())
         }
-
+        println("[WARNING] [${room.name}] Using deprecated quality selecting logic")
         val b = withRetryOrNull(3) {
             try {
                 if (room.quality != "raw") {
