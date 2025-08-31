@@ -419,7 +419,7 @@ https://zh.xhamsterlive.com/modelC q:raw
 </html>
 ```
 
-## User script
+## Browser extension
 
 ![extension screenshot](PixPin_2025-09-01_00-31-44.png)
 
