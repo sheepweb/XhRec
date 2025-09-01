@@ -16,14 +16,11 @@ import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.plugins.cors.routing.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kotlinx.coroutines.InternalCoroutinesApi
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.internal.synchronized
-import kotlinx.coroutines.runBlocking
 import okhttp3.ConnectionPool
 import org.apache.commons.cli.*
 import java.io.File
@@ -372,15 +369,18 @@ fun main(vararg args: String): Unit = runBlocking {
             get("/stop-server") {
 //                sc.cancel()
                 scheduler.stop()
-
                 call.respond("OK")
-                engine?.stop(1000)
+                engine?.stop()
             }
         }
     }
-        .start(true)
+    println("Starting server ...")
+    engine.start(true)
+    println("Server Stopped, waiting post processors exit...")
+    withContext(NonCancellable){
+        scheduler.stop()
+    }
     // Suppress waring
-    engine.stop(1000)
     println("all done")
     proxiedClient.close()
     _clients.forEach {

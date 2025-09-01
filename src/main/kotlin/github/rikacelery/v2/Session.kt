@@ -468,8 +468,10 @@ class Session(
                             started = false
                             initUrl = ""
                             requireNotNull(file)
-                            runCatching { PostProcessor.process(file, ProcessorCtx(room)) }.onFailure {
-                                it.printStackTrace()
+                            scope.launch(NonCancellable) {
+                                runCatching { PostProcessor.process(file, ProcessorCtx(room)) }.onFailure {
+                                    it.printStackTrace()
+                                }
                             }
                         } catch (e: Exception) {
                             e.printStackTrace()
