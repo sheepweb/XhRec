@@ -1,8 +1,8 @@
 package github.rikacelery
 
 import github.rikacelery.utils.withRetryOrNull
-import github.rikacelery.v2.Decryptor
 import github.rikacelery.v2.Metric
+import github.rikacelery.v2.PostProcessor
 import github.rikacelery.v2.Scheduler
 import io.ktor.client.*
 import io.ktor.client.engine.okhttp.*
@@ -16,22 +16,24 @@ import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.plugins.cors.routing.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kotlinx.coroutines.*
+import kotlinx.coroutines.InternalCoroutinesApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.internal.synchronized
-import kotlinx.serialization.Serializable
+import kotlinx.coroutines.runBlocking
 import okhttp3.ConnectionPool
 import org.apache.commons.cli.*
 import java.io.File
 import java.net.InetSocketAddress
 import java.net.Proxy
-import java.util.*
 import java.util.concurrent.TimeUnit
+import kotlin.time.Duration.Companion.seconds
 
 
-val _clients = List(5) {
+val _clients = List(1) {
     HttpClient(OkHttp) {
         expectSuccess = true
         install(DefaultRequest) {
@@ -89,33 +91,21 @@ val proxiedClient = HttpClient(OkHttp) {
     }
 }
 
-@Serializable
-data class LogInfo(
-    val name: String,
-    val msg: String = "",
-    val size: String = "",
-    val progress: Triple<Int, Int, Int> = Triple(0, 0, 0),
-    val latency: Long = 0
-)
 
-val logs = Hashtable<Long, LogInfo>()
 val BUILTIN = setOf(
-    "#https://zh.xhamsterlive.com/lu_lisa",
+    "# https://zh.xhamsterlive.com/ChangeToYourModel q:1080p limit:120",
 )
 
-fun extract(text: String, regex: Regex, default: String): String {
+private fun extract(text: String, regex: Regex, default: String): String {
     return regex.find(text)?.groupValues?.get(1)?.ifBlank { default } ?: default
 }
 
-private suspend fun HttpClient.testFast(urls: List<String>): String? {
-    urls.forEach { if (runCatching { head(it) }.getOrNull() != null) return it }
-    return null
-}
 
 @OptIn(InternalCoroutinesApi::class)
-suspend fun main(vararg args: String) = supervisorScope {
+fun main(vararg args: String): Unit = runBlocking {
     val parser: CommandLineParser = DefaultParser()
-    val options: Options = Options()
+    val options = Options()
+    options.addOption("post", true, "Post Processor Config File (default: postprocessor.json)")
     options.addOption("f", "file", true, "Room List File")
     options.addOption("o", "output", true, "Output Dir")
     options.addOption("t", "tmp", true, "Temp Dir")
@@ -124,16 +114,16 @@ suspend fun main(vararg args: String) = supervisorScope {
 
     val commandLine: CommandLine = try {
         parser.parse(options, args)
-    } catch (e: ParseException) {
+    } catch (_: ParseException) {
         val formatter = HelpFormatter()
         formatter.printHelp("CommandLineParameters", options)
-        return@supervisorScope
+        return@runBlocking
     }
     if (commandLine.hasOption("h")) {
         val formatter = HelpFormatter()
         formatter.printHelp("CommandLineParameters", options)
     }
-
+    PostProcessor.loadConfig(File(commandLine.getOptionValue("post", "postprocessor.json")))
     val jobFile = File(commandLine.getOptionValue("f", "list.conf"))
     val regex = "([#;])? *(https://(?:zh.)?xhamsterlive.com/\\S+)(?: (.+))?".toRegex()
     val rooms = channelFlow {
@@ -147,13 +137,17 @@ suspend fun main(vararg args: String) = supervisorScope {
         val active = match.groupValues[1].isBlank()
         val url = match.groupValues[2]
         val q = extract(match.groupValues[3], "q:(\\S+)".toRegex(), "720p")
-        println("${if (active) "[+]" else "[X]"} $q $url")
+        val limit = extract(match.groupValues[3], "limit:(\\d+)".toRegex(), "0")
+        println("${if (active) "[+]" else "[X]"} $q $limit $url")
         async {
             val room = withRetryOrNull(5, { it.message?.contains("404") == true }) {
                 proxiedClient.fetchRoomFromUrl(url, q)
             } ?: run {
                 println("failed " + url)
                 return@async null
+            }
+            if (limit.toLong() > 0) {
+                room.limit = limit.toLong().seconds
             }
             println(room)
             room to active
@@ -251,6 +245,9 @@ suspend fun main(vararg args: String) = supervisorScope {
             anyHost() // @TODO: Don't do this in production if possible. Try to limit it.
         }
         routing {
+            get("/") {
+                call.respondText(this::class.java.getResource("/index.html")!!.readText(),ContentType.Text.Html)
+            }
             get("/add") {
                 val active = call.request.queryParameters["active"].toBoolean()
                 val slug = call.request.queryParameters["slug"]
@@ -369,9 +366,6 @@ suspend fun main(vararg args: String) = supervisorScope {
                 call.respond("OK")
             }
             get("/list") {
-//                println(
-//                    "streaming recorder job room room_id quality"
-//                )
                 val list = scheduler.sessions.map { (state, session) ->
                     async {
                         listOf(
@@ -383,22 +377,7 @@ suspend fun main(vararg args: String) = supervisorScope {
                             state.room.quality,
                         )
                     }
-                }.awaitAll().also {
-//                    // column
-//                    it.associateWith { it.map(String::length) }.let {
-//                        val maxLen = it.values.reduce { acc, ints ->
-//                            acc.zip(ints).map { max(it.first, it.second) }
-//                        }
-//                        it.keys.map { strings ->
-//                            strings.zip(maxLen).map { pair ->
-//                                pair.first.padEnd(pair.second)
-//                            }
-//                        }
-//                    }.sortedBy { it[0] + it[1] + it[3] }.forEach {
-//                        println(it.joinToString(" "))
-//                    }
-                }
-
+                }.awaitAll()
                 call.respond(list)
             }
             get("/status") {
@@ -425,12 +404,13 @@ suspend fun main(vararg args: String) = supervisorScope {
         }
     }
         .start(true)
-
+    // Suppress waring
+    engine.stop(1000)
     println("all done")
     proxiedClient.close()
     _clients.forEach {
         it.close()
     }
-    return@supervisorScope
+    return@runBlocking
 }
 

@@ -9,16 +9,22 @@ import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
-import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.toList
 
+@Suppress("unused")
 suspend fun splitDownload(client: HttpClient, segmentUrl: String) = coroutineScope {
     withRetry(10) {
         client.fetchContentLength(segmentUrl)
     }.withMeasureTime {
         chunked(1024 * 10).asFlow().map {
             // cold flow doesn't allow concurrent download
-//            println(segmentUrl.hashCode().mod(30).toString(16) + " ${it.first}" + " Start")
             async {
                 val d = withRetry(10, {
                     // stop retry if 404

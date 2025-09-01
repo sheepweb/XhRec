@@ -3,8 +3,6 @@ package github.rikacelery.v2
 import github.rikacelery.utils.toLocalDateTime
 import java.io.BufferedOutputStream
 import java.io.File
-import java.nio.file.Files
-import java.nio.file.StandardCopyOption
 import java.time.format.DateTimeFormatter
 import java.util.*
 
@@ -48,49 +46,14 @@ class Writer(private val name: String, private val destFolder:String, private va
     private fun formatedStartTime(): String? =
         timeStarted.toLocalDateTime().format(DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm_ss"))
 
-    fun done() {
-        if (!isInit) return
+    fun done(): File? {
+        if (!isInit) return null
         bufferedWriter.close()
         val duration = Date().time - timeStarted.time
-        val input = File(tmpfolder, "${name}-${formatedStartTime()}-${format(duration)}.$ext")
-        if (file.renameTo(input)) {
-            val output = File(tmpfolder, "${name}-${formatedStartTime()}-${format(duration)}.fixed.$ext")
-            val builder = ProcessBuilder(
-                "ffmpeg",
-                "-hide_banner",
-                "-loglevel",
-                "error",
-                "-stats",
-                "-i",
-                input.absolutePath,
-                "-c",
-                "copy",
-                output.absolutePath
-            )
-            builder.redirectErrorStream(true)
-            val p = builder.start()
-            p.inputStream.bufferedReader().use {
-                while (true) {
-                    val char = it.readLine() ?: break
-                    println("[$name] ${char.replace("\r", "")}")
-                }
-            }
-            if (p.waitFor() == 0) {
-                input.delete()
-                println("[$name] moving...")
-                try {
-                    Files.move(
-                        output.toPath(),
-                        File(destFolder).resolve(output.name).toPath(),
-                        StandardCopyOption.REPLACE_EXISTING
-                    )
-                    println("[$name] 移动成功")
-                } catch (e: Exception) {
-                    println("[$name] 无法移动文件$e")
-                }
-            } else {
-                println("[$name] 转码失败，请查看命令输出")
-            }
+        val formatted = File(tmpfolder, "${name}-${formatedStartTime()}-${format(duration)}.$ext")
+        if (!file.renameTo(formatted)) {
+            throw Exception("Failed to rename $formatted")
         }
+        return formatted
     }
 }

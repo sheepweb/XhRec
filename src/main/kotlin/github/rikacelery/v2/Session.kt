@@ -11,7 +11,6 @@ import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
-import io.ktor.server.engine.launchOnCancellation
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -211,7 +210,7 @@ class Session(
                     )
                 }
                 true
-            } catch (e: ClientRequestException) {
+            } catch (_: ClientRequestException) {
                 false
             }
         } ?: false
@@ -362,7 +361,13 @@ class Session(
         if (_isActive.compareAndSet(true, false)) {
             generatorJob?.cancelAndJoin()
         }
-        writerReference.getAndSet(null)?.done()
+        val file = writerReference.getAndSet(null)?.done()
+        if (file == null) {
+            return
+        }
+        runCatching { PostProcessor.process(file, ProcessorCtx(room)) }.onFailure {
+            it.printStackTrace()
+        }
     }
 
 
@@ -391,19 +396,20 @@ class Session(
 
     private fun segmentGenerator(): Flow<Event> = flow {
         var started = false
-        var initUrl: String = ""
+        var initUrl = ""
         val cache = CircleCache(100)
-        var n = 0
-        val p = AtomicBoolean(true)
+        var retry = 0
         var ms = System.currentTimeMillis()
+        var startTime = ms
         val mouflon = proxiedClient.get(edgeUrl).bodyAsText().lines().singleOrNull { it.startsWith("#EXT-X-MOUFLON") }
         val pk = mouflon?.substringAfterLast(":")
         while (currentCoroutineContext().isActive) {
-            n++
+            retry++
+
             val url = streamUrl
             try {
                 val lines = withTimeout(5_000) {
-                    val rawList = (if (p.get()) proxiedClient else client).get(
+                    val rawList = (proxiedClient).get(
                         url
                     ) {
                         if (pk != null) {
@@ -418,12 +424,8 @@ class Session(
                             val dec = try {
                                 Decryptor.decode(enc, KEY)
                             } catch (e: Exception) {
-                                try {
-                                    Decryptor.decode(enc, "Zokee2OhPh9kugh4")
-                                } catch (e: Exception) {
-                                    println("[ERROR] failed to decrypt $enc")
-                                    throw e
-                                }
+                                println("[ERROR] failed to decrypt $enc")
+                                throw e
                             }
                             newList.add(rawList[idx + 1].replace("media.mp4", dec))
                         } else {
@@ -440,9 +442,9 @@ class Session(
 
                 metric?.updateRefreshLatency(System.currentTimeMillis() - ms)
                 ms = System.currentTimeMillis()
-                val initUrl0 = parseInitUrl(lines)
-                if (initUrl.isEmpty()) initUrl = initUrl0
-                if (initUrl0 != initUrl) {
+                val initUrlCur = parseInitUrl(lines)
+                if (initUrl.isEmpty()) initUrl = initUrlCur
+                if (initUrlCur != initUrl) {
                     println("[${room.name}] Init segment changed, exiting...")
                     break
                 }
@@ -450,38 +452,62 @@ class Session(
 
                 if (!started) {
                     started = true
-                    emit(Event.LiveSegmentInit(initUrl0, room))
+                    emit(Event.LiveSegmentInit(initUrlCur, room))
                 }
 
-                videos.forEach { url ->
+                for (url in videos) {
+                    // record time limit
+                    if (System.currentTimeMillis() - startTime > room.limit.inWholeMilliseconds && !cache.contains(url) && url.endsWith(
+                            "_part0.mp4"
+                        )
+                    ) {
+                        try {
+                            val file = writerReference.get()!!.done()
+                            // reset state
+                            cache.clear()
+                            started = false
+                            initUrl = ""
+                            requireNotNull(file)
+                            runCatching { PostProcessor.process(file, ProcessorCtx(room)) }.onFailure {
+                                it.printStackTrace()
+                            }
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        } finally {
+                            startTime = System.currentTimeMillis()
+                        }
+                        writerReference.get()?.init()
+                        break
+                    }
+                    // normal segments
                     if (currentCoroutineContext().isActive && !cache.contains(url)) {
                         cache.add(url)
-                        emit(Event.LiveSegmentData(url, initUrl0, room))
+                        emit(Event.LiveSegmentData(url, initUrlCur, room))
                     }
                 }
-                n = 0
-            } catch (e: TimeoutCancellationException) {
-                println("[ERROR] [${room.name}] Refresh list timeout: $url ${n}")
+                retry = 0
+            } catch (_: TimeoutCancellationException) {
+                println("[ERROR] [${room.name}] Refresh list timeout: $url ${retry}")
                 if (!runCatching { testAndConfigure() }.getOrElse { false }) {
-                    println("[STOP] [${room.name}] Room off or non-public: $room ${n}")
+                    println("[STOP] [${room.name}] Room off or non-public: $room ${retry}")
                     break
                 }
                 continue
             } catch (e: ClientRequestException) {
                 if (e.response.status.value == 404) {
-                    println("[STOP] [${room.name}] Room off or non-public: $room ${n}")
+                    println("[STOP] [${room.name}] Room off or non-public: $room ${retry}")
                     break
                 }
                 if (e.response.status.value == 403) {
                     if (!runCatching { testAndConfigure() }.getOrElse { false }) {
-                        println("[STOP] [${room.name}] Room off or non-public: $room ${n}")
+                        println("[STOP] [${room.name}] Room off or non-public: $room ${retry}")
                         break
-                    } else if (currentQuality=="raw") {
+                    } else if (currentQuality == "raw") {
                         // https://github.com/RikaCelery/XhRec/issues/2
                         println("[WARNING] [${room.name}] Unable to use 'raw' quality, try using the highest one. Room will stop record now.")
                         room.quality = "2560p60" // try selecting the highest quality
                         break
-                    }else{
+                    } else {
                         println("[ERROR] [${room.name}] Refresh list error: $url ${e.response.status}. Stop recording.")
                         break
                     }
@@ -500,7 +526,7 @@ class Session(
                 println("[${room.name}] Unexpected error in segment generator: ${e.message}")
                 e.printStackTrace()
                 if (!runCatching { testAndConfigure() }.getOrElse { false }) {
-                    println("[STOP] [${room.name}] Room off: $room ${n}")
+                    println("[STOP] [${room.name}] Room off or non-public:: $room ${retry}")
                     break
                 }
             }
@@ -515,7 +541,7 @@ class Session(
             try {
                 line.substringAfter("URI=\"").substringBefore("\"")
             } catch (e: Exception) {
-                println("Failed to parse segment URL from line: $line")
+                println("Failed to parse segment URL from line: $line, $e")
                 null
             }
         }

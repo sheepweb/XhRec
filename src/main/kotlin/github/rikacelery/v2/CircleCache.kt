@@ -10,4 +10,7 @@ class CircleCache(private val maxSize: Int) {
     fun contains(item: String): Boolean {
         return cache.contains(item)
     }
+    fun clear() {
+        cache.clear()
+    }
 }
