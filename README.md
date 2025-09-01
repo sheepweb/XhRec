@@ -168,6 +168,8 @@ Json status
     "name": "Model Name",
     "id": 12345,
     "quality": "720p60",
+     // record limit, PT2M means 2 minutes (ISO-8601 Duration format)
+    "limit": "PT2M",
     // useless for now
     "lastSeen": null
   }
@@ -189,12 +191,13 @@ You can build monitor like this:
 ## Configuration
 
 ```plain
-# https://zh.xhamsterlive.com/modelA q:720p
+# https://zh.xhamsterlive.com/modelA q:720p limit:120
 ; https://zh.xhamsterlive.com/modelB q:240p
 https://zh.xhamsterlive.com/modelC q:raw
 ```
 
-- Start with `#` or `;` will be marked as `INACTIVE`, means will not automatically start recording
+- Start with `#` or `;` will be marked as `INACTIVE`, means will not automatically start recording.
+- limit:120 means record time (in seconds).
 - q:XXXX means preferred quality, raw means original quality.
   **_If not quality matches, program will select closest one._**
 - `zh.` is optional, dont care about it.

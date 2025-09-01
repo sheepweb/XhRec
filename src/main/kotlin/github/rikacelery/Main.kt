@@ -156,11 +156,7 @@ fun main(vararg args: String): Unit = runBlocking {
 
     val scheduler =
         Scheduler(commandLine.getOptionValue("o", "out"), commandLine.getOptionValue("t", "tmp")) { scheduler ->
-            synchronized(jobFile) {
-                jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
-                    "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
-                })
-            }
+            saveJobFile(jobFile, scheduler)
         }
     rooms.forEach {
         File("screenshot/${it.first.name}").mkdir()
@@ -246,7 +242,7 @@ fun main(vararg args: String): Unit = runBlocking {
         }
         routing {
             get("/") {
-                call.respondText(this::class.java.getResource("/index.html")!!.readText(),ContentType.Text.Html)
+                call.respondText(this::class.java.getResource("/index.html")!!.readText(), ContentType.Text.Html)
             }
             get("/add") {
                 val active = call.request.queryParameters["active"].toBoolean()
@@ -272,12 +268,7 @@ fun main(vararg args: String): Unit = runBlocking {
                 }
                 println(room)
                 scheduler.add(room, active)
-                kotlin.synchronized(jobFile) {
-                    jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
-                        "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
-                    })
-                }
-                call.respond("OK")
+                saveJobFile(jobFile, scheduler)
             }
             get("/remove") {
                 val slug = call.request.queryParameters["slug"]
@@ -286,11 +277,7 @@ fun main(vararg args: String): Unit = runBlocking {
                     return@get
                 }
                 scheduler.remove(slug)
-                kotlin.synchronized(jobFile) {
-                    jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
-                        "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
-                    })
-                }
+                saveJobFile(jobFile, scheduler)
                 call.respond("OK")
             }
             get("/start") {
@@ -319,11 +306,7 @@ fun main(vararg args: String): Unit = runBlocking {
                     return@get
                 }
                 scheduler.active(slug)
-                kotlin.synchronized(jobFile) {
-                    jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
-                        "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
-                    })
-                }
+                saveJobFile(jobFile, scheduler)
                 call.respond("OK")
             }
             get("/quality") {
@@ -343,11 +326,7 @@ fun main(vararg args: String): Unit = runBlocking {
                     return@get
                 }
                 room.quality = q
-                kotlin.synchronized(jobFile) {
-                    jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
-                        "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
-                    })
-                }
+                saveJobFile(jobFile, scheduler)
                 call.respond(room)
             }
             get("/deactivate") {
@@ -358,11 +337,7 @@ fun main(vararg args: String): Unit = runBlocking {
                     return@get
                 }
                 scheduler.deactivate(slug)
-                kotlin.synchronized(jobFile) {
-                    jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
-                        "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}"
-                    })
-                }
+                saveJobFile(jobFile, scheduler)
                 call.respond("OK")
             }
             get("/list") {
@@ -412,5 +387,14 @@ fun main(vararg args: String): Unit = runBlocking {
         it.close()
     }
     return@runBlocking
+}
+
+@OptIn(InternalCoroutinesApi::class)
+private fun saveJobFile(jobFile: File, scheduler: Scheduler) {
+    synchronized(jobFile) {
+        jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
+            "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}" + (if (!it.room.limit.isFinite()) "limit:${it.room.limit.inWholeSeconds}" else "")
+        })
+    }
 }
 
