@@ -2,6 +2,7 @@ const [tab] = await chrome.tabs.query({
   active: true,
   currentWindow: true,
 });
+const HOST = `docker.lan:8090`;
 let pathname = tab.url
   .slice(8)
   .slice(
@@ -60,7 +61,7 @@ function showToast(message, type = "success") {
     `;
   async function refresh() {
     let slug = pathname.slice(1);
-    let resp = await fetch(`http://docker.lan:8090/list`);
+    let resp = await fetch(`http://${HOST}/list`);
     let list = await resp.json();
     let info = list.filter((l) => l[3] == slug)[0];
     if (!info) {
@@ -100,8 +101,8 @@ function showToast(message, type = "success") {
     item2.disabled = true;
     try {
       let resp = await fetch(
-        `http://docker.lan:8090/add?slug=${encodeURIComponent(
-          slug
+        `http://${input}/add?slug=${encodeURIComponent(
+            slug
         )}&active=false`
       );
       let msg = await resp.text();
@@ -118,7 +119,7 @@ function showToast(message, type = "success") {
     item2.disabled = true;
     try {
       let resp = await fetch(
-        `http://docker.lan:8090/add?slug=${encodeURIComponent(
+        `http://${HOST}/add?slug=${encodeURIComponent(
           slug
         )}&active=true`
       );
@@ -138,7 +139,7 @@ function showToast(message, type = "success") {
   remove.addEventListener("click", async () => {
     let slug = pathname.slice(1);
     let resp = await fetch(
-      `http://docker.lan:8090/remove?slug=${encodeURIComponent(slug)}`
+      `http://${HOST}/remove?slug=${encodeURIComponent(slug)}`
     );
     let msg = await resp.text();
     // 显示一个Tost
@@ -152,7 +153,7 @@ function showToast(message, type = "success") {
   activate.addEventListener("click", async () => {
     let slug = pathname.slice(1);
     let resp = await fetch(
-      `http://docker.lan:8090/activate?slug=${encodeURIComponent(slug)}`
+      `http://${HOST}/activate?slug=${encodeURIComponent(slug)}`
     );
     let msg = await resp.text();
     // 显示一个Tost
@@ -165,7 +166,7 @@ function showToast(message, type = "success") {
   deactivate.addEventListener("click", async () => {
     let slug = pathname.slice(1);
     let resp = await fetch(
-      `http://docker.lan:8090/deactivate?slug=${encodeURIComponent(slug)}`
+      `http://${HOST}/deactivate?slug=${encodeURIComponent(slug)}`
     );
     let msg = await resp.text();
     // 显示一个Tost
@@ -178,7 +179,7 @@ function showToast(message, type = "success") {
   setRaw.addEventListener("click", async () => {
     let slug = pathname.slice(1);
     let resp = await fetch(
-      `http://docker.lan:8090/quality?slug=${encodeURIComponent(
+      `http://${HOST}/quality?slug=${encodeURIComponent(
         slug
       )}&quality=raw`
     );
@@ -196,7 +197,7 @@ function showToast(message, type = "success") {
   set720.addEventListener("click", async () => {
     let slug = pathname.slice(1);
     let resp = await fetch(
-      `http://docker.lan:8090/quality?slug=${encodeURIComponent(
+      `http://${HOST}/quality?slug=${encodeURIComponent(
         slug
       )}&quality=720p`
     );
@@ -214,7 +215,7 @@ function showToast(message, type = "success") {
   set720p60.addEventListener("click", async () => {
     let slug = pathname.slice(1);
     let resp = await fetch(
-      `http://docker.lan:8090/quality?slug=${encodeURIComponent(
+      `http://${HOST}/quality?slug=${encodeURIComponent(
         slug
       )}&quality=720p60`
     );
@@ -232,7 +233,7 @@ function showToast(message, type = "success") {
   set1080p60.addEventListener("click", async () => {
     let slug = pathname.slice(1);
     let resp = await fetch(
-      `http://docker.lan:8090/quality?slug=${encodeURIComponent(
+      `http://${HOST}/quality?slug=${encodeURIComponent(
         slug
       )}&quality=1080p60`
     );
@@ -250,7 +251,7 @@ function showToast(message, type = "success") {
   set480.addEventListener("click", async () => {
     let slug = pathname.slice(1);
     let resp = await fetch(
-      `http://docker.lan:8090/quality?slug=${encodeURIComponent(
+      `http://${HOST}/quality?slug=${encodeURIComponent(
         slug
       )}&quality=480p`
     );
@@ -268,7 +269,7 @@ function showToast(message, type = "success") {
   set240.addEventListener("click", async () => {
     let slug = pathname.slice(1);
     let resp = await fetch(
-      `http://docker.lan:8090/quality?slug=${encodeURIComponent(
+      `http://${HOST}/quality?slug=${encodeURIComponent(
         slug
       )}&quality=240p`
     );
@@ -286,7 +287,7 @@ function showToast(message, type = "success") {
   set160.addEventListener("click", async () => {
     let slug = pathname.slice(1);
     let resp = await fetch(
-      `http://docker.lan:8090/quality?slug=${encodeURIComponent(
+      `http://${HOST}/quality?slug=${encodeURIComponent(
         slug
       )}&quality=160p`
     );
