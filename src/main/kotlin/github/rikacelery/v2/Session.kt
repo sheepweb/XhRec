@@ -365,7 +365,12 @@ class Session(
         if (file == null) {
             return
         }
-        runCatching { PostProcessor.process(file, ProcessorCtx(room)) }.onFailure {
+        runCatching {
+            PostProcessor.process(
+                file.first,
+                ProcessorCtx(room, file.second, Date(), file.third, currentQuality)
+            )
+        }.onFailure {
             it.printStackTrace()
         }
     }
@@ -469,7 +474,12 @@ class Session(
                             initUrl = ""
                             requireNotNull(file)
                             scope.launch(NonCancellable) {
-                                runCatching { PostProcessor.process(file, ProcessorCtx(room)) }.onFailure {
+                                runCatching {
+                                    PostProcessor.process(
+                                        file.first,
+                                        ProcessorCtx(room, file.second, Date(), file.third, currentQuality)
+                                    )
+                                }.onFailure {
                                     it.printStackTrace()
                                 }
                             }

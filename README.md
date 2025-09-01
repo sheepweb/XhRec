@@ -26,20 +26,34 @@ Run processors one by one.
   "default": [
     {
       "type": "fix_stamp",
-      "args": [
-        "D:\\Users\\My\\Documents\\XhRec\\out"
-      ]
+      "output": "out"
+    },
+    {
+      "type": "move",
+      //{{ROOM_NAME}}
+      //{{ROOM_ID}}
+      //{{RECORD_START}}
+      //{{RECORD_END}}
+      //{{RECORD_DURATION}}
+      //{{RECORD_DURATION_STR}}
+      //{{INPUT}}
+      //{{INPUT_DIR}}
+      //{{FILE_NAME}}
+      //{{FILE_NAME_NOEXT}}
+      //{{TOTAL_FRAMES}}
+      "dest": "out/[{{ROOM_ID}}]{{ROOM_NAME}}@{{RECORD_START}}-{{RECORD_END}} {{RECORD_DURATION_STR}}",
+      "date_pattern": "yyyy年MM月dd日HH时mm分ss秒"
     },
     {
       "type": "slice",
-      "args": [
-        "30s"
-      ]
+      "duration": "1m10s"
     },
-     // generate grid thumbnail (20x20, 400pic total)
+    // generate grid thumbnail (20x20, 400pic total)
     {
       "type": "shell",
       "noreturn": true,
+      // default: true
+      "remove_input": false,
       "args": [
         "ffmpeg",
         "-hide_banner",
@@ -49,8 +63,8 @@ Run processors one by one.
         "-i",
         "{{INPUT}}",
         "-vf",
-         // if you change grid size, please recalculate total pic size
-         // or replace '{{TOTAL_FRAMES}}/400' to 50, which means every 50 frames will be one thumbnail
+        // if you change grid size, please recalculate total pic size
+        // or replace '{{TOTAL_FRAMES}}/400' to 50, which means every 50 frames will be one thumbnail
         "thumbnail={{TOTAL_FRAMES}}/400,scale=200:-1,tile=20x20",
         "-vframes",
         "1",

@@ -43,10 +43,10 @@ class Writer(private val name: String, private val destFolder:String, private va
         bufferedWriter.write(data)
     }
 
-    private fun formatedStartTime(): String? =
+    private fun formatedStartTime(): String =
         timeStarted.toLocalDateTime().format(DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm_ss"))
 
-    fun done(): File? {
+    fun done(): Triple<File, Date, Long>? {
         if (!isInit) return null
         bufferedWriter.close()
         val duration = Date().time - timeStarted.time
@@ -54,6 +54,6 @@ class Writer(private val name: String, private val destFolder:String, private va
         if (!file.renameTo(formatted)) {
             throw Exception("Failed to rename $formatted")
         }
-        return formatted
+        return Triple(formatted,timeStarted,duration)
     }
 }

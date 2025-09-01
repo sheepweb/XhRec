@@ -2,12 +2,15 @@ package github.rikacelery.v2
 
 import github.rikacelery.Room
 import github.rikacelery.utils.runProcessGetStdout
+import github.rikacelery.utils.toLocalDateTime
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.json.*
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
+import java.time.format.DateTimeFormatter
+import java.util.*
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.times
@@ -29,27 +32,37 @@ object PostProcessor {
         val processors = mutableListOf<Processor>()
         for (processor in config) {
             val type = processor.jsonObject["type"]!!.jsonPrimitive.content
-            val args = processor.jsonObject["args"]!!.jsonArray
             when (type) {
                 "fix_stamp" -> {
-                    val destinationFolder = args[0].jsonPrimitive.content
-                    processors.add(FixStampProcessor(context, destinationFolder))
+                    processors.add(FixStampProcessor(context, processor.jsonObject["output"]!!.jsonPrimitive.content))
                 }
 
                 "shell" -> {
+                    val args = processor.jsonObject["args"]!!.jsonArray
                     val script = args.map { it.jsonPrimitive.content }
                     processors.add(
                         ShellProcessor(
                             context,
                             script,
-                            processor.jsonObject.get("noreturn")?.jsonPrimitive?.booleanOrNull == true
+                            processor.jsonObject["noreturn"]?.jsonPrimitive?.booleanOrNull == true,
+                            processor.jsonObject["remove_input"]?.jsonPrimitive?.booleanOrNull == true,
                         )
                     )
                 }
 
                 "slice" -> {
-                    val duration = Duration.parse(args[0].jsonPrimitive.content)
+                    val duration = Duration.parse(processor.jsonObject["duration"]!!.jsonPrimitive.content)
                     processors.add(SliceProcessor(context, duration))
+                }
+
+                "move" -> {
+                    processors.add(
+                        MoveProcessor(
+                            context,
+                            processor.jsonObject["dest"]?.jsonPrimitive!!.content,
+                            processor.jsonObject["date_pattern"]?.jsonPrimitive!!.content,
+                        )
+                    )
                 }
             }
         }
@@ -67,7 +80,6 @@ object PostProcessor {
                 val files = try {
                     processor.process(file)
                 } catch (e: Exception) {
-                    files.forEach { it.delete() }
                     throw e
                 }
                 println("[${context.room.name}] $idx/${files.size} ${processor.javaClass.simpleName} -> $files")
@@ -81,6 +93,10 @@ object PostProcessor {
 
 data class ProcessorCtx(
     val room: Room,
+    val startTime: Date,
+    val endTime: Date,
+    val duration: Long,
+    val quality: String,
 )
 
 abstract class Processor(var context: ProcessorCtx) {
@@ -108,7 +124,7 @@ class FixStampProcessor(room: ProcessorCtx, val destinationFolder: String) : Pro
         )
         builder.redirectErrorStream(true)
         val p = builder.start()
-        if (!File(destinationFolder).exists()){
+        if (!File(destinationFolder).exists()) {
             File(destinationFolder).mkdirs()
         }
         p.inputStream.bufferedReader().use {
@@ -139,7 +155,7 @@ class FixStampProcessor(room: ProcessorCtx, val destinationFolder: String) : Pro
     }
 }
 
-class ShellProcessor(room: ProcessorCtx, val script: List<String>, val noreturn: Boolean = true) : Processor(room) {
+class ShellProcessor(room: ProcessorCtx, val script: List<String>, val noreturn: Boolean = true, val removeInput: Boolean = true) : Processor(room) {
 
     override fun process(input: File): List<File> {
 
@@ -181,6 +197,9 @@ class ShellProcessor(room: ProcessorCtx, val script: List<String>, val noreturn:
             if (noreturn) return listOf()
             val outputFile = File(p.inputStream.bufferedReader().readLines().last())
             assert(outputFile.exists())
+            if (removeInput) {
+                input.delete()
+            }
             return listOf(outputFile)
         } else {
             throw Exception("运行失败")
@@ -188,10 +207,66 @@ class ShellProcessor(room: ProcessorCtx, val script: List<String>, val noreturn:
     }
 }
 
-//class MoveProcessor(room: ProcessorCtx, val destPattern: String) : Processor(room) {
-//    override fun process(input: File,): List<File> {
-//    }
-//}
+class MoveProcessor(room: ProcessorCtx, val destPattern: String, val datePattern: String = "yyyy_MM_dd_HH_mm_ss") :
+    Processor(room) {
+    private fun format(time: Long): String {
+        val seconds = time / 1000
+        val minutes = seconds / 60
+        val hours = minutes / 60
+        val days = hours / 24
+        return if (days > 0) {
+            "%02dd%02dh%02dm%02ds".format(days, hours % 24, minutes % 60, seconds % 60)
+        } else {
+            "%02dh%02dm%02ds".format(hours % 24, minutes % 60, seconds % 60)
+        }
+    }
+
+    override fun process(input: File): List<File> {
+        val replace: (arg: String) -> String = { arg ->
+            arg
+                .replace("{{ROOM_NAME}}", context.room.name)
+                .replace("{{ROOM_ID}}", context.room.id.toString())
+                .replace(
+                    "{{RECORD_START}}",
+                    context.startTime.toLocalDateTime().format(DateTimeFormatter.ofPattern(datePattern))
+                )
+                .replace(
+                    "{{RECORD_END}}",
+                    context.endTime.toLocalDateTime().format(DateTimeFormatter.ofPattern(datePattern))
+                )
+                .replace("{{RECORD_DURATION}}", context.room.id.toString())
+                .replace("{{RECORD_DURATION_STR}}", format(context.duration))
+                .replace("{{RECORD_quality}}", context.quality)
+                .replace("{{INPUT}}", input.absolutePath)
+                .replace("{{INPUT_DIR}}", input.parentFile.absolutePath)
+                .replace("{{FILE_NAME}}", input.name)
+                .replace("{{FILE_NAME_NOEXT}}", input.nameWithoutExtension)
+                .replace("\\{\\{TOTAL_FRAMES}}".toRegex(), {
+                    runProcessGetStdout(
+                        "ffprobe",
+                        "-v",
+                        "error",
+                        "-select_streams",
+                        "v:0",
+                        "-count_frames",
+                        "-show_entries",
+                        "stream=nb_frames",
+                        "-of",
+                        "default=noprint_wrappers=1:nokey=1",
+                        input.absolutePath
+                    )
+                })
+        }
+
+        val dest = File(replace(destPattern))
+        if (dest.absolutePath != input.absolutePath) {
+            input.renameTo(dest)
+            return listOf((dest))
+        } else {
+            return listOf(input)
+        }
+    }
+}
 
 class SliceProcessor(room: ProcessorCtx, val duration: Duration) : Processor(room) {
     private fun formatDuration(seconds: Long): String {
