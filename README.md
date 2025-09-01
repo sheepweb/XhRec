@@ -7,7 +7,7 @@ A kotlin application for automatic recording lives from StripChat.
 ```plain
 usage: 
  -f,--file <arg>     Room List File
-    --post <arg>     Post Processor Config File (default: postprocessor.json)
+ -post <arg>         Post Processor Config File (default: postprocessor.json)
  -o,--output <arg>   Output Dir
  -p,--port <arg>     Server Port [default:8090]
  -t,--tmp <arg>      Temp Dir
