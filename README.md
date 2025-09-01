@@ -183,6 +183,7 @@ Json status
     "id": 12345,
     "quality": "720p60",
      // record limit, PT2M means 2 minutes (ISO-8601 Duration format)
+     // not recommand, may easily break you video.
     "limit": "PT2M",
     // useless for now
     "lastSeen": null
@@ -211,7 +212,7 @@ https://zh.xhamsterlive.com/modelC q:raw
 ```
 
 - Start with `#` or `;` will be marked as `INACTIVE`, means will not automatically start recording.
-- limit:120 means record time (in seconds).
+- limit:120 means record time (in seconds). **NOT RECOMMEND, MAY EASILY BREAK YOU VIDEO**.
 - q:XXXX means preferred quality, raw means original quality.
   **_If not quality matches, program will select closest one._**
 - `zh.` is optional, dont care about it.
