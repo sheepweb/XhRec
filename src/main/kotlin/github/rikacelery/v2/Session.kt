@@ -408,6 +408,7 @@ class Session(
         var startTime = ms
         val mouflon = proxiedClient.get(edgeUrl).bodyAsText().lines().singleOrNull { it.startsWith("#EXT-X-MOUFLON") }
         val pk = mouflon?.substringAfterLast(":")
+        val regexCache = """media-hls\.doppiocdn\.\w+/(b-hls-\d+)""".toRegex()
         while (currentCoroutineContext().isActive) {
             retry++
 
@@ -439,7 +440,7 @@ class Session(
                     }
 
                     newList.filterNot { it.contains("media.mp4") }.map {
-                        it.replace("""media-hls\.doppiocdn\.\w+/(b-hls-\d+)""".toRegex()) {
+                        it.replace(regexCache) {
                             "${it.groupValues[1]}.doppiocdn.live"
                         }
                     }
@@ -468,10 +469,6 @@ class Session(
                     ) {
                         try {
                             val file = writerReference.get()!!.done()
-                            // reset state
-                            cache.clear()
-                            started = false
-                            initUrl = ""
                             requireNotNull(file)
                             scope.launch(NonCancellable) {
                                 runCatching {
@@ -486,10 +483,14 @@ class Session(
                         } catch (e: Exception) {
                             e.printStackTrace()
                         } finally {
+                            // reset state
+                            cache.clear()
+                            started = false
+                            initUrl = ""
                             startTime = System.currentTimeMillis()
+                            writerReference.get()?.init()
+                            break
                         }
-                        writerReference.get()?.init()
-                        break
                     }
                     // normal segments
                     if (currentCoroutineContext().isActive && !cache.contains(url)) {
@@ -576,7 +577,7 @@ class Session(
         }
         val created = (event.url().substringBeforeLast("_").substringAfterLast("_").toLongOrDefault(0))
         val diff = System.currentTimeMillis() / 1000 - created
-        val wait = (17L - diff) * 1000
+        val wait = (16L - diff) * 1000
         withTimeoutOrNull(if (wait > 0) wait else 0) {
             withRetry(25) { attempt ->
                 try {
