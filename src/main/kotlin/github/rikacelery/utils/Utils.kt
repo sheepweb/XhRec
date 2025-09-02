@@ -103,5 +103,5 @@ fun runProcessGetStdout(vararg  command: String): String {
     if (code !=0){
         throw Exception("Process exit with code $code")
     }
-    return txt
+    return txt.trim()
 }
