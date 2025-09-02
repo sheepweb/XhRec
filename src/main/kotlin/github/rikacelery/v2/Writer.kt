@@ -17,7 +17,7 @@ class Writer(private val name: String, private val destFolder:String, private va
     fun init() {
         timeStarted = Date()
         file = File(tmpfolder, "${name}-${formatedStartTime()}-init.${ext}")
-        bufferedWriter = file.outputStream().buffered(bufferSize = 1024 * 1024 * 8)
+        bufferedWriter = file.outputStream().buffered(bufferSize = 1024 * 1024 * 1)
         isInit = true
         if (File(tmpfolder).exists().not()) {
             File(tmpfolder).mkdirs()
