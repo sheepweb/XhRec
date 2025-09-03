@@ -33,6 +33,8 @@ jobs:
       uses: gradle/gradle-build-action@v2
       with:
         arguments: shadowJar --no-daemon
+    - name: Pack browser extension
+      run: tar -cvf extension.tar extension
 
     - name: Create Pre-release and Upload Asset
       uses: softprops/action-gh-release@v2
@@ -49,6 +51,7 @@ jobs:
         prerelease: true
         files: |
           build/libs/*-all.jar
+          extension.tar
         # 生成校验和文件
         generate_release_notes: false
       env:
