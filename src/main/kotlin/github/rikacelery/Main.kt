@@ -77,6 +77,7 @@ val proxiedClient = HttpClient(OkHttp) {
     engine {
         val proxyEnv = System.getenv("http_proxy") ?: System.getenv("HTTP_PROXY")
         if (proxyEnv != null) {
+            println("Using http proxy $proxyEnv")
             val url = Url(proxyEnv)
             proxy = Proxy(Proxy.Type.HTTP, InetSocketAddress(url.host, url.port))
         }
@@ -100,6 +101,16 @@ private fun extract(text: String, regex: Regex, default: String): String {
 
 @OptIn(InternalCoroutinesApi::class)
 fun main(vararg args: String): Unit = runBlocking {
+    if ((System.getenv("http_proxy") ?: System.getenv("HTTP_PROXY")) != null) {
+        println("Testing proxy")
+        runCatching {
+            proxiedClient.get(("https://xhamsterlive.com/")) {
+                expectSuccess = false
+            }
+        }.onFailure {
+            println("Proxy test failed. $it")
+        }
+    }
     val parser: CommandLineParser = DefaultParser()
     val options = Options()
     options.addOption("post", true, "Post Processor Config File (default: postprocessor.json)")
@@ -377,7 +388,7 @@ fun main(vararg args: String): Unit = runBlocking {
     println("Starting server ...")
     engine.start(true)
     println("Server Stopped, waiting post processors exit...")
-    withContext(NonCancellable){
+    withContext(NonCancellable) {
         scheduler.stop()
     }
     // Suppress waring
