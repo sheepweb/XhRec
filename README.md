@@ -91,7 +91,8 @@ There is only basic status page at `/` now. We provided a browser extension for 
     - Or, click the Chrome menu, hover over **More Tools**, then select **Extensions**.
 
 2. Enable Developer Mode by clicking the toggle switch next to **Developer mode**.
-3. Click the **Load unpacked** button and select the `extension` directory.
+3. Replace `docker.lan:8090` in `extension/popup.js` to your own server address.
+4. Click the **Load unpacked** button and select the `extension` directory.
    ![Extensions page 1(chrome://extensions)](PixPin_2025-09-01_00-38-56.png)
    ![Extensions page 2(chrome://extensions)](PixPin_2025-09-01_00-36-07.png)
 
