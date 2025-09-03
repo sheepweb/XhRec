@@ -101,7 +101,7 @@ function showToast(message, type = "success") {
     item2.disabled = true;
     try {
       let resp = await fetch(
-        `http://${input}/add?slug=${encodeURIComponent(
+        `http://${HOST}/add?slug=${encodeURIComponent(
             slug
         )}&active=false`
       );
