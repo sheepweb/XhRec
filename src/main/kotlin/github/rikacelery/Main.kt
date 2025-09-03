@@ -104,9 +104,14 @@ fun main(vararg args: String): Unit = runBlocking {
     if ((System.getenv("http_proxy") ?: System.getenv("HTTP_PROXY")) != null) {
         println("Testing proxy")
         runCatching {
-            proxiedClient.get(("https://xhamsterlive.com/")) {
+            client.get(System.getenv("http_proxy") ?: System.getenv("HTTP_PROXY")) {
                 expectSuccess = false
             }
+            println("Proxy connect success.")
+            proxiedClient.get("https://xhamsterlive.com") {
+                expectSuccess = false
+            }
+            println("Proxy test (https://xhamsterlive.com) success.")
         }.onFailure {
             println("Proxy test failed. $it")
         }
