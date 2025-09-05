@@ -423,7 +423,7 @@ fun main(vararg args: String): Unit = runBlocking {
 private fun saveJobFile(jobFile: File, scheduler: Scheduler) {
     synchronized(jobFile) {
         jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
-            "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}" + (if (!it.room.limit.isFinite()) "limit:${it.room.limit.inWholeSeconds}" else "")
+            "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}" + (if (it.room.limit.isFinite()) " limit:${it.room.limit.inWholeSeconds}" else "")
         })
     }
 }
