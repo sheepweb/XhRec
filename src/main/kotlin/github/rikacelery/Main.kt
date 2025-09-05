@@ -2,7 +2,7 @@ package github.rikacelery
 
 import github.rikacelery.utils.withRetryOrNull
 import github.rikacelery.v2.Metric
-import github.rikacelery.v2.PostProcessor
+import github.rikacelery.v2.postprocessors.PostProcessor
 import github.rikacelery.v2.Scheduler
 import io.ktor.client.*
 import io.ktor.client.engine.okhttp.*

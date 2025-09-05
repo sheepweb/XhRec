@@ -7,6 +7,8 @@ import github.rikacelery.proxiedClient
 import github.rikacelery.utils.CombinedException
 import github.rikacelery.utils.withRetry
 import github.rikacelery.utils.withRetryOrNull
+import github.rikacelery.v2.postprocessors.PostProcessor
+import github.rikacelery.v2.postprocessors.ProcessorCtx
 import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
