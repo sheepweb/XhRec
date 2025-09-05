@@ -2,8 +2,8 @@ package github.rikacelery
 
 import github.rikacelery.utils.withRetryOrNull
 import github.rikacelery.v2.Metric
-import github.rikacelery.v2.postprocessors.PostProcessor
 import github.rikacelery.v2.Scheduler
+import github.rikacelery.v2.postprocessors.PostProcessor
 import io.ktor.client.*
 import io.ktor.client.engine.okhttp.*
 import io.ktor.client.plugins.*
@@ -27,6 +27,7 @@ import java.io.File
 import java.net.InetSocketAddress
 import java.net.Proxy
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.seconds
 
 
@@ -384,7 +385,20 @@ fun main(vararg args: String): Unit = runBlocking {
             }
             get("/stop-server") {
 //                sc.cancel()
-                scheduler.stop()
+                val latch = AtomicInteger(scheduler.sessions.size)
+                call.respondTextWriter {
+                    write("Stopping server...\n")
+                    scheduler.job?.cancel()
+                    scheduler.job?.join()
+                    write("Canceled scheduler.\n")
+                    scheduler.sessions.map {
+                        write("Cancelling ${it.key.room.name}.\n")
+                        scheduler.scope.launch {
+                            it.value.stop()
+                            write("Cancelled ${it.key.room.name}. remain: ${latch.decrementAndGet()}\n")
+                        }
+                    }.joinAll()
+                }
                 call.respond("OK")
                 engine?.stop()
             }
