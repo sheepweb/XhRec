@@ -94,7 +94,7 @@ class ShellProcessor(
             }
         }
         if (p.waitFor() == 0) {
-            if (noreturn) return listOf()
+            if (noreturn) return listOf(input)
             val outputFile = File(p.inputStream.bufferedReader().readLines().last())
             assert(outputFile.exists())
             if (removeInput) {
