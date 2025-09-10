@@ -102,6 +102,8 @@ class ShellProcessor(
             }
             return listOf(outputFile)
         } else {
+            if (noreturn) return listOf(input)
+            println("[warning] ${input} shell process failed.")
             throw Exception("运行失败")
         }
     }
