@@ -71,13 +71,13 @@ object PostProcessor {
 
             val tmp = files.flatMapIndexed { idx, file ->
                 println("[${context.room.name}] $idx/${files.size} ${processor.javaClass.simpleName} $file")
-                val files = try {
+                val outs = try {
                     processor.process(file)
                 } catch (e: Exception) {
                     throw e
                 }
-                println("[${context.room.name}] $idx/${files.size} ${processor.javaClass.simpleName} -> $files")
-                files
+                println("[${context.room.name}] $idx/${outs.size} ${processor.javaClass.simpleName} -> $outs")
+                outs
             }
             files = tmp
         }
