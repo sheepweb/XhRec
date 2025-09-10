@@ -35,7 +35,7 @@ class MoveProcessor(room: ProcessorCtx, val destPattern: String, val datePattern
                     "{{RECORD_END}}",
                     context.endTime.toLocalDateTime().format(DateTimeFormatter.ofPattern(datePattern))
                 )
-                .replace("{{RECORD_DURATION}}", context.room.id.toString())
+                .replace("{{RECORD_DURATION}}", context.duration.toString())
                 .replace("{{RECORD_DURATION_STR}}", format(context.duration))
                 .replace("{{RECORD_quality}}", context.quality)
                 .replace("{{INPUT}}", input.absolutePath)
@@ -55,7 +55,26 @@ class MoveProcessor(room: ProcessorCtx, val destPattern: String, val datePattern
                         "-of",
                         "default=noprint_wrappers=1:nokey=1",
                         input.absolutePath
-                    )
+                    ).replace("\\{\\{TOTAL_FRAMES_GUESS}}".toRegex(), {
+                        runProcessGetStdout(
+                            "ffprobe",
+                            "-v",
+                            "error",
+                            "-select_streams",
+                            "v:0",
+                            "-show_entries",
+                            "stream=r_frame_rate",
+                            "-of",
+                            "default=noprint_wrappers=1:nokey=1",
+                            input.absolutePath
+                        ).split("/").reduce { a,b->
+                            try {
+                                a.toInt() / b.toInt()
+                            } catch (e: Exception) {
+                                1
+                            }.toString()
+                        }.toLong().times(context.duration/1000).toString()
+                    })
                 })
         }
         if(!Path(destPattern).parent.exists()){

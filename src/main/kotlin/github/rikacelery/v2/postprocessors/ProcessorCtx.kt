@@ -7,6 +7,7 @@ data class ProcessorCtx(
     val room: Room,
     val startTime: Date,
     val endTime: Date,
+    // milliseconds
     val duration: Long,
     val quality: String,
 )

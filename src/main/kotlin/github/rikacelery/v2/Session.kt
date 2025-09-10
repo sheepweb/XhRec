@@ -130,7 +130,7 @@ class Session(
                 _isOpen.set(true)
                 return true
             }
-            val qualities = presets.map { element -> element.asString()}
+            val qualities = presets.map { element -> element.asString() }
                 .filterNot { it.contains("blurred") }
             val q = qualities.lastOrNull { it == room.quality } ?: qualities.minByOrNull {
                 val split = it.split("p").filterNot(String::isEmpty)
