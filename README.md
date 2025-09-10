@@ -30,17 +30,18 @@ Run processors one by one.
     },
     {
       "type": "move",
-      //{{ROOM_NAME}}
-      //{{ROOM_ID}}
-      //{{RECORD_START}}
-      //{{RECORD_END}}
-      //{{RECORD_DURATION}}
-      //{{RECORD_DURATION_STR}}
-      //{{INPUT}}
-      //{{INPUT_DIR}}
-      //{{FILE_NAME}}
-      //{{FILE_NAME_NOEXT}}
-      //{{TOTAL_FRAMES}}
+      //{{ROOM_NAME}}                Model/Room name
+      //{{ROOM_ID}}                  12345
+      //{{RECORD_START}}             formated date time using "date_pattern"
+      //{{RECORD_END}}               formated date time using "date_pattern"
+      //{{RECORD_DURATION}}          90
+      //{{RECORD_DURATION_STR}}      00h01m30s
+      //{{INPUT}}                    /path/to/input/video/folder/a.mp4
+      //{{INPUT_DIR}}                /path/to/input/video/folder
+      //{{FILE_NAME}}                a.mp4
+      //{{FILE_NAME_NOEXT}}          a
+      //{{TOTAL_FRAMES}}             slow but accurate frame count
+      //{{TOTAL_FRAMES_GUESS}}       FPS*Duration
       "dest": "out/[{{ROOM_ID}}]{{ROOM_NAME}}@{{RECORD_START}}-{{RECORD_END}} {{RECORD_DURATION_STR}}",
       "date_pattern": "yyyy年MM月dd日HH时mm分ss秒"
     },
@@ -54,6 +55,18 @@ Run processors one by one.
       "noreturn": true,
       // default: true
       "remove_input": false,
+       //{{ROOM_NAME}}                Model/Room name
+       //{{ROOM_ID}}                  12345
+       //{{RECORD_START}}             formated date time using "ISO_DATE_TIME" format
+       //{{RECORD_END}}               formated date time using "ISO_DATE_TIME" format
+       //{{RECORD_DURATION}}          90
+       //{{RECORD_DURATION_STR}}      00h01m30s
+       //{{INPUT}}                    /path/to/input/video/folder/a.mp4
+       //{{INPUT_DIR}}                /path/to/input/video/folder
+       //{{FILE_NAME}}                a.mp4
+       //{{FILE_NAME_NOEXT}}          a
+       //{{TOTAL_FRAMES}}             slow but accurate frame count
+       //{{TOTAL_FRAMES_GUESS}}       FPS*Duration
       "args": [
         "ffmpeg",
         "-hide_banner",
@@ -64,8 +77,8 @@ Run processors one by one.
         "{{INPUT}}",
         "-vf",
         // if you change grid size, please recalculate total pic size
-        // or replace '{{TOTAL_FRAMES}}/400' to 50, which means every 50 frames will be one thumbnail
-        "thumbnail={{TOTAL_FRAMES}}/400,scale=200:-1,tile=20x20",
+        // or replace '{{TOTAL_FRAMES_GUESS}}/400' to 50, which means every 50 frames will be one thumbnail
+        "thumbnail={{TOTAL_FRAMES_GUESS}}/400,scale=200:-1,tile=20x20",
         "-vframes",
         "1",
         "{{INPUT_DIR}}\\{{FILE_NAME_NOEXT}}.thumb.png",
