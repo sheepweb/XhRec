@@ -72,44 +72,6 @@ class ShellProcessor(room: ProcessorCtx, val script: List<String>, val noreturn:
                         }.toLong().times(context.duration/1000).toString()
                     })
                 })
-                .replace("{{INPUT}}", input.absolutePath)
-                .replace("{{INPUT_DIR}}", input.parentFile.absolutePath)
-                .replace("{{FILE_NAME}}", input.name)
-                .replace("{{FILE_NAME_NOEXT}}", input.nameWithoutExtension)
-                .replace("\\{\\{TOTAL_FRAMES}}".toRegex(), {
-                    runProcessGetStdout(
-                        "ffprobe",
-                        "-v",
-                        "error",
-                        "-select_streams",
-                        "v:0",
-                        "-count_frames",
-                        "-show_entries",
-                        "stream=nb_frames",
-                        "-of",
-                        "default=noprint_wrappers=1:nokey=1",
-                        input.absolutePath
-                    )
-                }).replace("\\{\\{TOTAL_FRAMES_GUESS}}".toRegex(), {
-                    runProcessGetStdout(
-                        "ffprobe",
-                        "-v",
-                        "error",
-                        "-select_streams",
-                        "v:0",
-                        "-show_entries",
-                        "stream=r_frame_rate",
-                        "-of",
-                        "default=noprint_wrappers=1:nokey=1",
-                        input.absolutePath
-                    ).split("/").reduce { a,b->
-                        try {
-                            a.toInt() / b.toInt()
-                        } catch (e: Exception) {
-                            1
-                        }.toString()
-                    }.toLong().times(context.duration).toString()
-                })
 
         }
         val cmd = script.map(replace)
