@@ -5,7 +5,12 @@ import github.rikacelery.utils.toLocalDateTime
 import java.io.File
 import java.time.format.DateTimeFormatter
 
-class ShellProcessor(room: ProcessorCtx, val script: List<String>, val noreturn: Boolean = true, val removeInput: Boolean = true) : Processor(room) {
+class ShellProcessor(
+    room: ProcessorCtx,
+    val script: List<String>,
+    val noreturn: Boolean = true,
+    val removeInput: Boolean = true
+) : Processor(room) {
     private fun format(time: Long): String {
         val seconds = time / 1000
         val minutes = seconds / 60
@@ -17,6 +22,7 @@ class ShellProcessor(room: ProcessorCtx, val script: List<String>, val noreturn:
             "%02dh%02dm%02ds".format(hours % 24, minutes % 60, seconds % 60)
         }
     }
+
     override fun process(input: File): List<File> {
 
         val replace: (arg: String) -> String = { arg ->
@@ -51,26 +57,27 @@ class ShellProcessor(room: ProcessorCtx, val script: List<String>, val noreturn:
                         "-of",
                         "default=noprint_wrappers=1:nokey=1",
                         input.absolutePath
-                    ).replace("\\{\\{TOTAL_FRAMES_GUESS}}".toRegex(), {
-                        runProcessGetStdout(
-                            "ffprobe",
-                            "-v",
-                            "error",
-                            "-select_streams",
-                            "v:0",
-                            "-show_entries",
-                            "stream=r_frame_rate",
-                            "-of",
-                            "default=noprint_wrappers=1:nokey=1",
-                            input.absolutePath
-                        ).split("/").reduce { a,b->
-                            try {
-                                a.toInt() / b.toInt()
-                            } catch (e: Exception) {
-                                1
-                            }.toString()
-                        }.toLong().times(context.duration/1000).toString()
-                    })
+                    )
+                })
+                .replace("\\{\\{TOTAL_FRAMES_GUESS}}".toRegex(), {
+                    runProcessGetStdout(
+                        "ffprobe",
+                        "-v",
+                        "error",
+                        "-select_streams",
+                        "v:0",
+                        "-show_entries",
+                        "stream=r_frame_rate",
+                        "-of",
+                        "default=noprint_wrappers=1:nokey=1",
+                        input.absolutePath
+                    ).split("/").reduce { a, b ->
+                        try {
+                            a.toInt() / b.toInt()
+                        } catch (_: Exception) {
+                            1
+                        }.toString()
+                    }.toLong().times(context.duration / 1000).toString()
                 })
 
         }
