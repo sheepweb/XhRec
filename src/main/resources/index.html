@@ -194,7 +194,7 @@
                 const entries = Object.entries(running)
                     .map(([url, meta]) => {
                         match = /_(\d+)_part.\.mp4/.exec(url)
-                        meta.startAtAbs = match ? match[1] * 1000 : 0
+                        meta.startAtAbs = match && match.length > 1 && match[1] ? match[1] * 1000 : 0
                         return [url, meta]
                     })
                 entries.forEach(([url, meta]) => {
