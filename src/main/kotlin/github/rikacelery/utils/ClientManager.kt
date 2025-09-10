@@ -12,9 +12,8 @@ import java.util.concurrent.TimeUnit
 
 object ClientManager {
     private val CONNECTION_POOL = ConnectionPool(64, 5, TimeUnit.MINUTES)
-
-    fun getClient(): HttpClient {
-        return HttpClient(OkHttp) {
+    private val clientDirect by lazy {
+        HttpClient(OkHttp) {
             configureClient()
             engine {
                 config {
@@ -25,9 +24,9 @@ object ClientManager {
             }
         }
     }
-    val proxyEnv = System.getenv("http_proxy") ?: System.getenv("HTTP_PROXY")
-    fun getProxiedClient(): HttpClient {
-        return HttpClient(OkHttp) {
+    private val clientProxied by lazy {
+        val proxyEnv = System.getenv("http_proxy") ?: System.getenv("HTTP_PROXY")
+        HttpClient(OkHttp) {
             configureClient()
             engine {
                 if (proxyEnv != null) {
@@ -41,6 +40,14 @@ object ClientManager {
                 }
             }
         }
+    }
+
+    fun getClient(): HttpClient {
+        return clientDirect
+    }
+
+    fun getProxiedClient(): HttpClient {
+        return clientProxied
     }
 
     private fun HttpClientConfig<OkHttpConfig>.configureClient() {
@@ -60,7 +67,10 @@ object ClientManager {
             }
         }
     }
-    fun close(){
+
+    fun close() {
+        clientDirect.close()
+        clientProxied.close()
         CONNECTION_POOL.evictAll()
     }
 }
