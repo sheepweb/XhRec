@@ -25,13 +25,12 @@ object ClientManager {
             }
         }
     }
+    val proxyEnv = System.getenv("http_proxy") ?: System.getenv("HTTP_PROXY")
     fun getProxiedClient(): HttpClient {
         return HttpClient(OkHttp) {
             configureClient()
             engine {
-                val proxyEnv = System.getenv("http_proxy") ?: System.getenv("HTTP_PROXY")
                 if (proxyEnv != null) {
-                    println("Using http proxy $proxyEnv")
                     val url = Url(proxyEnv)
                     proxy = Proxy(Proxy.Type.HTTP, InetSocketAddress(url.host, url.port))
                 }
