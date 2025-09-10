@@ -1,9 +1,10 @@
-package github.rikacelery.v2
+package github.rikacelery.v2.metric
 
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.Hashtable
+import kotlin.collections.iterator
 
 object Metric {
     val metrics = Hashtable<Long, MetricItem>()

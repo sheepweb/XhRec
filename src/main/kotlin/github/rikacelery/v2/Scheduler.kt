@@ -1,6 +1,8 @@
 package github.rikacelery.v2
 
 import github.rikacelery.Room
+import github.rikacelery.v2.exceptions.DeletedException
+import github.rikacelery.v2.exceptions.RenameException
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -69,7 +71,7 @@ class Scheduler(
                         v.start()
                         v.stop()
                     }
-                }catch(ex:RenameException) {
+                }catch(ex: RenameException) {
                     add(k.room.copy(name = ex.newName),k.listen)
                     listUpdate(this@Scheduler)
                 }catch (e: DeletedException){

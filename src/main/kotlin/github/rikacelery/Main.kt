@@ -1,11 +1,11 @@
 package github.rikacelery
 
+import github.rikacelery.utils.ClientManager
+import github.rikacelery.utils.fetchRoomFromUrl
 import github.rikacelery.utils.withRetryOrNull
-import github.rikacelery.v2.Metric
 import github.rikacelery.v2.Scheduler
+import github.rikacelery.v2.metric.Metric
 import github.rikacelery.v2.postprocessors.PostProcessor
-import io.ktor.client.*
-import io.ktor.client.engine.okhttp.*
 import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.http.*
@@ -21,74 +21,10 @@ import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.internal.synchronized
-import okhttp3.ConnectionPool
 import org.apache.commons.cli.*
 import java.io.File
-import java.net.InetSocketAddress
-import java.net.Proxy
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.seconds
-
-
-val _clients = List(1) {
-    HttpClient(OkHttp) {
-        expectSuccess = true
-        install(DefaultRequest) {
-            headers {
-                append(
-                    HttpHeaders.Accept,
-                    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"
-                )
-                append(HttpHeaders.AcceptLanguage, "en,zh-CN;q=0.9,zh;q=0.8")
-                append(HttpHeaders.Connection, "keep-alive")
-            }
-        }
-        install(HttpRequestRetry) {
-            retryOnException(maxRetries = 3, retryOnTimeout = true)
-            constantDelay(300)
-        }
-        engine {
-            config {
-                connectionPool(ConnectionPool(15, 5, TimeUnit.MINUTES))
-                followSslRedirects(true)
-                followRedirects(true)
-            }
-        }
-    }
-}
-val client: HttpClient
-    get() = _clients.random()
-val proxiedClient = HttpClient(OkHttp) {
-    expectSuccess = true
-    install(DefaultRequest) {
-        headers {
-            append(
-                HttpHeaders.Accept,
-                "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"
-            )
-            append(HttpHeaders.AcceptLanguage, "en,zh-CN;q=0.9,zh;q=0.8")
-            append(HttpHeaders.Connection, "keep-alive")
-        }
-    }
-    install(HttpRequestRetry) {
-        retryOnException(maxRetries = 3, retryOnTimeout = true)
-        constantDelay(300)
-    }
-    engine {
-        val proxyEnv = System.getenv("http_proxy") ?: System.getenv("HTTP_PROXY")
-        if (proxyEnv != null) {
-            println("Using http proxy $proxyEnv")
-            val url = Url(proxyEnv)
-            proxy = Proxy(Proxy.Type.HTTP, InetSocketAddress(url.host, url.port))
-        }
-        config {
-            connectionPool(ConnectionPool(15, 10, TimeUnit.MINUTES))
-            followSslRedirects(true)
-            followRedirects(true)
-        }
-    }
-}
 
 
 val BUILTIN = setOf(
@@ -105,11 +41,11 @@ fun main(vararg args: String): Unit = runBlocking {
     if ((System.getenv("http_proxy") ?: System.getenv("HTTP_PROXY")) != null) {
         println("Testing proxy")
         runCatching {
-            client.get(System.getenv("http_proxy") ?: System.getenv("HTTP_PROXY")) {
+            ClientManager.getClient().get(System.getenv("http_proxy") ?: System.getenv("HTTP_PROXY")) {
                 expectSuccess = false
             }
             println("Proxy connect success.")
-            proxiedClient.get("https://xhamsterlive.com") {
+            ClientManager.getProxiedClient().get("https://xhamsterlive.com") {
                 expectSuccess = false
             }
             println("Proxy test (https://xhamsterlive.com) success.")
@@ -123,7 +59,6 @@ fun main(vararg args: String): Unit = runBlocking {
     options.addOption("f", "file", true, "Room List File")
     options.addOption("o", "output", true, "Output Dir")
     options.addOption("t", "tmp", true, "Temp Dir")
-//    options.addOption("s", "server", false, "Server Mode")
     options.addOption("p", "port", true, "Server Port [default:8090]")
 
     val commandLine: CommandLine = try {
@@ -155,7 +90,7 @@ fun main(vararg args: String): Unit = runBlocking {
         println("${if (active) "[+]" else "[X]"} $q $limit $url")
         async {
             val room = withRetryOrNull(5, { it.message?.contains("404") == true }) {
-                proxiedClient.fetchRoomFromUrl(url, q)
+                ClientManager.getProxiedClient().fetchRoomFromUrl(url, q)
             } ?: run {
                 println("failed " + url)
                 return@async null
@@ -192,7 +127,7 @@ fun main(vararg args: String): Unit = runBlocking {
 ////                    println("[INFO] screenshot ${it.key.room.name}:${it.key.room.id}")
 //                    File("/screenshot/${it.key.room.name}").mkdir()
 //                    val url =
-//                        proxiedClient.testFast(
+//                        ClientManager.getProxiedClient().testFast(
 //                            listOf(
 //                                "https://b-hls-04.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}_160p.m3u8",
 //                                "https://b-hls-04.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}_240p.m3u8",
@@ -269,7 +204,7 @@ fun main(vararg args: String): Unit = runBlocking {
                 val q = call.request.queryParameters["quality"] ?: "720p"
                 println("${if (active) "[+]" else "[X]"} $q $slug")
                 val room = withRetryOrNull(5, { it.message?.contains("404") == true }) {
-                    proxiedClient.fetchRoomFromUrl(url, q)
+                    ClientManager.getProxiedClient().fetchRoomFromUrl(url, q)
                 }
                 if (room == null) {
                     call.respond(HttpStatusCode.InternalServerError, "Failed to get room info.")
@@ -398,8 +333,8 @@ fun main(vararg args: String): Unit = runBlocking {
                             write("Cancelled ${it.key.room.name}. remain: ${latch.decrementAndGet()}\n")
                         }
                     }.joinAll()
+                    write("OK")
                 }
-                call.respond("OK")
                 engine?.stop()
             }
         }
@@ -412,10 +347,7 @@ fun main(vararg args: String): Unit = runBlocking {
     }
     // Suppress waring
     println("all done")
-    proxiedClient.close()
-    _clients.forEach {
-        it.close()
-    }
+    ClientManager.close()
     return@runBlocking
 }
 

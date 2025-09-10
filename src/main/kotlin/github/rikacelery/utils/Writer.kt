@@ -1,6 +1,5 @@
-package github.rikacelery.v2
+package github.rikacelery.utils
 
-import github.rikacelery.utils.toLocalDateTime
 import java.io.BufferedOutputStream
 import java.io.File
 import java.time.format.DateTimeFormatter

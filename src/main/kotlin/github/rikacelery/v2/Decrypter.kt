@@ -1,10 +1,10 @@
 package github.rikacelery.v2
 
 import java.security.MessageDigest
-import java.util.Base64
+import java.util.*
 
 
-object Decryptor {
+object Decrypter {
     private val cachedHash: MutableMap<String, ByteArray> = HashMap()
 
     private fun computeHash(key: String): ByteArray {

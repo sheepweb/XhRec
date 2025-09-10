@@ -1,5 +1,8 @@
 package github.rikacelery.v2.postprocessors
 
+import github.rikacelery.utils.BooleanOrElse
+import github.rikacelery.utils.JsonArray
+import github.rikacelery.utils.String
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.json.*
@@ -15,34 +18,34 @@ object PostProcessor {
             JsonObject.Companion.serializer(),
             file.readText()
         ).jsonObject.get("default")?.jsonArray ?: JsonArray(listOf())
-        println("Post processors loads: ${config.map { it.jsonObject["type"]!!.jsonPrimitive.content }}")
+        println("Post processors loads: ${config.map { it.String("type") }}")
     }
 
 
     private fun buildProcessors(context: ProcessorCtx): MutableList<Processor> {
         val processors = mutableListOf<Processor>()
         for (processor in config) {
-            val type = processor.jsonObject["type"]!!.jsonPrimitive.content
+            val type = processor.String("type")
             when (type) {
                 "fix_stamp" -> {
-                    processors.add(FixStampProcessor(context, processor.jsonObject["output"]!!.jsonPrimitive.content))
+                    processors.add(FixStampProcessor(context, processor.String("output")))
                 }
 
                 "shell" -> {
-                    val args = processor.jsonObject["args"]!!.jsonArray
+                    val args = processor.JsonArray("args")
                     val script = args.map { it.jsonPrimitive.content }
                     processors.add(
                         ShellProcessor(
                             context,
                             script,
-                            processor.jsonObject["noreturn"]?.jsonPrimitive?.booleanOrNull == true,
-                            processor.jsonObject["remove_input"]?.jsonPrimitive?.booleanOrNull == true,
+                            processor.BooleanOrElse("noreturn",false),
+                            processor.BooleanOrElse("remove_input",false),
                         )
                     )
                 }
 
                 "slice" -> {
-                    val duration = Duration.Companion.parse(processor.jsonObject["duration"]!!.jsonPrimitive.content)
+                    val duration = Duration.Companion.parse(processor.String("duration"))
                     processors.add(SliceProcessor(context, duration))
                 }
 
@@ -50,8 +53,8 @@ object PostProcessor {
                     processors.add(
                         MoveProcessor(
                             context,
-                            processor.jsonObject["dest"]?.jsonPrimitive!!.content,
-                            processor.jsonObject["date_pattern"]?.jsonPrimitive!!.content,
+                            processor.String("dest"),
+                            processor.String("date_pattern"),
                         )
                     )
                 }

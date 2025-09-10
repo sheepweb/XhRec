@@ -1,6 +1,5 @@
-package github.rikacelery.v2
+package github.rikacelery.v2.metric
 
-import github.rikacelery.v2.Session.UrlInfo
 import kotlinx.serialization.Serializable
 
 @Serializable

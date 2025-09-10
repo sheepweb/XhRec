@@ -1,8 +1,8 @@
-package github.rikacelery.v2
+package github.rikacelery.v2.metric
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.util.Hashtable
+import java.util.*
 
 class MetricUpdater(
     var metrics: Hashtable<Long, MetricItem>?,
@@ -91,12 +91,6 @@ class MetricUpdater(
     suspend fun successDirectIncrement() = lock.withLock {
         metrics?.let {
             it[id] = it[id]!!.copy(successDirect = it[id]!!.successDirect + 1)
-        }
-    }
-
-    suspend fun failed(failed: Int) = lock.withLock {
-        metrics?.let {
-            it[id] = it[id]!!.copy(failed = failed)
         }
     }
 

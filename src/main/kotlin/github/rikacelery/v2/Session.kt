@@ -2,11 +2,11 @@ package github.rikacelery.v2
 
 import github.rikacelery.Event
 import github.rikacelery.Room
-import github.rikacelery.client
-import github.rikacelery.proxiedClient
-import github.rikacelery.utils.CombinedException
-import github.rikacelery.utils.withRetry
-import github.rikacelery.utils.withRetryOrNull
+import github.rikacelery.utils.*
+import github.rikacelery.v2.exceptions.DeletedException
+import github.rikacelery.v2.exceptions.RenameException
+import github.rikacelery.v2.metric.Metric
+import github.rikacelery.v2.metric.MetricUpdater
 import github.rikacelery.v2.postprocessors.PostProcessor
 import github.rikacelery.v2.postprocessors.ProcessorCtx
 import io.ktor.client.plugins.*
@@ -24,8 +24,6 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.internal.toLongOrDefault
 import java.util.*
 import java.util.concurrent.TimeoutException
@@ -93,17 +91,18 @@ class Session(
     }
 
     /**
-     * @throws RenameException
-     * @throws DeletedException
+     * @throws github.rikacelery.v2.exceptions.RenameException
+     * @throws github.rikacelery.v2.exceptions.DeletedException
      */
     suspend fun testAndConfigure(): Boolean {
         try {
-            val get = proxiedClient.get("https://zh.xhamsterlive.com/api/front/v1/broadcasts/${room.name}") {
-                this.expectSuccess = false
-            }
+            val get = ClientManager.getProxiedClient()
+                .get("https://zh.xhamsterlive.com/api/front/v1/broadcasts/${room.name}") {
+                    this.expectSuccess = false
+                }
             if (get.status == HttpStatusCode.NotFound) {
                 val reason =
-                    runCatching { Json.Default.parseToJsonElement(get.bodyAsText()).jsonObject["description"]?.jsonPrimitive?.content }.getOrNull()
+                    runCatching { Json.Default.parseToJsonElement(get.bodyAsText()).String("description") }.getOrNull()
                 if (reason == null) {
                     return false
                 }
@@ -121,44 +120,42 @@ class Session(
             }
 
             val element = Json.Default.parseToJsonElement(get.bodyAsText())
-            val status = element.jsonObject["item"]?.jsonObject?.get("status")?.jsonPrimitive?.content
-            val presets = element.jsonObject["item"]?.jsonObject?.get("settings")?.jsonObject?.get("presets")?.jsonArray
-            if (status != null) {
-                if (status != "public") {
-                    _isOpen.set(false)
-                    return false//不开播
-                }
-                if (room.quality == "raw") {
-                    _isOpen.set(true)
-                    return true
-                }
-                if (presets != null) {
-                    val qualities = presets.map { element -> element.jsonPrimitive.content }
-                        .filterNot { it.contains("blurred") || it.isEmpty() }
-                    val q = qualities.lastOrNull { it == room.quality } ?: qualities.minByOrNull {
-                        val split = it.split("p").filterNot(String::isEmpty)
-                        val split1 = room.quality.split("p").filterNot(String::isEmpty)
-                        if (split1.size == 2) {
-                            // 尝试获取帧率和清晰度都接近的
-                            abs(split[0].toInt() - split1[0].toInt()) + abs(split1[1].toInt() - split.getOrElse(1) { "30" }
-                                .toInt())
-                        } else {
-                            // 只判断清晰度，选到什么纯看运气
-                            abs(split[0].toInt() - split1[0].toInt())
-                        }
-                    }
-                    val new = q ?: "raw" // 只有一种清晰度的
-                    if (currentQuality != new && !isActive) {
-                        println("[${room.name}] 更正清晰度设置 ${currentQuality} -> ${new}, 期望${room.quality}")
-                        currentQuality = new
-                    }
-                    _isOpen.set(false)
-                    return true
+            val status = element.PathSingle("item.status").asString()
+            val presets = element.PathSingle("item.settings.presets").jsonArray
+            if (status != "public") {
+                _isOpen.set(false)
+                return false//不开播
+            }
+            if (room.quality == "raw") {
+                _isOpen.set(true)
+                return true
+            }
+            val qualities = presets.map { element -> element.asString()}
+                .filterNot { it.contains("blurred") }
+            val q = qualities.lastOrNull { it == room.quality } ?: qualities.minByOrNull {
+                val split = it.split("p").filterNot(String::isEmpty)
+                val split1 = room.quality.split("p").filterNot(String::isEmpty)
+                if (split1.size == 2) {
+                    // 尝试获取帧率和清晰度都接近的
+                    abs(split[0].toInt() - split1[0].toInt()) + abs(split1[1].toInt() - split.getOrElse(1) { "30" }
+                        .toInt())
+                } else {
+                    // 只判断清晰度，选到什么纯看运气
+                    abs(split[0].toInt() - split1[0].toInt())
                 }
             }
+            val new = q ?: "raw" // 只有一种清晰度的
+            if (currentQuality != new && !isActive) {
+                println("[${room.name}] 更正清晰度设置 ${currentQuality} -> ${new}, 期望${room.quality}")
+                currentQuality = new
+            }
+            _isOpen.set(false)
+            return true
         } catch (e: ClientRequestException) {
             println(e.stackTraceToString())
         } catch (e: TimeoutException) {
+            println(e.stackTraceToString())
+        } catch (e: Exception) {
             println(e.stackTraceToString())
         }
         println("[WARNING] [${room.name}] Using deprecated quality selecting logic")
@@ -166,7 +163,7 @@ class Session(
             try {
                 if (room.quality != "raw") {
                     val qualities = withTimeout(9_000) {
-                        val response = proxiedClient.get(
+                        val response = ClientManager.getProxiedClient().get(
                             "https://b-hls-06.doppiocdn.live/hls/%d/%d.m3u8?playlistType=lowLatency".format(
                                 room.id, room.id
                             )
@@ -198,14 +195,14 @@ class Session(
                         currentQuality = new
                     }
                     runCatching {
-                        proxiedClient.get(streamUrl)
+                        ClientManager.getProxiedClient().get(streamUrl)
                     }.getOrElse {
                         println("[${room.name}] 更正清晰度后目标直播流依然不可用: $streamUrl $it")
                         throw it
                     }
                 } else {
                     currentQuality = room.quality
-                    proxiedClient.get(
+                    ClientManager.getProxiedClient().get(
                         "https://b-hls-06.doppiocdn.live/hls/%d/%d.m3u8?playlistType=lowLatency".format(
                             room.id, room.id
                         )
@@ -301,7 +298,7 @@ class Session(
                                     runningUrl[event.url()] = UrlInfo(ClientType.PROXY, System.currentTimeMillis())
                                 }
                                 withRetry(2) {
-                                    proxiedClient.get(
+                                    ClientManager.getProxiedClient().get(
                                         event.url()
                                     ).readBytes().also {
                                         metric.successProxiedIncrement()
@@ -408,7 +405,8 @@ class Session(
         var retry = 0
         var ms = System.currentTimeMillis()
         var startTime = ms
-        val mouflon = proxiedClient.get(edgeUrl).bodyAsText().lines().singleOrNull { it.startsWith("#EXT-X-MOUFLON") }
+        val mouflon = ClientManager.getProxiedClient().get(edgeUrl).bodyAsText().lines()
+            .singleOrNull { it.startsWith("#EXT-X-MOUFLON") }
         val pk = mouflon?.substringAfterLast(":")
         val regexCache = """media-hls\.doppiocdn\.\w+/(b-hls-\d+)""".toRegex()
         while (currentCoroutineContext().isActive) {
@@ -417,7 +415,7 @@ class Session(
             val url = streamUrl
             try {
                 val lines = withTimeout(5_000) {
-                    val rawList = (proxiedClient).get(
+                    val rawList = (ClientManager.getProxiedClient()).get(
                         url
                     ) {
                         if (pk != null) {
@@ -430,7 +428,7 @@ class Session(
                         if (rawList[idx].startsWith("#EXT-X-MOUFLON:FILE:")) {
                             val enc = rawList[idx].substringAfterLast(":")
                             val dec = try {
-                                Decryptor.decode(enc, KEY)
+                                Decrypter.decode(enc, KEY)
                             } catch (e: Exception) {
                                 println("[ERROR] failed to decrypt $enc")
                                 throw e
@@ -442,7 +440,7 @@ class Session(
                     }
 
                     newList.filterNot { it.contains("media.mp4") }.map {
-                        it.replace(regexCache) {
+                        it.replace(regexCache) { it ->
                             "${it.groupValues[1]}.doppiocdn.live"
                         }
                     }
@@ -502,20 +500,20 @@ class Session(
                 }
                 retry = 0
             } catch (_: TimeoutCancellationException) {
-                println("[ERROR] [${room.name}] Refresh list timeout: $url ${retry}")
+                println("[ERROR] [${room.name}] Refresh list timeout: $url trys:$retry")
                 if (!runCatching { testAndConfigure() }.getOrElse { false }) {
-                    println("[STOP] [${room.name}] Room off or non-public: $room ${retry}")
+                    println("[STOP] [${room.name}] Room off or non-public: $room trys:$retry")
                     break
                 }
                 continue
             } catch (e: ClientRequestException) {
                 if (e.response.status.value == 404) {
-                    println("[STOP] [${room.name}] Room off or non-public: $room ${retry}")
+                    println("[STOP] [${room.name}] Room off or non-public: $room trys:$retry")
                     break
                 }
                 if (e.response.status.value == 403) {
                     if (!runCatching { testAndConfigure() }.getOrElse { false }) {
-                        println("[STOP] [${room.name}] Room off or non-public: $room ${retry}")
+                        println("[STOP] [${room.name}] Room off or non-public: $room trys:$retry")
                         break
                     } else if (currentQuality == "raw") {
                         // https://github.com/RikaCelery/XhRec/issues/2
@@ -541,7 +539,7 @@ class Session(
                 println("[${room.name}] Unexpected error in segment generator: ${e.message}")
                 e.printStackTrace()
                 if (!runCatching { testAndConfigure() }.getOrElse { false }) {
-                    println("[STOP] [${room.name}] Room off or non-public:: $room ${retry}")
+                    println("[STOP] [${room.name}] Room off or non-public:: $room trys:$retry")
                     break
                 }
             }
@@ -574,8 +572,8 @@ class Session(
 
     private fun tryDownload(event: Event): Deferred<ByteArray?> = scope.async {
         val c = when (event) {
-            is Event.LiveSegmentData -> client
-            is Event.LiveSegmentInit -> proxiedClient
+            is Event.LiveSegmentData -> ClientManager.getClient()
+            is Event.LiveSegmentInit -> ClientManager.getProxiedClient()
         }
         val created = (event.url().substringBeforeLast("_").substringAfterLast("_").toLongOrDefault(0))
         val diff = System.currentTimeMillis() / 1000 - created

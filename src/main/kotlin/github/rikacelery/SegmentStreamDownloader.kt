@@ -19,9 +19,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
 
 @Suppress("unused")
-suspend fun splitDownload(client: HttpClient, segmentUrl: String) = coroutineScope {
+suspend fun HttpClient.splitDownload( segmentUrl: String) = coroutineScope {
     withRetry(10) {
-        client.fetchContentLength(segmentUrl)
+        fetchContentLength(segmentUrl)
     }.withMeasureTime {
         chunked(1024 * 10).asFlow().map {
             // cold flow doesn't allow concurrent download
@@ -30,7 +30,7 @@ suspend fun splitDownload(client: HttpClient, segmentUrl: String) = coroutineSco
                     // stop retry if 404
                     (it as? ClientRequestException)?.response?.status == HttpStatusCode.NotFound
                 }) { _->
-                    client.get(segmentUrl) {
+                    get(segmentUrl) {
                         headers {
                             append("Range", "bytes=${it.first}-${it.last}")
                         }
