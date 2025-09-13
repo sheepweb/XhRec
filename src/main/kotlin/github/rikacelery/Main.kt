@@ -21,6 +21,8 @@ import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.internal.synchronized
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.apache.commons.cli.*
 import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
@@ -321,16 +323,26 @@ fun main(vararg args: String): Unit = runBlocking {
             get("/stop-server") {
 //                sc.cancel()
                 val latch = AtomicInteger(scheduler.sessions.size)
+                val lock = Mutex()
                 call.respondTextWriter {
-                    write("Stopping server...\n")
+                    lock.withLock {
+                        write("Stopping server...\n")
+                    }
                     scheduler.job?.cancel()
                     scheduler.job?.join()
-                    write("Canceled scheduler.\n")
+                    lock.withLock {
+                        write("Canceled scheduler.\n")
+                    }
                     scheduler.sessions.map {
-                        write("Cancelling ${it.key.room.name}.\n")
+                        lock.withLock {
+                            write("Cancelling ${it.key.room.name}.\n")
+                        }
                         scheduler.scope.launch {
                             it.value.stop()
-                            write("Cancelled ${it.key.room.name}. remain: ${latch.decrementAndGet()}\n")
+                            lock.withLock {
+                                write("Cancelled ${it.key.room.name}. remain: ${latch.decrementAndGet()}\n")
+                            }
+                            flush()
                         }
                     }.joinAll()
                     write("OK")
