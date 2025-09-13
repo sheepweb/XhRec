@@ -48,8 +48,7 @@ class Session(
         )
     }
 
-    private val job = SupervisorJob()
-    private val scope = CoroutineScope(dispatcher + job)
+    private val scope = CoroutineScope(dispatcher)
 
     private val _isOpen = AtomicBoolean(false)
     private val _isActive = AtomicBoolean(false)
@@ -104,6 +103,7 @@ class Session(
                 val reason =
                     runCatching { Json.Default.parseToJsonElement(get.bodyAsText()).String("description") }.getOrNull()
                 if (reason == null) {
+                    _isOpen.set(false)
                     return false
                 }
                 when {
@@ -149,7 +149,7 @@ class Session(
                 println("[${room.name}] 更正清晰度设置 ${currentQuality} -> ${new}, 期望${room.quality}")
                 currentQuality = new
             }
-            _isOpen.set(false)
+            _isOpen.set(true)
             return true
         } catch (e: ClientRequestException) {
             println(e.stackTraceToString())
@@ -158,63 +158,9 @@ class Session(
         } catch (e: Exception) {
             println(e.stackTraceToString())
         }
-        println("[WARNING] [${room.name}] Using deprecated quality selecting logic")
-        val b = withRetryOrNull(3) {
-            try {
-                if (room.quality != "raw") {
-                    val qualities = withTimeout(9_000) {
-                        val response = ClientManager.getProxiedClient().get(
-                            "https://b-hls-06.doppiocdn.live/hls/%d/%d.m3u8?playlistType=lowLatency".format(
-                                room.id, room.id
-                            )
-                        )
-                        require(response.status == HttpStatusCode.OK) {
-                            "[${room.name}] 直播未开始"
-                        }
-                        response
-                    }.bodyAsText().lines().filter {
-                        it.startsWith("#EXT-X-RENDITION-REPORT") && !it.contains("blurred")
-                    }.map {
-                        it.substringAfter(":URI=\"").substringBefore("\"").substringAfter("_").substringBefore(".m3u8")
-                    }
-                    val q = qualities.lastOrNull { it == room.quality } ?: qualities.minByOrNull {
-                        val split = it.split("p")
-                        val split1 = room.quality.split("p")
-                        if (split1.size == 2) {
-                            // 尝试获取帧率和清晰度都接近的
-                            abs(split[0].toInt() - split1[0].toInt()) + abs(split1[1].toInt() - split.getOrElse(1) { "30" }
-                                .toInt())
-                        } else {
-                            // 只判断清晰度，选到什么纯看运气
-                            abs(split[0].toInt() - split1[0].toInt())
-                        }
-                    }
-                    val new = q ?: "raw" // 只有一种清晰度的
-                    if (currentQuality != new && !isActive) {
-                        println("[${room.name}] 更正清晰度设置 ${currentQuality} -> ${new}, 期望${room.quality}")
-                        currentQuality = new
-                    }
-                    runCatching {
-                        ClientManager.getProxiedClient().get(streamUrl)
-                    }.getOrElse {
-                        println("[${room.name}] 更正清晰度后目标直播流依然不可用: $streamUrl $it")
-                        throw it
-                    }
-                } else {
-                    currentQuality = room.quality
-                    ClientManager.getProxiedClient().get(
-                        "https://b-hls-06.doppiocdn.live/hls/%d/%d.m3u8?playlistType=lowLatency".format(
-                            room.id, room.id
-                        )
-                    )
-                }
-                true
-            } catch (_: ClientRequestException) {
-                false
-            }
-        } ?: false
-        _isOpen.set(b)
-        return b
+        println("[WARNING] [${room.name}] Failed to check room state")
+        _isOpen.set(false)
+        return false
     }
 
     fun createDiscontinuityCounter(): suspend (List<Int>) -> Int {
