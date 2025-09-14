@@ -24,6 +24,8 @@ import kotlinx.coroutines.internal.synchronized
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.apache.commons.cli.*
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.seconds
@@ -37,22 +39,23 @@ private fun extract(text: String, regex: Regex, default: String): String {
     return regex.find(text)?.groupValues?.get(1)?.ifBlank { default } ?: default
 }
 
+val rootLogger: Logger = LoggerFactory.getLogger("github.rikacelery.MainKt")
 
 @OptIn(InternalCoroutinesApi::class)
 fun main(vararg args: String): Unit = runBlocking {
     if ((System.getenv("http_proxy") ?: System.getenv("HTTP_PROXY")) != null) {
-        println("Testing proxy")
+        rootLogger.info("Testing proxy")
         runCatching {
             ClientManager.getClient().get(System.getenv("http_proxy") ?: System.getenv("HTTP_PROXY")) {
                 expectSuccess = false
             }
-            println("Proxy connect success.")
+            rootLogger.info("Proxy connect success.")
             ClientManager.getProxiedClient().get("https://xhamsterlive.com") {
                 expectSuccess = false
             }
-            println("Proxy test (https://xhamsterlive.com) success.")
+            rootLogger.info("Proxy test (https://xhamsterlive.com) success.")
         }.onFailure {
-            println("Proxy test failed. $it")
+            rootLogger.info("Proxy test failed. $it")
         }
     }
     val parser: CommandLineParser = DefaultParser()
@@ -76,6 +79,7 @@ fun main(vararg args: String): Unit = runBlocking {
     }
     PostProcessor.loadConfig(File(commandLine.getOptionValue("post", "postprocessor.json")))
     val jobFile = File(commandLine.getOptionValue("f", "list.conf"))
+    rootLogger.info("jobfile: {}, postprocessor:{}", jobFile, commandLine.getOptionValue("post", "postprocessor.json"))
     val regex = "([#;])? *(https://(?:zh.)?xhamsterlive.com/\\S+)(?: (.+))?".toRegex()
     val rooms = channelFlow {
         if (!jobFile.exists())
@@ -89,12 +93,12 @@ fun main(vararg args: String): Unit = runBlocking {
         val url = match.groupValues[2]
         val q = extract(match.groupValues[3], "q:(\\S+)".toRegex(), "720p")
         val limit = extract(match.groupValues[3], "limit:(\\d+)".toRegex(), "0")
-        println("${if (active) "[+]" else "[X]"} $q $limit $url")
+        rootLogger.info("loads: ${if (active) "[active]" else "[      ]"} quality:$q limit:$limit url:$url")
         async {
             val room = withRetryOrNull(5, { it.message?.contains("404") == true }) {
                 ClientManager.getProxiedClient().fetchRoomFromUrl(url, q)
             } ?: run {
-                println("failed " + url)
+                rootLogger.warn("failed: {}" , url)
                 return@async null
             }
             if (limit.toLong() > 0) {
@@ -114,6 +118,7 @@ fun main(vararg args: String): Unit = runBlocking {
         scheduler.add(it.first, it.second)
     }
     println("-".repeat(10) + "DONE" + "-".repeat(10))
+    rootLogger.info("start scheduler")
     scheduler.start(false)
 
     // 开启截图协程

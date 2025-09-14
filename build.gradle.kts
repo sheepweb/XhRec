@@ -37,6 +37,7 @@ dependencies {
     implementation("io.ktor:ktor-server-cors:2.3.12")
     implementation("io.ktor:ktor-client-cio-jvm:2.3.12")
     implementation("io.ktor:ktor-client-jetty:2.3.12")
+    implementation("io.ktor:ktor-client-logging:2.3.12")
 
     testImplementation("io.ktor:ktor-server-test-host-jvm")
     testImplementation("org.jetbrains.kotlin:kotlin-test")

@@ -25,6 +25,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import okhttp3.internal.toLongOrDefault
+import org.slf4j.LoggerFactory
 import java.util.*
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
@@ -46,9 +47,19 @@ class Session(
                 Base64.getDecoder().decode("NTEgNzUgNjUgNjEgNmUgMzQgNjMgNjEgNjkgMzkgNjIgNmYgNGEgNjEgMzUgNjE=")
             ).split(" ").map { it.toByte(16) }.toByteArray()
         )
+        val KEY2 = String(
+            String(
+                Base64.getDecoder().decode("NWEgNmYgNmIgNjUgNjUgMzIgNGYgNjggNTAgNjggMzkgNmIgNzUgNjcgNjggMzQ=")
+            ).split(" ").map { it.toByte(16) }.toByteArray()
+        )
+
+        private val logger = LoggerFactory.getLogger(Session::class.java)
     }
 
-    private val scope = CoroutineScope(dispatcher)
+    private val scope =
+        CoroutineScope(dispatcher + SupervisorJob() + CoroutineExceptionHandler { coroutineContext, throwable ->
+            logger.error("Exception in {}", coroutineContext, throwable)
+        })
 
     private val _isOpen = AtomicBoolean(false)
     private val _isActive = AtomicBoolean(false)
@@ -99,21 +110,27 @@ class Session(
                 .get("https://zh.xhamsterlive.com/api/front/v1/broadcasts/${room.name}") {
                     this.expectSuccess = false
                 }
+            logger.trace("[{}] request api code={}", room.name, get.status.value)
             if (get.status == HttpStatusCode.NotFound) {
                 val reason =
                     runCatching { Json.Default.parseToJsonElement(get.bodyAsText()).String("description") }.getOrNull()
+                logger.trace("[{}] request api reason={}", room.name, reason)
                 if (reason == null) {
+                    logger.trace("[{}] -> false", room.name)
                     _isOpen.set(false)
                     return false
                 }
                 when {
                     reason.matches("Model has new name: newName=(.*)".toRegex()) -> {
+                        val newName = "Model has new name: newName=(.*)".toRegex().find(reason)!!.groupValues[1]
+                        logger.debug("[{}] model renamed to {}", room.name, newName)
                         throw RenameException(
-                            "Model has new name: newName=(.*)".toRegex().find(reason)!!.groupValues[1]
+                            newName
                         )
                     }
 
                     reason == "model already deleted" -> {
+                        logger.debug("[{}] model deleted", room.name)
                         throw DeletedException(room.name)
                     }
                 }
@@ -123,10 +140,12 @@ class Session(
             val status = element.PathSingle("item.status").asString()
             val presets = element.PathSingle("item.settings.presets").jsonArray
             if (status != "public") {
+                logger.trace("[{}] -> false, status={}", room.name, status)
                 _isOpen.set(false)
                 return false//不开播
             }
             if (room.quality == "raw") {
+                logger.trace("[{}] -> true, skip quality selection for 'raw'", room.name)
                 _isOpen.set(true)
                 return true
             }
@@ -145,10 +164,12 @@ class Session(
                 }
             }
             val new = q ?: "raw" // 只有一种清晰度的
+            logger.trace("[{}] select {} from {} (want {})", room.name, new, qualities, room.quality)
             if (currentQuality != new && !isActive) {
-                println("[${room.name}] 更正清晰度设置 ${currentQuality} -> ${new}, 期望${room.quality}")
+                logger.info("[{}] quality changed to {} (want {})", room.name, new, room.quality)
                 currentQuality = new
             }
+            logger.trace("[{}] -> true", room.name)
             _isOpen.set(true)
             return true
         } catch (e: ClientRequestException) {
@@ -158,7 +179,8 @@ class Session(
         } catch (e: Exception) {
             println(e.stackTraceToString())
         }
-        println("[WARNING] [${room.name}] Failed to check room state")
+        logger.warn("[{}] Failed to check room state", room.name)
+        logger.trace("[{}] -> true", room.name)
         _isOpen.set(false)
         return false
     }
@@ -198,7 +220,7 @@ class Session(
         if (!_isActive.compareAndSet(false, true)) {
             throw IllegalStateException("Session is already active")
         }
-        println("[+] ${room.name} ${room.quality} ${currentQuality} $streamUrl")
+        logger.info("[+] start recording {}({}) q:{}(want {})", room.name, room.id, currentQuality, room.quality)
 
         val writer = Writer(room.name, dest, tmp).apply { init() }
         writerReference.set(writer)
@@ -259,12 +281,13 @@ class Session(
                         }
                         result.onFailure {
                             if (event is Event.LiveSegmentInit) {
+                                logger.error("failed to download init segment {}, download stopped", event.url())
                                 throw InitSegmentDownloadFiledException(it)
                             } else {
                                 val created = (event.url().substringBeforeLast("_").substringAfterLast("_")
                                     .toLongOrDefault(0))
                                 val diff = System.currentTimeMillis() / 1000 - created
-                                println("Download segment:${index} failed, delayed: ${diff}ms")
+                                logger.warn("Download segment:${index} failed, delayed: ${diff}s")
                             }
                         }
                     }
@@ -287,8 +310,6 @@ class Session(
                         } else {
                             metric.failedIncrement()
                             failed.incrementAndGet()
-                            println("[${room.name}] Download segment:${index} failed (${result?.exceptionOrNull()?.cause?.message ?: result?.exceptionOrNull()?.message}).")
-                            result?.exceptionOrNull()?.printStackTrace()
                         }
                         emittedIndex++
                     }
@@ -297,7 +318,7 @@ class Session(
 
             generatorJob?.join()
         } finally {
-            println("[-] ${room.name} ${room.quality} ${currentQuality} $streamUrl")
+            logger.info("[-] stop recording {}({}) q:{}(want {})", room.name, room.id, currentQuality, room.quality)
             Metric.removeMetric(room.id)
         }
     }
@@ -316,7 +337,7 @@ class Session(
                 ProcessorCtx(room, file.second, Date(), file.third, currentQuality)
             )
         }.onFailure {
-            it.printStackTrace()
+            logger.error("[{}] Postprocess failed",room.name,it)
         }
     }
 
@@ -333,17 +354,6 @@ class Session(
             )
         }
 
-
-    private val edgeUrl: String
-        get() {
-            return if (currentQuality != "raw" && currentQuality.isNotBlank()) "https://edge-hls.doppiocdn.com/hls/%d/master/%d_%s.m3u8".format(
-                room.id, room.id, currentQuality
-            )
-            else "https://edge-hls.doppiocdn.com/hls/%d/master/%d.m3u8".format(
-                room.id, room.id
-            )
-        }
-
     private fun segmentGenerator(): Flow<Event> = flow {
         var started = false
         var initUrl = ""
@@ -351,9 +361,6 @@ class Session(
         var retry = 0
         var ms = System.currentTimeMillis()
         var startTime = ms
-        val mouflon = ClientManager.getProxiedClient().get(edgeUrl).bodyAsText().lines()
-            .singleOrNull { it.startsWith("#EXT-X-MOUFLON") }
-        val pk = mouflon?.substringAfterLast(":")
         val regexCache = """media-hls\.doppiocdn\.\w+/(b-hls-\d+)""".toRegex()
         while (currentCoroutineContext().isActive) {
             retry++
@@ -364,10 +371,8 @@ class Session(
                     val rawList = (ClientManager.getProxiedClient()).get(
                         url
                     ) {
-                        if (pk != null) {
-                            parameter("psch", "v1")
-                            parameter("pkey", pk)
-                        }
+                        parameter("psch", "v1")
+                        parameter("pkey", KEY2)
                     }.bodyAsText().lines()
                     val newList = mutableListOf<String>()
                     for (idx in rawList.indices) {
@@ -376,7 +381,7 @@ class Session(
                             val dec = try {
                                 Decrypter.decode(enc, KEY)
                             } catch (e: Exception) {
-                                println("[ERROR] failed to decrypt $enc")
+                                logger.error("[ERROR] failed to decrypt $enc", e)
                                 throw e
                             }
                             newList.add(rawList[idx + 1].replace("media.mp4", dec))
@@ -423,7 +428,7 @@ class Session(
                                         ProcessorCtx(room, file.second, Date(), file.third, currentQuality)
                                     )
                                 }.onFailure {
-                                    it.printStackTrace()
+                                    logger.error("[{}] Postprocess failed",room.name,it)
                                 }
                             }
                         } catch (e: Exception) {
@@ -446,28 +451,35 @@ class Session(
                 }
                 retry = 0
             } catch (_: TimeoutCancellationException) {
-                println("[ERROR] [${room.name}] Refresh list timeout: $url trys:$retry")
+                logger.warn("[${room.name}] Refresh list timeout, trys=$retry")
                 if (!runCatching { testAndConfigure() }.getOrElse { false }) {
-                    println("[STOP] [${room.name}] Room off or non-public: $room trys:$retry")
+                    logger.info("[STOP] [{}] Room off or non-public",room.name)
                     break
                 }
                 continue
             } catch (e: ClientRequestException) {
                 if (e.response.status.value == 404) {
-                    println("[STOP] [${room.name}] Room off or non-public: $room trys:$retry")
+                    logger.info("[STOP] [{}] Room off or non-public", room.name, e)
                     break
                 }
                 if (e.response.status.value == 403) {
                     if (!runCatching { testAndConfigure() }.getOrElse { false }) {
-                        println("[STOP] [${room.name}] Room off or non-public: $room trys:$retry")
+                        logger.info("[STOP] [{}] Room off or non-public:", room.name, e)
                         break
                     } else if (currentQuality == "raw") {
                         // https://github.com/RikaCelery/XhRec/issues/2
-                        println("[WARNING] [${room.name}] Unable to use 'raw' quality, try using the highest one. Room will stop record now.")
+                        logger.warn(
+                            "[{}] Unable to use 'raw' quality, try using the highest one. Room will stop record now",
+                            room.name
+                        )
                         room.quality = "2560p60" // try selecting the highest quality
                         break
                     } else {
-                        println("[ERROR] [${room.name}] Refresh list error: $url ${e.response.status}. Stop recording.")
+                        logger.error(
+                            "[STOP] [{}] Refresh list error {}. Stop recording",
+                            room.name,
+                            e.response.status.value
+                        )
                         break
                     }
                 }
@@ -476,23 +488,22 @@ class Session(
                     scope.launch { stop() }
                     break
                 } else {
-                    println("[${room.name}] Generator error: ${e.message}")
+                    logger.error("[{}] Generator error", room.name, e)
                 }
             } catch (_: CancellationException) {
-                println("[${room.name}] Segment generator is cancelled, exiting...")
+                logger.error("[{}] Segment generator is cancelled, exiting...", room.name)
                 break
             } catch (e: Exception) {
-                println("[${room.name}] Unexpected error in segment generator: ${e.message}")
-                e.printStackTrace()
+                logger.error("[{}] Unexpected error in segment generator", room.name, e)
                 if (!runCatching { testAndConfigure() }.getOrElse { false }) {
-                    println("[STOP] [${room.name}] Room off or non-public:: $room trys:$retry")
+                    logger.error("[STOP] [{}] Room off or non-public:", room.name, e)
                     break
                 }
             }
 
             delay(500)
         }
-        println("[${room.name}] Segment generator exited.")
+        logger.info("[${room.name}] Segment generator exited.")
     }
 
     private fun parseSegmentUrl(lines: List<String>): List<String> {

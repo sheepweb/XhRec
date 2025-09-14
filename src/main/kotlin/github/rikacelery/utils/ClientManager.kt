@@ -3,6 +3,7 @@ package github.rikacelery.utils
 import io.ktor.client.*
 import io.ktor.client.engine.okhttp.*
 import io.ktor.client.plugins.*
+import io.ktor.client.plugins.logging.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import okhttp3.ConnectionPool
@@ -28,6 +29,10 @@ object ClientManager {
         val proxyEnv = System.getenv("http_proxy") ?: System.getenv("HTTP_PROXY")
         HttpClient(OkHttp) {
             configureClient()
+            install(Logging) {
+                logger = Logger.DEFAULT
+                level = LogLevel.INFO
+            }
             engine {
                 if (proxyEnv != null) {
                     val url = Url(proxyEnv)
