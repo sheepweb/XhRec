@@ -287,7 +287,7 @@ class Session(
                                 val created = (event.url().substringBeforeLast("_").substringAfterLast("_")
                                     .toLongOrDefault(0))
                                 val diff = System.currentTimeMillis() / 1000 - created
-                                logger.warn("Download segment:${index} failed, delayed: ${diff}s")
+                                logger.warn("Download segment:{} failed({}), delayed: {}s",index,(it as? ClientRequestException)?.response?.status?.value?:it.message,diff)
                             }
                         }
                     }
@@ -459,12 +459,12 @@ class Session(
                 continue
             } catch (e: ClientRequestException) {
                 if (e.response.status.value == 404) {
-                    logger.info("[STOP] [{}] Room off or non-public", room.name, e)
+                    logger.info("[STOP] [{}] Room off or non-public (404)", room.name)
                     break
                 }
                 if (e.response.status.value == 403) {
                     if (!runCatching { testAndConfigure() }.getOrElse { false }) {
-                        logger.info("[STOP] [{}] Room off or non-public:", room.name, e)
+                        logger.info("[STOP] [{}] Room off or non-public (403)", room.name,)
                         break
                     } else if (currentQuality == "raw") {
                         // https://github.com/RikaCelery/XhRec/issues/2
@@ -496,7 +496,7 @@ class Session(
             } catch (e: Exception) {
                 logger.error("[{}] Unexpected error in segment generator", room.name, e)
                 if (!runCatching { testAndConfigure() }.getOrElse { false }) {
-                    logger.error("[STOP] [{}] Room off or non-public:", room.name, e)
+                    logger.error("[STOP] [{}] Room off or non-public:", room.name)
                     break
                 }
             }
