@@ -230,3 +230,10 @@ https://zh.xhamsterlive.com/modelC q:raw
 - q:XXXX means preferred quality, raw means original quality.
   **_If not quality matches, program will select closest one._**
 - `zh.` is optional, dont care about it.
+
+
+## Logging
+
+Logs will be saved to `./logs`.
+
+Daily rename logs to `logs/xhrec.%d{yyyy-MM-dd}.log`.
