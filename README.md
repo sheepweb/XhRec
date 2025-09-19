@@ -156,7 +156,7 @@ Temporary stop recording
 
 Simple json status list
 
-##$# /status
+#### /status
 
 Json status
 
@@ -215,7 +215,8 @@ The server won't shut down for some reason, but it's safe to kill the process wh
 Prometheus metrics
 
 You can build monitor like this:
-![img_2.png](img_2.png)
+
+![grafana](img_1.png)
 
 ## Configuration
 
