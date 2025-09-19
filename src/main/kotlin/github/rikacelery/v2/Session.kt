@@ -364,7 +364,6 @@ class Session(
         val regexCache = """media-hls\.doppiocdn\.\w+/(b-hls-\d+)""".toRegex()
         while (currentCoroutineContext().isActive) {
             retry++
-
             val url = streamUrl
             try {
                 val lines = withTimeout(5_000) {
@@ -432,7 +431,7 @@ class Session(
                                 }
                             }
                         } catch (e: Exception) {
-                            e.printStackTrace()
+                            logger.error("[${room.name}] Failed to postprocess", e)
                         } finally {
                             // reset state
                             cache.clear()
@@ -464,7 +463,7 @@ class Session(
                 }
                 if (e.response.status.value == 403) {
                     if (!runCatching { testAndConfigure() }.getOrElse { false }) {
-                        logger.info("[STOP] [{}] Room off or non-public (403)", room.name,)
+                        logger.info("[STOP] [{}] Room off or non-public (403)", room.name)
                         break
                     } else if (currentQuality == "raw") {
                         // https://github.com/RikaCelery/XhRec/issues/2
