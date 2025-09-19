@@ -43,6 +43,7 @@ val rootLogger: Logger = LoggerFactory.getLogger("github.rikacelery.MainKt")
 
 @OptIn(InternalCoroutinesApi::class)
 fun main(vararg args: String): Unit = runBlocking {
+
     if ((System.getenv("http_proxy") ?: System.getenv("HTTP_PROXY")) != null) {
         rootLogger.info("Testing proxy")
         runCatching {

@@ -1,4 +1,4 @@
-<configuration>
+<configuration  scan="true" scanPeriod="30 seconds">
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <pattern>%d{MM-dd HH:mm:ss} %-5level %16logger{16} - %msg ::%M%n</pattern>
@@ -27,5 +27,5 @@
     <logger name="org.eclipse.jetty" level="INFO"/>
     <logger name="io.netty" level="INFO"/>
     <logger name="ch.qos.logback" level="WARN"/>
-    <logger name="io.ktor" level="WARN"/>
+    <logger name="io.ktor" level="OFF"/>
 </configuration>
