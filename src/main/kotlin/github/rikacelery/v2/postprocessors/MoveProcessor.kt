@@ -4,9 +4,6 @@ import github.rikacelery.utils.runProcessGetStdout
 import github.rikacelery.utils.toLocalDateTime
 import java.io.File
 import java.time.format.DateTimeFormatter
-import kotlin.io.path.Path
-import kotlin.io.path.createDirectories
-import kotlin.io.path.exists
 
 class MoveProcessor(room: ProcessorCtx, val destPattern: String, val datePattern: String = "yyyy_MM_dd_HH_mm_ss") :
     Processor(room) {
@@ -77,10 +74,10 @@ class MoveProcessor(room: ProcessorCtx, val destPattern: String, val datePattern
                     })
                 })
         }
-        if(!Path(destPattern).parent.exists()){
-            Path(destPattern).parent.createDirectories()
-        }
         val dest = File(replace(destPattern))
+        if(!dest.parentFile.exists()){
+            dest.parentFile.mkdirs()
+        }
         if (dest.absolutePath != input.absolutePath) {
             input.renameTo(dest)
             return listOf((dest))

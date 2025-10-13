@@ -287,7 +287,12 @@ class Session(
                                 val created = (event.url().substringBeforeLast("_").substringAfterLast("_")
                                     .toLongOrDefault(0))
                                 val diff = System.currentTimeMillis() / 1000 - created
-                                logger.warn("Download segment:{} failed({}), delayed: {}s",index,(it as? ClientRequestException)?.response?.status?.value?:it.message,diff)
+                                logger.warn(
+                                    "Download segment:{} failed({}), delayed: {}s",
+                                    index,
+                                    (it as? ClientRequestException)?.response?.status?.value ?: it.message,
+                                    diff
+                                )
                             }
                         }
                     }
@@ -337,7 +342,7 @@ class Session(
                 ProcessorCtx(room, file.second, Date(), file.third, currentQuality)
             )
         }.onFailure {
-            logger.error("[{}] Postprocess failed",room.name,it)
+            logger.error("[{}] Postprocess failed", room.name, it)
         }
     }
 
@@ -361,7 +366,6 @@ class Session(
         var retry = 0
         var ms = System.currentTimeMillis()
         var startTime = ms
-        val regexCache = """media-hls\.doppiocdn\.\w+/(b-hls-\d+)""".toRegex()
         while (currentCoroutineContext().isActive) {
             retry++
             val url = streamUrl
@@ -389,11 +393,7 @@ class Session(
                         }
                     }
 
-                    newList.filterNot { it.contains("media.mp4") }.map {
-                        it.replace(regexCache) { it ->
-                            "${it.groupValues[1]}.doppiocdn.live"
-                        }
-                    }
+                    newList.filterNot { it.contains("media.mp4") }
                 }
 
                 metric?.updateRefreshLatency(System.currentTimeMillis() - ms)
@@ -427,7 +427,7 @@ class Session(
                                         ProcessorCtx(room, file.second, Date(), file.third, currentQuality)
                                     )
                                 }.onFailure {
-                                    logger.error("[{}] Postprocess failed",room.name,it)
+                                    logger.error("[{}] Postprocess failed", room.name, it)
                                 }
                             }
                         } catch (e: Exception) {
@@ -452,7 +452,7 @@ class Session(
             } catch (_: TimeoutCancellationException) {
                 logger.warn("[${room.name}] Refresh list timeout, trys=$retry")
                 if (!runCatching { testAndConfigure() }.getOrElse { false }) {
-                    logger.info("[STOP] [{}] Room off or non-public",room.name)
+                    logger.info("[STOP] [{}] Room off or non-public", room.name)
                     break
                 }
                 continue
@@ -525,6 +525,7 @@ class Session(
             throw IllegalArgumentException("Failed to parse init URL", e)
         }
     }
+    private val regexCache = """media-hls\.doppiocdn\.\w+/(b-hls-\d+)""".toRegex()
 
     private fun tryDownload(event: Event): Deferred<ByteArray?> = scope.async {
         val c = when (event) {
@@ -537,6 +538,14 @@ class Session(
         withTimeoutOrNull(if (wait > 0) wait else 0) {
             withRetry(25) { attempt ->
                 try {
+                    try {
+                        // always try to replace cdn
+                        c.get(event.url().replace(regexCache) { it ->
+                            "${it.groupValues[1]}.doppiocdn.live"
+                        }).readBytes()
+                    }catch (e: ClientRequestException) {
+                        if (e.response.status.value!=404) throw e
+                    }
                     c.get(event.url()).readBytes()
                 } catch (_: TimeoutCancellationException) {
                     null
