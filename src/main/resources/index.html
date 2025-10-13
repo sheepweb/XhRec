@@ -100,10 +100,12 @@
 
         .url-list {
             margin-top: 20px;
+            overflow-x: scroll;
         }
 
         .url-item {
-            font-size: 0.9rem;
+            white-space: nowrap;
+            font-size: 0.7em;
             margin-bottom: 4px;
         }
 
@@ -221,7 +223,7 @@
                     urlDiv.innerHTML = `${(taskName + "                                ").slice(0, MAXLEN).replaceAll(" ", "&ensp;")} [${
                         meta.type
                     }] <span class="${timeClass}">[SERVER]:${elapsedAbs}s [DOWNLOADER]${elapsed}s</span> ${
-                        url.split("/").slice(-1)[0]
+                        url
                     }`;
                     allUrls.push({meta: meta, el: urlDiv});
                 });

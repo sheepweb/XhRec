@@ -80,6 +80,7 @@ class Session(
     private val bytesWrite = AtomicLong(0)
 
     private val runningUrl = Hashtable<String, UrlInfo>()
+    private val replacedUrl = Hashtable<String, Boolean>()
 
     @Serializable
     enum class ClientType {
@@ -96,7 +97,15 @@ class Session(
 
     fun status(): Status {
         synchronized(runningUrl) {
-            return Status(total.get(), success.get(), failed.get(), bytesWrite.get(), runningUrl.toMap())
+            return Status(total.get(), success.get(), failed.get(), bytesWrite.get(), runningUrl.toMap().mapKeys {
+                if (replacedUrl[it.key] == true){
+                    it.key.replace(regexCache) { result ->
+                        "${result.groupValues[1]}.doppiocdn.live"
+                    }
+                }else{
+                    it.key
+                }
+            })
         }
     }
 
@@ -539,12 +548,19 @@ class Session(
             withRetry(25) { attempt ->
                 try {
                     try {
+                        synchronized(replacedUrl){
+                            replacedUrl[event.url()]=true
+                        }
                         // always try to replace cdn
                         c.get(event.url().replace(regexCache) { it ->
                             "${it.groupValues[1]}.doppiocdn.live"
                         }).readBytes()
                     }catch (e: ClientRequestException) {
                         if (e.response.status.value!=404) throw e
+                    }finally {
+                        synchronized(replacedUrl){
+                            replacedUrl[event.url()]=false
+                        }
                     }
                     c.get(event.url()).readBytes()
                 } catch (_: TimeoutCancellationException) {
