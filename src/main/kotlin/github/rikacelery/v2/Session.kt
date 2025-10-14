@@ -375,6 +375,7 @@ class Session(
         var retry = 0
         var ms = System.currentTimeMillis()
         var startTime = ms
+        var useRawCDN:Boolean? = null
         while (currentCoroutineContext().isActive) {
             retry++
             val url = streamUrl
@@ -415,11 +416,23 @@ class Session(
                 }
                 val videos = parseSegmentUrl(lines)
 
+                val replacedInitUrl = initUrlCur.replace(regexCache) { it ->
+                    "${it.groupValues[1]}.doppiocdn.live"
+                }
+                if (useRawCDN==null) try {
+                    ClientManager.getProxiedClient().get(replacedInitUrl).readBytes()
+                    useRawCDN=true
+                }catch (e: ClientRequestException) {
+                    useRawCDN=false
+                }catch (e: Exception){
+                    throw e
+                }
+                requireNotNull(useRawCDN) // stupid type infer
                 if (!started) {
                     started = true
-                    emit(Event.LiveSegmentInit(initUrlCur, room))
-                }
 
+                    emit(Event.LiveSegmentInit(if (useRawCDN)replacedInitUrl  else initUrlCur, room))
+                }
                 for (url in videos) {
                     // record time limit
                     if (System.currentTimeMillis() - startTime > room.limit.inWholeMilliseconds && !cache.contains(url) && url.endsWith(
@@ -454,7 +467,9 @@ class Session(
                     // normal segments
                     if (currentCoroutineContext().isActive && !cache.contains(url)) {
                         cache.add(url)
-                        emit(Event.LiveSegmentData(url, initUrlCur, room))
+                        emit(Event.LiveSegmentData(if (useRawCDN)url  else url.replace(regexCache) { it ->
+                            "${it.groupValues[1]}.doppiocdn.live"
+                        }, if (useRawCDN) replacedInitUrl  else initUrlCur, room))
                     }
                 }
                 retry = 0
@@ -543,25 +558,10 @@ class Session(
         }
         val created = (event.url().substringBeforeLast("_").substringAfterLast("_").toLongOrDefault(0))
         val diff = System.currentTimeMillis() / 1000 - created
-        val wait = (16L - diff) * 1000
+        val wait = (20L - diff) * 1000
         withTimeoutOrNull(if (wait > 0) wait else 0) {
             withRetry(25) { attempt ->
                 try {
-                    try {
-                        synchronized(replacedUrl){
-                            replacedUrl[event.url()]=true
-                        }
-                        // always try to replace cdn
-                        c.get(event.url().replace(regexCache) { it ->
-                            "${it.groupValues[1]}.doppiocdn.live"
-                        }).readBytes()
-                    }catch (e: ClientRequestException) {
-                        if (e.response.status.value!=404) throw e
-                    }finally {
-                        synchronized(replacedUrl){
-                            replacedUrl[event.url()]=false
-                        }
-                    }
                     c.get(event.url()).readBytes()
                 } catch (_: TimeoutCancellationException) {
                     null
