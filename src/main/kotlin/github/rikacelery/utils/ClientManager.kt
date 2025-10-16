@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit
 object ClientManager {
     private val logger = LoggerFactory.getLogger(ClientManager::class.java)
     private fun clientDirect(key: String): HttpClient {
-        val pool = ConnectionPool(64, 5, TimeUnit.MINUTES)
+        val pool = ConnectionPool(16, 5, TimeUnit.MINUTES)
         logger.info("create direct client key={}",key)
         return HttpClient(OkHttp) {
             configureClient()
@@ -30,7 +30,7 @@ object ClientManager {
     }
 
     private fun clientProxied(key: String): HttpClient {
-        val pool = ConnectionPool(64, 5, TimeUnit.MINUTES)
+        val pool = ConnectionPool(16, 5, TimeUnit.MINUTES)
         val proxyEnv = System.getenv("http_proxy") ?: System.getenv("HTTP_PROXY")
         logger.info("create proxied client key={} proxy={}",key,proxyEnv)
         return HttpClient(OkHttp) {
@@ -84,6 +84,9 @@ object ClientManager {
 
     fun close() {
         clientsProxied.forEach {
+            it.value.close()
+        }
+        clientsDirect.forEach {
             it.value.close()
         }
     }
