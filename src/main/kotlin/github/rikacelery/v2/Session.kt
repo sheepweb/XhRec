@@ -467,9 +467,9 @@ class Session(
                     // normal segments
                     if (currentCoroutineContext().isActive && !cache.contains(url)) {
                         cache.add(url)
-                        emit(Event.LiveSegmentData(if (useRawCDN)url  else url.replace(regexCache) { it ->
+                        emit(Event.LiveSegmentData(if (useRawCDN)url.replace(regexCache) { it ->
                             "${it.groupValues[1]}.doppiocdn.live"
-                        }, if (useRawCDN) replacedInitUrl  else initUrlCur, room))
+                        }else url, if (useRawCDN) replacedInitUrl  else initUrlCur, room))
                     }
                 }
                 retry = 0
