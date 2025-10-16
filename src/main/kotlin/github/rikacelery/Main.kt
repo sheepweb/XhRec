@@ -47,11 +47,11 @@ fun main(vararg args: String): Unit = runBlocking {
     if ((System.getenv("http_proxy") ?: System.getenv("HTTP_PROXY")) != null) {
         rootLogger.info("Testing proxy")
         runCatching {
-            ClientManager.getClient().get(System.getenv("http_proxy") ?: System.getenv("HTTP_PROXY")) {
+            ClientManager.getClient("test").get(System.getenv("http_proxy") ?: System.getenv("HTTP_PROXY")) {
                 expectSuccess = false
             }
             rootLogger.info("Proxy connect success.")
-            ClientManager.getProxiedClient().get("https://xhamsterlive.com") {
+            ClientManager.getProxiedClient("test").get("https://xhamsterlive.com") {
                 expectSuccess = false
             }
             rootLogger.info("Proxy test (https://xhamsterlive.com) success.")
@@ -97,7 +97,7 @@ fun main(vararg args: String): Unit = runBlocking {
         rootLogger.info("loads: ${if (active) "[active]" else "[      ]"} quality:$q limit:$limit url:$url")
         async {
             val room = withRetryOrNull(5, { it.message?.contains("404") == true }) {
-                ClientManager.getProxiedClient().fetchRoomFromUrl(url, q)
+                ClientManager.getProxiedClient("main").fetchRoomFromUrl(url, q)
             } ?: run {
                 rootLogger.warn("failed: {}" , url)
                 return@async null
@@ -212,7 +212,7 @@ fun main(vararg args: String): Unit = runBlocking {
                 val q = call.request.queryParameters["quality"] ?: "720p"
                 println("${if (active) "[+]" else "[X]"} $q $slug")
                 val room = withRetryOrNull(5, { it.message?.contains("404") == true }) {
-                    ClientManager.getProxiedClient().fetchRoomFromUrl(url, q)
+                    ClientManager.getProxiedClient("main").fetchRoomFromUrl(url, q)
                 }
                 if (room == null) {
                     call.respond(HttpStatusCode.InternalServerError, "Failed to get room info.")

@@ -115,7 +115,7 @@ class Session(
      */
     suspend fun testAndConfigure(): Boolean {
         try {
-            val get = ClientManager.getProxiedClient()
+            val get = ClientManager.getProxiedClient(room.name)
                 .get("https://zh.xhamsterlive.com/api/front/v1/broadcasts/${room.name}") {
                     this.expectSuccess = false
                 }
@@ -275,7 +275,7 @@ class Session(
                                     runningUrl[event.url()] = UrlInfo(ClientType.PROXY, System.currentTimeMillis())
                                 }
                                 withRetry(2) {
-                                    ClientManager.getProxiedClient().get(
+                                    ClientManager.getProxiedClient(room.name).get(
                                         event.url()
                                     ).readBytes().also {
                                         metric.successProxiedIncrement()
@@ -375,13 +375,13 @@ class Session(
         var retry = 0
         var ms = System.currentTimeMillis()
         var startTime = ms
-        var useRawCDN:Boolean? = null
+        var useRawCDN:Boolean? = false
         while (currentCoroutineContext().isActive) {
             retry++
             val url = streamUrl
             try {
                 val lines = withTimeout(5_000) {
-                    val rawList = (ClientManager.getProxiedClient()).get(
+                    val rawList = (ClientManager.getProxiedClient(room.name)).get(
                         url
                     ) {
                         parameter("psch", "v1")
@@ -420,7 +420,7 @@ class Session(
                     "${it.groupValues[1]}.doppiocdn.live"
                 }
                 if (useRawCDN==null) try {
-                    ClientManager.getProxiedClient().get(replacedInitUrl).readBytes()
+                    ClientManager.getProxiedClient(room.name).get(replacedInitUrl).readBytes()
                     useRawCDN=true
                 }catch (e: ClientRequestException) {
                     useRawCDN=false
@@ -553,8 +553,8 @@ class Session(
 
     private fun tryDownload(event: Event): Deferred<ByteArray?> = scope.async {
         val c = when (event) {
-            is Event.LiveSegmentData -> ClientManager.getClient()
-            is Event.LiveSegmentInit -> ClientManager.getProxiedClient()
+            is Event.LiveSegmentData -> ClientManager.getClient(room.name)
+            is Event.LiveSegmentInit -> ClientManager.getProxiedClient(room.name)
         }
         val created = (event.url().substringBeforeLast("_").substringAfterLast("_").toLongOrDefault(0))
         val diff = System.currentTimeMillis() / 1000 - created
