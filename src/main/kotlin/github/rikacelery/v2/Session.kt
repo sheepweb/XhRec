@@ -115,7 +115,7 @@ class Session(
      */
     suspend fun testAndConfigure(): Boolean {
         try {
-            val get = ClientManager.getProxiedClient(room.name)
+            val get = ClientManager.getProxiedClient("room-test")
                 .get("https://zh.xhamsterlive.com/api/front/v1/broadcasts/${room.name}") {
                     this.expectSuccess = false
                 }
