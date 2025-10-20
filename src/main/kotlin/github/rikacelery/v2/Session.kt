@@ -98,11 +98,11 @@ class Session(
     fun status(): Status {
         synchronized(runningUrl) {
             return Status(total.get(), success.get(), failed.get(), bytesWrite.get(), runningUrl.toMap().mapKeys {
-                if (replacedUrl[it.key] == true){
+                if (replacedUrl[it.key] == true) {
                     it.key.replace(regexCache) { result ->
                         "${result.groupValues[1]}.doppiocdn.live"
                     }
-                }else{
+                } else {
                     it.key
                 }
             })
@@ -229,7 +229,7 @@ class Session(
         if (!_isActive.compareAndSet(false, true)) {
             throw IllegalStateException("Session is already active")
         }
-        logger.info("[+] start recording {}({}) q:{}(want {})", room.name, room.id, currentQuality, room.quality)
+        logger.info("[+] start recording {}({}) q:{}(want {}) open:{}", room.name, room.id, currentQuality, room.quality,isOpen)
 
         val writer = Writer(room.name, dest, tmp).apply { init() }
         writerReference.set(writer)
@@ -328,6 +328,14 @@ class Session(
                         emittedIndex++
                     }
                 }
+                if (success.get() <= 1) {
+                    logger.info("[{}}] No valid segments downloaded({}/{}) since start. clean empty file", room.name,success.get(),total.get())
+                    // some model start and stop their frequently
+                    // this cause the stream url become invalid immediately
+                    // so we need to reset writer to avoid empty files
+                    writer.dispose()
+                    writerReference.set(null)
+                }
             }
 
             generatorJob?.join()
@@ -369,13 +377,13 @@ class Session(
         }
 
     private fun segmentGenerator(): Flow<Event> = flow {
-        var started = false
+        var initSent = false
         var initUrl = ""
         val cache = CircleCache(100)
         var retry = 0
         var ms = System.currentTimeMillis()
         var startTime = ms
-        var useRawCDN:Boolean? = false
+        var useRawCDN: Boolean? = false
         while (currentCoroutineContext().isActive) {
             retry++
             val url = streamUrl
@@ -419,19 +427,18 @@ class Session(
                 val replacedInitUrl = initUrlCur.replace(regexCache) { it ->
                     "${it.groupValues[1]}.doppiocdn.live"
                 }
-                if (useRawCDN==null) try {
+                if (useRawCDN == null) try {
                     ClientManager.getProxiedClient(room.name).get(replacedInitUrl).readBytes()
-                    useRawCDN=true
-                }catch (e: ClientRequestException) {
-                    useRawCDN=false
-                }catch (e: Exception){
+                    useRawCDN = true
+                } catch (e: ClientRequestException) {
+                    useRawCDN = false
+                } catch (e: Exception) {
                     throw e
                 }
                 requireNotNull(useRawCDN) // stupid type infer
-                if (!started) {
-                    started = true
-
-                    emit(Event.LiveSegmentInit(if (useRawCDN)replacedInitUrl  else initUrlCur, room))
+                if (!initSent) {
+                    initSent = true
+                    emit(Event.LiveSegmentInit(if (useRawCDN) replacedInitUrl else initUrlCur, room))
                 }
                 for (url in videos) {
                     // record time limit
@@ -457,7 +464,7 @@ class Session(
                         } finally {
                             // reset state
                             cache.clear()
-                            started = false
+                            initSent = false
                             initUrl = ""
                             startTime = System.currentTimeMillis()
                             writerReference.get()?.init()
@@ -467,9 +474,9 @@ class Session(
                     // normal segments
                     if (currentCoroutineContext().isActive && !cache.contains(url)) {
                         cache.add(url)
-                        emit(Event.LiveSegmentData(if (useRawCDN)url.replace(regexCache) { it ->
+                        emit(Event.LiveSegmentData(if (useRawCDN) url.replace(regexCache) { it ->
                             "${it.groupValues[1]}.doppiocdn.live"
-                        }else url, if (useRawCDN) replacedInitUrl  else initUrlCur, room))
+                        } else url, if (useRawCDN) replacedInitUrl else initUrlCur, room))
                     }
                 }
                 retry = 0
@@ -482,7 +489,7 @@ class Session(
                 continue
             } catch (e: ClientRequestException) {
                 if (e.response.status.value == 404) {
-                    logger.info("[STOP] [{}] Room off or non-public (404)", room.name)
+                    logger.info("[STOP] [{}] Stream url returns 404, this is caused by model's network connection issue", room.name)
                     break
                 }
                 if (e.response.status.value == 403) {
@@ -549,6 +556,7 @@ class Session(
             throw IllegalArgumentException("Failed to parse init URL", e)
         }
     }
+
     private val regexCache = """media-hls\.doppiocdn\.\w+/(b-hls-\d+)""".toRegex()
 
     private fun tryDownload(event: Event): Deferred<ByteArray?> = scope.async {

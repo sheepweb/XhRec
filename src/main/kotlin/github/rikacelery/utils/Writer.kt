@@ -56,4 +56,9 @@ class Writer(private val name: String, private val destFolder:String, private va
         }
         return Triple(formatted,timeStarted,duration)
     }
+
+    fun dispose() {
+        bufferedWriter.close()
+        file.delete()
+    }
 }
