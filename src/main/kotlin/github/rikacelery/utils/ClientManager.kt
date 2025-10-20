@@ -16,7 +16,7 @@ object ClientManager {
     private val logger = LoggerFactory.getLogger(ClientManager::class.java)
     private fun clientDirect(key: String): HttpClient {
         val pool = ConnectionPool(16, 5, TimeUnit.MINUTES)
-        logger.info("create direct client key={}",key)
+        logger.info("create direct client key={}", key)
         return HttpClient(OkHttp) {
             configureClient()
             engine {
@@ -32,7 +32,7 @@ object ClientManager {
     private fun clientProxied(key: String): HttpClient {
         val pool = ConnectionPool(16, 5, TimeUnit.MINUTES)
         val proxyEnv = System.getenv("http_proxy") ?: System.getenv("HTTP_PROXY")
-        logger.info("create proxied client key={} proxy={}",key,proxyEnv)
+        logger.info("create proxied client key={} proxy={}", key, proxyEnv)
         return HttpClient(OkHttp) {
             configureClient()
             install(Logging) {
@@ -55,14 +55,7 @@ object ClientManager {
 
     private val clientsProxied = HashMap<String, HttpClient>()
     private val clientsDirect = HashMap<String, HttpClient>()
-
-    fun getClient(key:String): HttpClient {
-        return clientsDirect[key] ?: clientDirect(key).also { clientsDirect[key] = it }
-    }
-
-    fun getProxiedClient(key:String): HttpClient {
-        return clientsProxied[key] ?: clientProxied(key).also { clientsProxied[key] = it }
-    }
+    private val lock = Any()
 
     private fun HttpClientConfig<OkHttpConfig>.configureClient() {
         expectSuccess = true
@@ -82,6 +75,17 @@ object ClientManager {
         }
     }
 
+    fun getClient(key: String): HttpClient {
+        synchronized(lock) {
+            return clientsDirect[key] ?: clientDirect(key).also { clientsDirect[key] = it }
+        }
+    }
+
+    fun getProxiedClient(key: String): HttpClient {
+        synchronized(lock) {
+            return clientsProxied[key] ?: clientProxied(key).also { clientsProxied[key] = it }
+        }
+    }
     fun close() {
         clientsProxied.forEach {
             it.value.close()
