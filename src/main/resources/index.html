@@ -152,12 +152,6 @@
 
     async function fetchStatus() {
         try {
-            // REPLACE TO YOUR OWN API SERVER
-            // REPLACE TO YOUR OWN API SERVER
-            // REPLACE TO YOUR OWN API SERVER
-            // REPLACE TO YOUR OWN API SERVER
-            // REPLACE TO YOUR OWN API SERVER
-            // REPLACE TO YOUR OWN API SERVER
             const res = await fetch("/status");
             const data = await res.json();
 
@@ -196,6 +190,9 @@
                 const entries = Object.entries(running)
                     .map(([url, meta]) => {
                         match = /_(\d+)_part.\.mp4/.exec(url)
+                        if (!match) {
+                            return [url, meta]
+                        }
                         meta.startAtAbs = match && match.length > 1 && match[1] ? match[1] * 1000 : 0
                         return [url, meta]
                     })
