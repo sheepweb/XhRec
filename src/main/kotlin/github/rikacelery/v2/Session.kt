@@ -386,11 +386,10 @@ class Session(
         var useRawCDN: Boolean? = false
         while (currentCoroutineContext().isActive) {
             retry++
-            val url = streamUrl
             try {
                 val lines = withTimeout(5_000) {
                     val rawList = (ClientManager.getProxiedClient(room.name)).get(
-                        url
+                        streamUrl
                     ) {
                         parameter("psch", "v1")
                         parameter("pkey", KEY2)
@@ -481,7 +480,7 @@ class Session(
                 }
                 retry = 0
             } catch (_: TimeoutCancellationException) {
-                logger.warn("[${room.name}] Refresh list timeout, trys=$retry")
+                logger.warn("[${room.name}] Refresh list timeout {}, trys={}",streamUrl,retry)
                 if (!runCatching { testAndConfigure() }.getOrElse { false }) {
                     logger.info("[STOP] [{}] Room off or non-public", room.name)
                     break
