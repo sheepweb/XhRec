@@ -235,6 +235,8 @@ https://zh.xhamsterlive.com/modelC q:raw
 
 ## Logging
 
+Custom logging: [https://github.com/RikaCelery/XhRec/issues/16](https://github.com/RikaCelery/XhRec/issues/16)
+
 Logs will be saved to `./logs`.
 
 Daily rename logs to `logs/xhrec.%d{yyyy-MM-dd}.log`.
