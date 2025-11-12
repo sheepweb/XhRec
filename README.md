@@ -6,15 +6,18 @@ A kotlin application for automatic recording lives from StripChat.
 
 ```plain
 usage: 
- -f,--file <arg>     Room List File
- -post <arg>         Post Processor Config File (default: postprocessor.json)
- -o,--output <arg>   Output Dir
- -p,--port <arg>     Server Port [default:8090]
- -t,--tmp <arg>      Temp Dir
+ -f,--file <arg>     Room List File [default: list.conf]
+ -post <arg>         Post Processor Config File [default: postprocessor.json]
+ -o,--output <arg>   Output Dir [default: out]
+ -p,--port <arg>     Server Port [default: 8090]
+ -t,--tmp <arg>      Temp Dir [default: tmp]
 ```
 
 ```shell
-java -jar XhRec-all.jar -f list.conf -t /path/to/temp/folder -o /path/to/destnation/folder
+java -jar XhRec-all.jar
+```
+```shell
+java -jar XhRec-all.jar -p 12340 -f list.conf -post postprocessor.json -t /path/to/temp/folder -o /path/to/destnation/folder
 ```
 
 ## Control

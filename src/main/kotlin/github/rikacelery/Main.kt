@@ -61,11 +61,11 @@ fun main(vararg args: String): Unit = runBlocking {
     }
     val parser: CommandLineParser = DefaultParser()
     val options = Options()
-    options.addOption("post", true, "Post Processor Config File (default: postprocessor.json)")
-    options.addOption("f", "file", true, "Room List File")
-    options.addOption("o", "output", true, "Output Dir")
-    options.addOption("t", "tmp", true, "Temp Dir")
-    options.addOption("p", "port", true, "Server Port [default:8090]")
+    options.addOption("post", true, "Post Processor Config File [default: postprocessor.json]")
+    options.addOption("f", "file", true, "Room List File [default: list.conf]")
+    options.addOption("o", "output", true, "Output Dir [default: out]")
+    options.addOption("t", "tmp", true, "Temp Dir [default: tmp]")
+    options.addOption("p", "port", true, "Server Port [default: 8090]")
 
     val commandLine: CommandLine = try {
         parser.parse(options, args)
