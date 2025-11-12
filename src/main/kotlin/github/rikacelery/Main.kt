@@ -78,7 +78,18 @@ fun main(vararg args: String): Unit = runBlocking {
         val formatter = HelpFormatter()
         formatter.printHelp("CommandLineParameters", options)
     }
-    PostProcessor.loadConfig(File(commandLine.getOptionValue("post", "postprocessor.json")))
+    val file = File(commandLine.getOptionValue("post", "postprocessor.json"))
+    if (file.exists().not()){
+        file.writeText("""{
+  "default": [
+    {
+      "type": "fix_stamp",
+      "output": "/out"
+    }
+  ]
+}""")
+    }
+    PostProcessor.loadConfig(file)
     val jobFile = File(commandLine.getOptionValue("f", "list.conf"))
     rootLogger.info("jobfile: {}, postprocessor:{}", jobFile, commandLine.getOptionValue("post", "postprocessor.json"))
     val regex = "([#;])? *(https://(?:zh.)?xhamsterlive.com/\\S+)(?: (.+))?".toRegex()
