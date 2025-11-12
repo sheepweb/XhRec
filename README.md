@@ -227,9 +227,9 @@ https://zh.xhamsterlive.com/modelC q:raw
 ```
 
 - Start with `#` or `;` will be marked as `INACTIVE`, means will not automatically start recording.
-- limit:120 means record time (in seconds). **NOT RECOMMEND, MAY EASILY BREAK YOU VIDEO**.
+- limit:120 means record time (in seconds). **NOT RECOMMEND, MAY EASILY CORRUPT YOUR VIDEO**.
 - q:XXXX means preferred quality, raw means original quality.
-  **_If not quality matches, program will select closest one._**
+  **_If no quality matches, program will select closest one._**
 - `zh.` is optional, dont care about it.
 
 
