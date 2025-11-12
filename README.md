@@ -91,7 +91,10 @@ Run processors one by one.
 
 ## Control
 
-There is only basic status page at `/` now. We provided a browser extension for quick control.
+### WebUI
+
+`http://localhost:8090`
+![img_2.png](img_2.png)
 
 ### Browser extension
 

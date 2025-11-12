@@ -199,7 +199,7 @@ fun main(vararg args: String): Unit = runBlocking {
         }
         routing {
             get("/") {
-                call.respondText(this::class.java.getResource("/index.html")!!.readText(), ContentType.Text.Html)
+                call.respondText(this::class.java.getResource("/vue.html")!!.readText(), ContentType.Text.Html)
             }
             get("/add") {
                 val active = call.request.queryParameters["active"].toBoolean()
@@ -226,6 +226,7 @@ fun main(vararg args: String): Unit = runBlocking {
                 println(room)
                 scheduler.add(room, active)
                 saveJobFile(jobFile, scheduler)
+                call.respond(HttpStatusCode.OK)
             }
             get("/remove") {
                 val slug = call.request.queryParameters["slug"]
