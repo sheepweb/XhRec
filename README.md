@@ -17,7 +17,44 @@ usage:
 java -jar XhRec-all.jar -f list.conf -t /path/to/temp/folder -o /path/to/destnation/folder
 ```
 
-### Post processing
+## Control
+
+### WebUI
+
+`http://localhost:8090`
+![img_2.png](img_2.png)
+
+### Browser extension
+
+![extension screenshot](PixPin_2025-09-01_00-31-44.png)
+
+1. Go to the Extensions page by entering `chrome://extensions` in a new tab. (By design `chrome://` URLs are not
+   linkable.)
+
+    - Alternatively, click the Extensions menu puzzle button and select **Manage Extensions** at the bottom of the menu.
+    - Or, click the Chrome menu, hover over **More Tools**, then select **Extensions**.
+
+2. Enable Developer Mode by clicking the toggle switch next to **Developer mode**.
+3. Replace `docker.lan:8090` in `extension/popup.js` to your own server address.
+4. Click the **Load unpacked** button and select the `extension` directory.
+   ![Extensions page 1(chrome://extensions)](PixPin_2025-09-01_00-38-56.png)
+   ![Extensions page 2(chrome://extensions)](PixPin_2025-09-01_00-36-07.png)
+
+## Configuration
+
+```plain
+# https://zh.xhamsterlive.com/modelA q:720p limit:120
+; https://zh.xhamsterlive.com/modelB q:240p
+https://zh.xhamsterlive.com/modelC q:raw
+```
+
+- Start with `#` or `;` will be marked as `INACTIVE`, means will not automatically start recording.
+- limit:120 means record time (in seconds). **NOT RECOMMEND, MAY EASILY CORRUPT YOUR VIDEO**.
+- q:XXXX means preferred quality, raw means original quality.
+  **_If no quality matches, program will select closest one._**
+- `zh.` is optional, dont care about it.
+
+## Post processing
 
 Run processors one by one.
 
@@ -89,30 +126,7 @@ Run processors one by one.
 }
 ```
 
-## Control
-
-### WebUI
-
-`http://localhost:8090`
-![img_2.png](img_2.png)
-
-### Browser extension
-
-![extension screenshot](PixPin_2025-09-01_00-31-44.png)
-
-1. Go to the Extensions page by entering `chrome://extensions` in a new tab. (By design `chrome://` URLs are not
-   linkable.)
-
-    - Alternatively, click the Extensions menu puzzle button and select **Manage Extensions** at the bottom of the menu.
-    - Or, click the Chrome menu, hover over **More Tools**, then select **Extensions**.
-
-2. Enable Developer Mode by clicking the toggle switch next to **Developer mode**.
-3. Replace `docker.lan:8090` in `extension/popup.js` to your own server address.
-4. Click the **Load unpacked** button and select the `extension` directory.
-   ![Extensions page 1(chrome://extensions)](PixPin_2025-09-01_00-38-56.png)
-   ![Extensions page 2(chrome://extensions)](PixPin_2025-09-01_00-36-07.png)
-
-### API
+## API
 
 #### /add
 
@@ -220,20 +234,6 @@ Prometheus metrics
 You can build monitor like this:
 
 ![grafana](img_1.png)
-
-## Configuration
-
-```plain
-# https://zh.xhamsterlive.com/modelA q:720p limit:120
-; https://zh.xhamsterlive.com/modelB q:240p
-https://zh.xhamsterlive.com/modelC q:raw
-```
-
-- Start with `#` or `;` will be marked as `INACTIVE`, means will not automatically start recording.
-- limit:120 means record time (in seconds). **NOT RECOMMEND, MAY EASILY CORRUPT YOUR VIDEO**.
-- q:XXXX means preferred quality, raw means original quality.
-  **_If no quality matches, program will select closest one._**
-- `zh.` is optional, dont care about it.
 
 
 ## Logging
