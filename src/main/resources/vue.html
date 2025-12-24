@@ -340,6 +340,7 @@
         </div>
     </div>
     <script type="module">
+        const HOST = ""
         import { createApp } from 'vue'
 
         createApp({
@@ -373,18 +374,18 @@
                     return `${bytes.toFixed(3)} ${units[i]}`;
                 },
                 async setQuality(quality, roomName) {
-                    const r1 = await fetch(`http://docker.lan:8090/quality?slug=${roomName}&quality=${quality}`)
+                    const r1 = await fetch(`${HOST}/quality?slug=${roomName}&quality=${quality}`)
                     const data1 = await r1.text()
                     showToast(data1)
                 },
                 async action(action, roomName) {
-                    const r1 = await fetch(`http://docker.lan:8090/${action}?slug=${roomName}`)
+                    const r1 = await fetch(`${HOST}/${action}?slug=${roomName}`)
                     const data1 = await r1.text()
                     showToast(data1)
                 },
                 async addRoom(active) {
                     const name = this.addInput.split("/").slice(-1)[0].split("?")[0]
-                    const r1 = await fetch(`http://docker.lan:8090/add?slug=${name}&active=${active}&quality=&${this.addQuality}`)
+                    const r1 = await fetch(`${HOST}/add?slug=${name}&active=${active}&quality=&${this.addQuality}`)
                     const data1 = await r1.text()
                     if (r1.status == 404 || r1.status == 200) {
                         showToast("OK")
@@ -395,11 +396,11 @@
                 },
                 async fetchdata() {
 
-                    const r1 = await fetch("http://docker.lan:8090/recorders")
+                    const r1 = await fetch(`${HOST}/recorders`)
                     const data1 = await r1.json()
-                    const r2 = await fetch("http://docker.lan:8090/status")
+                    const r2 = await fetch(`${HOST}/status`)
                     const data2 = await r2.json()
-                    const r3 = await fetch("http://docker.lan:8090/list")
+                    const r3 = await fetch(`${HOST}/list`)
                     const data3 = await r3.json()
                     this.roomInfo = {}
                     for (const room of data1) {

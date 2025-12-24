@@ -42,14 +42,24 @@ class Session(
     dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
     companion object {
-        val KEY = String(
+        val DECRYPT_KEY = String(
             String(
                 Base64.getDecoder().decode("NTEgNzUgNjUgNjEgNmUgMzQgNjMgNjEgNjkgMzkgNjIgNmYgNGEgNjEgMzUgNjE=")
             ).split(" ").map { it.toByte(16) }.toByteArray()
         )
-        val KEY2 = String(
+        val DECRYPT_KEY_V2 = String(
+            String(
+                Base64.getDecoder().decode("NDUgNTEgNzUgNjUgNjUgNDcgNjggMzIgNmIgNjEgNjUgNzcgNjEgMzMgNjMgNjg=")
+            ).split(" ").map { it.toByte(16) }.toByteArray()
+        )
+        val AUTH_KEY = String(
             String(
                 Base64.getDecoder().decode("NWEgNmYgNmIgNjUgNjUgMzIgNGYgNjggNTAgNjggMzkgNmIgNzUgNjcgNjggMzQ=")
+            ).split(" ").map { it.toByte(16) }.toByteArray()
+        )
+        val AUTH_KEY_V2 = String(
+            String(
+                Base64.getDecoder().decode("NGYgNmYgNmIgMzcgNzEgNzUgNjEgNjkgNGUgNjcgNjkgNzkgNzUgNjggNjEgNjk=")
             ).split(" ").map { it.toByte(16) }.toByteArray()
         )
 
@@ -229,7 +239,14 @@ class Session(
         if (!_isActive.compareAndSet(false, true)) {
             throw IllegalStateException("Session is already active")
         }
-        logger.info("[+] start recording {}({}) q:{}(want {}) open:{}", room.name, room.id, currentQuality, room.quality,isOpen)
+        logger.info(
+            "[+] start recording {}({}) q:{}(want {}) open:{}",
+            room.name,
+            room.id,
+            currentQuality,
+            room.quality,
+            isOpen
+        )
 
         val writer = Writer(room.name, dest, tmp).apply { init() }
         writerReference.set(writer)
@@ -329,7 +346,12 @@ class Session(
                     }
                 }
                 if (success.get() <= 1) {
-                    logger.info("[{}}] No valid segments downloaded({}/{}) since start. clean empty file", room.name,success.get(),total.get())
+                    logger.info(
+                        "[{}}] No valid segments downloaded({}/{}) since start. clean empty file",
+                        room.name,
+                        success.get(),
+                        total.get()
+                    )
                     // some model start and stop their frequently
                     // this cause the stream url become invalid immediately
                     // so we need to reset writer to avoid empty files
@@ -390,20 +412,36 @@ class Session(
                     val rawList = (ClientManager.getProxiedClient(room.name)).get(
                         streamUrl
                     ) {
-                        parameter("psch", "v1")
-                        parameter("pkey", KEY2)
+//                        parameter("psch", "v1")
+//                        parameter("pkey", AUTH_KEY)
+                        parameter("psch", "v2")
+                        parameter("pkey", AUTH_KEY_V2)
+                        parameter("preferredVideoCodec", "H265")
                     }.bodyAsText().lines()
                     val newList = mutableListOf<String>()
                     for (idx in rawList.indices) {
-                        if (rawList[idx].startsWith("#EXT-X-MOUFLON:FILE:")) {
-                            val MOUFLON = rawList[idx].substringAfterLast(":")
-                            val dec = try {
-                                Decrypter.decode(MOUFLON, KEY)
+                        if (rawList[idx].startsWith("#EXT-X-MOUFLON:URI:")) {
+                            val mouflon = rawList[idx].substringAfterLast("#EXT-X-MOUFLON:URI:")
+                            val encrypted =
+                                mouflon.substringBeforeLast("_")
+                                    .substringBeforeLast("_")
+                                    .substringAfterLast("_")
+
+                            val decrypted = try {
+                                logger.trace("decode {} key={}", encrypted, DECRYPT_KEY_V2)
+                                Decrypter.decode(
+                                    encrypted.reversed(),
+                                    DECRYPT_KEY_V2
+                                )
                             } catch (e: Exception) {
-                                logger.error("[ERROR] failed to decrypt $MOUFLON", e)
+                                logger.error("[ERROR] failed to decrypt $mouflon", e)
                                 throw e
                             }
-                            newList.add(rawList[idx + 1].replace("media.mp4", dec))
+                            val dec = rawList[idx+1].replace(
+                                """https://media-hls\.doppiocdn\.\w+/b-hls-\d+/media.mp4""".toRegex(),
+                                mouflon.replace(encrypted, decrypted)
+                            )
+                            newList.add(dec)
                         } else {
                             newList.add(rawList[idx])
                         }
@@ -422,13 +460,11 @@ class Session(
                 }
                 val videos = parseSegmentUrl(lines)
 
-                val replacedInitUrl = initUrlCur.replace(regexCache) { it ->
-                    "${it.groupValues[1]}.doppiocdn.live"
-                }
                 if (!initSent) {
                     initSent = true
                     emit(Event.LiveSegmentInit(initUrlCur))
                 }
+                logger.trace("[{}] fetched: {}", room.name, videos.size)
                 for (url in videos) {
                     // record time limit
                     if (System.currentTimeMillis() - startTime > room.limit.inWholeMilliseconds && !cache.contains(url) && url.endsWith(
@@ -468,7 +504,7 @@ class Session(
                 }
                 retry = 0
             } catch (_: TimeoutCancellationException) {
-                logger.warn("[${room.name}] Refresh list timeout {}, trys={}",streamUrl,retry)
+                logger.warn("[${room.name}] Refresh list timeout {}, trys={}", streamUrl, retry)
                 if (!runCatching { testAndConfigure() }.getOrElse { false }) {
                     logger.info("[STOP] [{}] Room off or non-public", room.name)
                     break
@@ -476,7 +512,10 @@ class Session(
                 continue
             } catch (e: ClientRequestException) {
                 if (e.response.status.value == 404) {
-                    logger.info("[STOP] [{}] Stream url returns 404, this is caused by model's network connection issue", room.name)
+                    logger.info(
+                        "[STOP] [{}] Stream url returns 404, this is caused by model's network connection issue",
+                        room.name
+                    )
                     break
                 }
                 if (e.response.status.value == 403) {
