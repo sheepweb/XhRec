@@ -39,7 +39,7 @@ class MoveProcessor(room: ProcessorCtx, val destPattern: String, val datePattern
                 .replace("{{INPUT_DIR}}", input.parentFile.absolutePath)
                 .replace("{{FILE_NAME}}", input.name)
                 .replace("{{FILE_NAME_NOEXT}}", input.nameWithoutExtension)
-                .replace("\\{\\{TOTAL_FRAMES}}".toRegex(), {
+                .replace("\\{\\{TOTAL_FRAMES}}".toRegex()) {
                     runProcessGetStdout(
                         "ffprobe",
                         "-v",
@@ -64,15 +64,15 @@ class MoveProcessor(room: ProcessorCtx, val destPattern: String, val datePattern
                             "-of",
                             "default=noprint_wrappers=1:nokey=1",
                             input.absolutePath
-                        ).split("/").reduce { a,b->
+                        ).split("/").reduce { a, b ->
                             try {
                                 a.toInt() / b.toInt()
                             } catch (e: Exception) {
                                 1
                             }.toString()
-                        }.toLong().times(context.duration/1000).toString()
+                        }.toLong().times(context.duration / 1000).toString()
                     })
-                })
+                }
         }
         val dest = File(replace(destPattern))
         if(!dest.parentFile.exists()){

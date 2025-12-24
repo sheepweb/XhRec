@@ -26,9 +26,9 @@ suspend fun HttpClient.splitDownload( segmentUrl: String) = coroutineScope {
         chunked(1024 * 10).asFlow().map {
             // cold flow doesn't allow concurrent download
             async {
-                val d = withRetry(10, {
+                val d = withRetry(10, { exception ->
                     // stop retry if 404
-                    (it as? ClientRequestException)?.response?.status == HttpStatusCode.NotFound
+                    (exception as? ClientRequestException)?.response?.status == HttpStatusCode.NotFound
                 }) { _->
                     get(segmentUrl) {
                         headers {

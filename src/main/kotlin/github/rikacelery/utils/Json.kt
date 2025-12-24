@@ -1,4 +1,4 @@
-@file:Suppress("Unused", "FunctionName")
+@file:Suppress("Unused", "FunctionName", "unused")
 
 package github.rikacelery.utils
 

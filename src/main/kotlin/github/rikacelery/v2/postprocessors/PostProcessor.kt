@@ -17,7 +17,7 @@ object PostProcessor {
         config = Json.Default.decodeFromString(
             JsonObject.Companion.serializer(),
             file.readText()
-        ).jsonObject.get("default")?.jsonArray ?: JsonArray(listOf())
+        ).jsonObject["default"]?.jsonArray ?: JsonArray(listOf())
         println("Post processors loads: ${config.map { it.String("type") }}")
     }
 

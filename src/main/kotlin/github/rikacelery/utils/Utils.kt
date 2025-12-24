@@ -5,7 +5,6 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import java.util.*
 
-@Suppress("unused")
 suspend fun <R, T> R.withMeasureTime(block: suspend R.() -> T): T {
     val start = System.currentTimeMillis()
     val res = block()
@@ -28,7 +27,6 @@ fun bytesToHumanReadable(bytes: Long): String {
     return "${"%.3f".format(bytesLeft)}${units[unitIndex]}"
 }
 
-@Suppress("unused")
 suspend fun <T> withRetry(i: Int, stopIf: (Throwable) -> Boolean = { false }, function: suspend (n:Int) -> T): T {
     var err: Throwable? = null
     (0 until i).forEach { j ->
@@ -45,7 +43,6 @@ suspend fun <T> withRetry(i: Int, stopIf: (Throwable) -> Boolean = { false }, fu
     }
     throw err!!
 }
-@Suppress("unused")
 suspend fun <T> withRetryOrNull(i: Int, stopIf: (Throwable) -> Boolean = { false }, function: suspend () -> T): T? {
     (0 until i).forEach { j ->
         runCatching {
@@ -60,7 +57,6 @@ suspend fun <T> withRetryOrNull(i: Int, stopIf: (Throwable) -> Boolean = { false
     return null
 }
 
-@Suppress("unused")
 fun Long.chunked(chunkSize: Int): List<LongRange> {
     val result = mutableListOf<LongRange>()
     var start = 0L
@@ -72,7 +68,6 @@ fun Long.chunked(chunkSize: Int): List<LongRange> {
     return result
 }
 
-@Suppress("unused")
 fun Date.toLocalDateTime(): LocalDateTime = LocalDateTime.ofInstant(toInstant(), ZoneId.systemDefault())
 
 
@@ -94,7 +89,6 @@ fun runProcess( command: List<String>,onStdout:(line:String)-> Unit,onStderr: (l
     }
     return process.waitFor()
 }
-@Suppress("unused")
 fun runProcessGetStdout(vararg  command: String): String {
     val process = ProcessBuilder(command.asList()).start()
 

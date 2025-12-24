@@ -383,7 +383,6 @@ class Session(
         var retry = 0
         var ms = System.currentTimeMillis()
         var startTime = ms
-        var useRawCDN: Boolean? = false
         while (currentCoroutineContext().isActive) {
             retry++
             try {
@@ -397,11 +396,11 @@ class Session(
                     val newList = mutableListOf<String>()
                     for (idx in rawList.indices) {
                         if (rawList[idx].startsWith("#EXT-X-MOUFLON:FILE:")) {
-                            val enc = rawList[idx].substringAfterLast(":")
+                            val MOUFLON = rawList[idx].substringAfterLast(":")
                             val dec = try {
-                                Decrypter.decode(enc, KEY)
+                                Decrypter.decode(MOUFLON, KEY)
                             } catch (e: Exception) {
-                                logger.error("[ERROR] failed to decrypt $enc", e)
+                                logger.error("[ERROR] failed to decrypt $MOUFLON", e)
                                 throw e
                             }
                             newList.add(rawList[idx + 1].replace("media.mp4", dec))
@@ -426,18 +425,9 @@ class Session(
                 val replacedInitUrl = initUrlCur.replace(regexCache) { it ->
                     "${it.groupValues[1]}.doppiocdn.live"
                 }
-                if (useRawCDN == null) try {
-                    ClientManager.getProxiedClient(room.name).get(replacedInitUrl).readBytes()
-                    useRawCDN = true
-                } catch (e: ClientRequestException) {
-                    useRawCDN = false
-                } catch (e: Exception) {
-                    throw e
-                }
-                requireNotNull(useRawCDN) // stupid type infer
                 if (!initSent) {
                     initSent = true
-                    emit(Event.LiveSegmentInit(if (useRawCDN) replacedInitUrl else initUrlCur, room))
+                    emit(Event.LiveSegmentInit(initUrlCur))
                 }
                 for (url in videos) {
                     // record time limit
@@ -473,9 +463,7 @@ class Session(
                     // normal segments
                     if (currentCoroutineContext().isActive && !cache.contains(url)) {
                         cache.add(url)
-                        emit(Event.LiveSegmentData(if (useRawCDN) url.replace(regexCache) { it ->
-                            "${it.groupValues[1]}.doppiocdn.live"
-                        } else url, if (useRawCDN) replacedInitUrl else initUrlCur, room))
+                        emit(Event.LiveSegmentData(url))
                     }
                 }
                 retry = 0

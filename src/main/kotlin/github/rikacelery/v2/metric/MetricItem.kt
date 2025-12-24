@@ -17,6 +17,4 @@ data class MetricItem(
     val latencyMS: Double = 0.0,
     val refreshLatencyMS: Double = 0.0,
 //    val running: Map<String, UrlInfo>
-) {
-
-}
+)

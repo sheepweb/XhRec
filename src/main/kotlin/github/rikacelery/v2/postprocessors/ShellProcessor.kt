@@ -44,7 +44,7 @@ class ShellProcessor(
                 .replace("{{INPUT_DIR}}", input.parentFile.absolutePath)
                 .replace("{{FILE_NAME}}", input.name)
                 .replace("{{FILE_NAME_NOEXT}}", input.nameWithoutExtension)
-                .replace("\\{\\{TOTAL_FRAMES}}".toRegex(), {
+                .replace("\\{\\{TOTAL_FRAMES}}".toRegex()) {
                     runProcessGetStdout(
                         "ffprobe",
                         "-v",
@@ -58,7 +58,7 @@ class ShellProcessor(
                         "default=noprint_wrappers=1:nokey=1",
                         input.absolutePath
                     )
-                })
+                }
                 .replace("\\{\\{TOTAL_FRAMES_GUESS}}".toRegex(), {
                     runProcessGetStdout(
                         "ffprobe",
@@ -103,7 +103,7 @@ class ShellProcessor(
             return listOf(outputFile)
         } else {
             if (noreturn) return listOf(input)
-            println("[warning] ${input} shell process failed.")
+            println("[warning] $input shell process failed.")
             throw Exception("运行失败")
         }
     }
