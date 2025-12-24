@@ -317,7 +317,7 @@ class Session(
                                     "Download segment:{} failed({}), delayed: {}s",
                                     index,
                                     (it as? ClientRequestException)?.response?.status?.value ?: it.message,
-                                    diff
+                                    diff / 1000
                                 )
                             }
                         }
@@ -423,7 +423,7 @@ class Session(
                         if (rawList[idx].startsWith("#EXT-X-MOUFLON:URI:")) {
                             val mouflon = rawList[idx].substringAfterLast("#EXT-X-MOUFLON:URI:")
                             val encrypted =
-                                mouflon.substringBeforeLast("_")
+                                mouflon.replace("(_part\\d)?\\.mp4".toRegex(),"")
                                     .substringBeforeLast("_")
                                     .substringAfterLast("_")
 
@@ -434,7 +434,8 @@ class Session(
                                     DECRYPT_KEY_V2
                                 )
                             } catch (e: Exception) {
-                                logger.error("[ERROR] failed to decrypt $mouflon", e)
+                                logger.error("[ERROR] failed to decrypt $mouflon(${encrypted.reversed()})", e)
+                                println(rawList.joinToString("\n"))
                                 throw e
                             }
                             val dec = rawList[idx+1].replace(
