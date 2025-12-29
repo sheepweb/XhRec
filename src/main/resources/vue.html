@@ -44,9 +44,9 @@
         font-weight: 600;
     }
 
-    table,
-    table tr th,
-    table tr td {
+    table.control-panel,
+    table.control-panel tr th,
+    table.control-panel tr td {
         border: 1px solid #00000056;
         padding: .4em;
     }
@@ -103,6 +103,7 @@
         color: var(--highlight-red);
         font-weight: bold;
     }
+
 
     /* Tooltip 容器 */
     .tooltip {
@@ -187,6 +188,116 @@
         left: 0;
         z-index: 10;
     }
+
+    .gantt-background {
+        margin: 0 auto;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        overflow: auto;
+    }
+
+    .gantt-container {
+        overflow-x: auto;
+        padding: 20px;
+    }
+
+    .gantt-table {
+        width: 100%;
+        min-width: 800px;
+        border-collapse: collapse;
+        table-layout: fixed;
+    }
+
+    .gantt-table th {
+        background: #f1f5fd;
+        padding: 15px 10px;
+        text-align: left;
+        font-weight: 600;
+        color: #2c3e50;
+        border-bottom: 2px solid #e1e8f0;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    .gantt-table td {
+        border-bottom: 1px solid #eef2f7;
+        vertical-align: top;
+    }
+
+    .model-name {
+        font-weight: 600;
+        color: #2c3e50;
+        position: sticky;
+        left: 0;
+        background: white;
+        z-index: 5;
+        min-width: 0;
+    }
+
+    .day-header {
+        text-align: center;
+        font-weight: 600;
+        color: #4b6cb7;
+    }
+
+
+    .time-slot {
+        height: 30px;
+        position: relative;
+        background: #f8fafc;
+        border-radius: 6px;
+        overflow: hidden;
+    }
+
+    .period-bar {
+        position: absolute;
+        height: 30px;
+        background: linear-gradient(90deg, #4b6cb7, #6a89cc);
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 12px;
+        font-weight: 500;
+        overflow: hidden;
+    }
+
+    .period-bar:hover {
+        transform: scaleY(1.1);
+        box-shadow: 0 4px 8px rgba(75, 108, 183, 0.3);
+    }
+
+    .disabled-day {
+        background: repeating-linear-gradient(45deg,
+                #f8f9fa,
+                #f8f9fa 10px,
+                #e9ecef 10px,
+                #e9ecef 20px);
+        opacity: 0.7;
+    }
+
+    .disabled-day .period-bar {
+        background: linear-gradient(90deg, #95a5a6, #7f8c8d);
+        opacity: 0.5;
+    }
+
+    .gantt-tooltip {
+        position: absolute;
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        z-index: 100;
+        pointer-events: none;
+        transform: translateY(-100%);
+        margin-top: -10px;
+    }
 </style>
 
 <script type="importmap">
@@ -232,10 +343,68 @@
         }, 2000);
     }
 </script>
+<style>
+    .gantt-btn {
+        padding: 8px 16px;
+        border: 1px solid #4b6cb7;
+        background: white;
+        color: #4b6cb7;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+    }
+
+    .gantt-btn:hover {
+        background: #4b6cb7;
+        color: white;
+        text-shadow: 3px 3px 8px #00000050;
+    }
+</style>
 
 <body class="p-3 flex flex-col justify-center items-center bg-slate-300">
     <div id="popup"></div>
-    <div id="app" class="container flex flex-col ">
+
+    <div id="app" class="w-full flex flex-col ">
+
+        <div class="gantt-background">
+            <div class="gantt-container">
+                <table class="gantt-table">
+                    <thead>
+                        <tr>
+                            <th>Room <button @click="fetchSchedule()" class="gantt-btn"><i class="fa-solid fa-arrow-rotate-right"></i></button>
+                            </th>
+                            <th v-for="day in days" :key="day.key" class="day-header">
+                                {{ day.label }}
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="(modelData, modelName) in schedules" :key="modelName">
+                            <td class="model-name">{{ modelName }}</td>
+                            <td v-for="day in days" :key="`${modelName}-${day.key}`" class="day-column"
+                                :class="{'disabled-day': !modelData[day.key]?.isEnabled}">
+                                <div class="time-slot">
+                                    <div v-for="(period, index) in modelData[day.key]?.periods || []" :key="index"
+                                        class="period-bar" :style="{
+                                            left: `${calculatePosition(period[0])}%`,
+                                            width: `${calculateWidth(period[0], period[1])}%`
+                                        }"
+                                        @mouseover="showTooltip($event, {model: modelName, day: day.label, start: period[0], end: period[1]})"
+                                        @mouseout="hideTooltip"
+                                        @click="selectPeriod({model: modelName, day: day.label, start: period[0], end: period[1]})">
+                                        {{ formatPeriodTime(period[0], period[1]) }}
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div v-if="tooltip.visible" class="gantt-tooltip" :style="{left: tooltip.x + 'px', top: tooltip.y + 'px'}">
+            {{ tooltip.text }}
+        </div>
         <div class="bg-slate-200 rounded-md p-4">
             <div class="row mb-2">
                 <div class="input flex gap-2">
@@ -263,7 +432,7 @@
 
                 </div>
             </div>
-            <table class="border w-full">
+            <table class="control-panel border w-full">
                 <thead class="font-bold">
                     <tr>
                         <td class="hover:cursor-pointer" @click="sortToggle('Room')">Room
@@ -295,16 +464,32 @@
                 </thead>
                 <tbody>
                     <tr v-for="room of roomDisplay">
-                        <td>{{room.name}}</td>
+                        <td>{{room.name}} <a :href="`https://xhamsterlive.com/${room.name}`" target="_blank"><i
+                                    class="fa fa-arrow-up-right-from-square"
+                                    style="font-size: .6em;vertical-align: top;"></i></a></td>
                         <td>{{room.id}}</td>
-                        <td>{{room.quality}}</td>
-                        <td>{{room.status}}</td>
                         <td>
-                            <span class="text-green-800 mr-1"><i class="fa-solid fa-arrow-down"
+                            <select @change="ev=>setQuality(ev.target.value,room.name)" :value="room.quality">
+                                <option
+                                    v-for="quality in ['160p','240p','480p','720p','720p60','540p','960p','1080p','1080p60','2560p60','raw']">
+                                    {{quality}}</option>
+                            </select>
+                        </td>
+                        <td v-if="room.status=='Recording'"><i class="fa-regular fa-circle-dot"
+                                style="color: rgb(238, 18, 18);"></i></td>
+                        <td v-else-if="room.status=='listening'"><i class="fa-regular fa-hourglass-half fa-fade"
+                                style="color: rgb(45, 90, 236);"></i></td>
+                        <td v-else-if="room.status==''"><i class="fa-solid fa-video-slash" style="color: #c0c0c0;"></i>
+                        </td>
+                        <td v-else>{{room.status}}</td>
+                        <td>
+                            <span v-if="room.status=='Recording'" class="text-green-800 mr-1"><i
+                                    class="fa-solid fa-arrow-down"
                                     :class="{downloadAnimation:room.running}"></i>{{room.running}}</span>
-                            <span class="text-red-800  mr-1"><i
+                            <span v-if="room.status=='Recording'" class="text-red-800  mr-1"><i
                                     class="fa-solid fa-exclamation"></i>{{room.failed}}</span>
-                            <span class="text-blue-800 mr-1"><i class="fa-solid fa-check"></i>{{room.success}}</span>
+                            <span v-if="room.status=='Recording'" class="text-blue-800 mr-1"><i
+                                    class="fa-solid fa-check"></i>{{room.success}}</span>
                             <!-- / {{room.total}} -->
                         </td>
                         <td>{{formatBytes(room.bytesWrite)}}</td>
@@ -316,9 +501,6 @@
                                 <button @click="action('deactivate',room.name)" class="btn-red   size-7  tooltip"><i
                                         class="fa fa-stop" aria-hidden="true"></i><span
                                         class="tooltiptext">Deactivate</span></button>
-                                <button @click="setQuality(addQuality,room.name)" class="btn-blue  size-7 tooltip"><i
-                                        class="fa fa-gear" aria-hidden="true"></i><span class="tooltiptext">Set
-                                        quality to {{addQuality}}</span></button>
                                 <button @click="action('break',room.name)" class="btn-blue  size-7 tooltip"><i
                                         class="fa-solid fa-floppy-disk"></i><span class="tooltiptext">Save and start new
                                         recording</span></button>
@@ -342,15 +524,168 @@
     <script type="module">
         const HOST = ""
         import { createApp } from 'vue'
-
+        async function getSchedule(id) {
+            const r = await fetch(`https://xhamsterlive.com/api/front/models/${id}/broadcastSchedule`)
+            const json = await r.json()
+            console.log(json)
+            return json.broadcastSchedule?.schedule
+        }
         createApp({
             data() {
                 return {
                     addInput: "",
                     addQuality: "720p",
-                    sort: { "Room": 1 },
+                    sort: { "Room": 1, "Status": 1 },
                     roomInfo: {},
+                    schedules: {},
                     allurls: [],
+                    ganttData: {
+                        "modelA": {
+                            "mon": {
+                                "isEnabled": true,
+                                "periods": [
+                                    [18000, 39600] // 05:00 - 11:00
+                                ]
+                            },
+                            "tue": {
+                                "isEnabled": true,
+                                "periods": [
+                                    [18000, 39600],
+                                    [43200, 57600] // 12:00 - 16:00
+                                ]
+                            },
+                            "wed": {
+                                "isEnabled": true,
+                                "periods": [
+                                    [21600, 32400], // 06:00 - 09:00
+                                    [39600, 50400]  // 11:00 - 14:00
+                                ]
+                            },
+                            "thu": {
+                                "isEnabled": true,
+                                "periods": [
+                                    [18000, 39600]
+                                ]
+                            },
+                            "fri": {
+                                "isEnabled": true,
+                                "periods": [
+                                    [25200, 43200] // 07:00 - 12:00
+                                ]
+                            },
+                            "sat": {
+                                "isEnabled": false,
+                                "periods": [
+                                    [28800, 43200] // 08:00 - 12:00
+                                ]
+                            },
+                            "sun": {
+                                "isEnabled": false,
+                                "periods": []
+                            }
+                        },
+                        "modelB": {
+                            "mon": {
+                                "isEnabled": true,
+                                "periods": [
+                                    [28800, 46800] // 08:00 - 13:00
+                                ]
+                            },
+                            "tue": {
+                                "isEnabled": true,
+                                "periods": [
+                                    [21600, 36000], // 06:00 - 10:00
+                                    [46800, 61200]  // 13:00 - 17:00
+                                ]
+                            },
+                            "wed": {
+                                "isEnabled": true,
+                                "periods": [
+                                    [32400, 50400] // 09:00 - 14:00
+                                ]
+                            },
+                            "thu": {
+                                "isEnabled": true,
+                                "periods": [
+                                    [18000, 32400], // 05:00 - 09:00
+                                    [43200, 57600]  // 12:00 - 16:00
+                                ]
+                            },
+                            "fri": {
+                                "isEnabled": true,
+                                "periods": [
+                                    [25200, 43200] // 07:00 - 12:00
+                                ]
+                            },
+                            "sat": {
+                                "isEnabled": true,
+                                "periods": [
+                                    [32400, 50400] // 09:00 - 14:00
+                                ]
+                            },
+                            "sun": {
+                                "isEnabled": true,
+                                "periods": [
+                                    [36000, 54000] // 10:00 - 15:00
+                                ]
+                            }
+                        },
+                        "modelC": {
+                            "mon": {
+                                "isEnabled": true,
+                                "periods": [
+                                    [43200, 64800] // 12:00 - 18:00
+                                ]
+                            },
+                            "tue": {
+                                "isEnabled": true,
+                                "periods": [
+                                    [36000, 54000] // 10:00 - 15:00
+                                ]
+                            },
+                            "wed": {
+                                "isEnabled": false,
+                                "periods": []
+                            },
+                            "thu": {
+                                "isEnabled": true,
+                                "periods": [
+                                    [28800, 46800] // 08:00 - 13:00
+                                ]
+                            },
+                            "fri": {
+                                "isEnabled": true,
+                                "periods": [
+                                    [50400, 68400] // 14:00 - 19:00
+                                ]
+                            },
+                            "sat": {
+                                "isEnabled": true,
+                                "periods": [
+                                    [21600, 39600] // 06:00 - 11:00
+                                ]
+                            },
+                            "sun": {
+                                "isEnabled": false,
+                                "periods": []
+                            }
+                        }
+                    },
+                    days: [
+                        { key: 'sun', label: 'Sun' },
+                        { key: 'mon', label: 'Mon' },
+                        { key: 'tue', label: 'Tue' },
+                        { key: 'wed', label: 'Wed' },
+                        { key: 'thu', label: 'Thu' },
+                        { key: 'fri', label: 'Fri' },
+                        { key: 'sat', label: 'Sat' },
+                    ],
+                    tooltip: {
+                        visible: false,
+                        x: 0,
+                        y: 0,
+                        text: ''
+                    }
                 }
             },
             methods: {
@@ -392,6 +727,14 @@
                         this.addInput = ""
                     } else {
                         showToast(data1)
+                    }
+                },
+                async fetchSchedule() {
+                    for (let model of this.roomDisplay) {
+                        console.log(model)
+                        const r = await getSchedule(model.id)
+                        if (r)
+                            this.schedules[model.name] = r
                     }
                 },
                 async fetchdata() {
@@ -454,12 +797,37 @@
                         }
                     }
                 },
-            },
-            mounted() {
-                this.fetchdata()
-                setInterval(() => {
-                    this.fetchdata()
-                }, 500);
+                calculatePosition(startTime) {
+                    return (startTime / 86400) * 100;
+                },
+
+                calculateWidth(startTime, endTime) {
+                    const duration = endTime - startTime;
+                    return (duration / 86400) * 100;
+                },
+
+                formatTime(seconds) {
+                    const hours = Math.floor(seconds / 3600);
+                    const minutes = Math.floor((seconds % 3600) / 60);
+                    return `${hours.toString().padStart(2, '0')}${minutes != 0 ? ':' + minutes.toString().padStart(2, '0') : ''}`;
+                },
+
+                formatPeriodTime(start, end) {
+                    return `${this.formatTime(start)}-${this.formatTime(end)}`;
+                },
+
+                showTooltip(event, period) {
+                    this.tooltip = {
+                        visible: true,
+                        x: event.pageX,
+                        y: event.pageY,
+                        text: `${period.model} - ${period.day}: ${this.formatTime(period.start)} 至 ${this.formatTime(period.end)}`
+                    };
+                },
+
+                hideTooltip() {
+                    this.tooltip.visible = false;
+                }
             },
             computed: {
                 roomDisplay() {
@@ -480,8 +848,16 @@
                             }
                         }
                         if (this.sort["Quality"]) {
-                            const res = parseInt(a.quality.split("p")[0]) - parseInt(b.quality.split("p")[0])
-                            return this.sort["Quality"] == 1 ? res : -res
+                            if (a.quality == "raw" && b.quality != "raw") {
+                                return 1 * (this.sort["Quality"] == 1 ? 1 : -1)
+                            }
+                            if (a.quality != "raw" && b.quality == "raw") {
+                                return -1 * (this.sort["Quality"] == 1 ? 1 : -1)
+                            }
+                            const res = parseInt(a.quality.split("p")[0]) - parseInt(b.quality.split("p")[0]) +
+                                (a.quality.includes("p") && a.quality.split("p")[1] ? parseInt(a.quality.split("p")[1]) / 60 : 0) - (b.quality.includes("p") && b.quality.split("p")[1] ? parseInt(b.quality.split("p")[1]) / 60 : 0)
+                            if (!isNaN(res))
+                                return this.sort["Quality"] == 1 ? res : -res
                         }
                         if (this.sort["ID"]) {
                             return this.sort["ID"] == 1 ? a.id - b.id : b.id - a.id
@@ -497,7 +873,16 @@
 
                     return list
                 }
-            }
+            },
+
+            mounted() {
+                (async () => {
+                    await this.fetchdata()
+                    setInterval(async () => {
+                        this.fetchdata()
+                    }, 500);
+                })()
+            },
         }).mount('#app')
     </script>
 </body>
