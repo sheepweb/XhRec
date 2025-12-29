@@ -385,7 +385,7 @@
                 },
                 async addRoom(active) {
                     const name = this.addInput.split("/").slice(-1)[0].split("?")[0]
-                    const r1 = await fetch(`${HOST}/add?slug=${name}&active=${active}&quality=&${this.addQuality}`)
+                    const r1 = await fetch(`${HOST}/add?slug=${name}&active=${active}&quality=${this.addQuality}`)
                     const data1 = await r1.text()
                     if (r1.status == 404 || r1.status == 200) {
                         showToast("OK")
