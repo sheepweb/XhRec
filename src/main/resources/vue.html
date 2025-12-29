@@ -2,16 +2,16 @@
 <html lang="zh">
 
 <head>
-    <meta charset="UTF-8" />
+    <meta charset="UTF-8"/>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css"
-        integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw=="
-        crossorigin="anonymous" referrerpolicy="no-referrer" />
+          integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw=="
+          crossorigin="anonymous" referrerpolicy="no-referrer"/>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"
-        rel="stylesheet">
+          rel="stylesheet">
     <title>XhRec</title>
 </head>
 <style>
@@ -195,6 +195,7 @@
         border-radius: 12px;
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
         overflow: auto;
+        width: 100%;
     }
 
     .gantt-container {
@@ -204,7 +205,7 @@
 
     .gantt-table {
         width: 100%;
-        min-width: 800px;
+        min-width: 1200px;
         border-collapse: collapse;
         table-layout: fixed;
     }
@@ -272,15 +273,6 @@
         box-shadow: 0 4px 8px rgba(75, 108, 183, 0.3);
     }
 
-    .disabled-day {
-        background: repeating-linear-gradient(45deg,
-                #f8f9fa,
-                #f8f9fa 10px,
-                #e9ecef 10px,
-                #e9ecef 20px);
-        opacity: 0.7;
-    }
-
     .disabled-day .period-bar {
         background: linear-gradient(90deg, #95a5a6, #7f8c8d);
         opacity: 0.5;
@@ -298,14 +290,23 @@
         transform: translateY(-100%);
         margin-top: -10px;
     }
+
+    .snapshot {
+        transform: translateY(0);
+    }
+
+    .thumb {
+        display: inline;
+        max-height: 100px;
+    }
 </style>
 
 <script type="importmap">
-  {
-    "imports": {
-      "vue": "https://unpkg.com/vue@3/dist/vue.esm-browser.js"
+    {
+      "imports": {
+        "vue": "https://unpkg.com/vue@3/dist/vue.esm-browser.js"
+      }
     }
-  }
 </script>
 
 <script>
@@ -362,529 +363,482 @@
 </style>
 
 <body class="p-3 flex flex-col justify-center items-center bg-slate-300">
-    <div id="popup"></div>
+<div id="popup"></div>
 
-    <div id="app" class="w-full flex flex-col ">
+<div id="app" class="w-full flex flex-col ">
 
-        <div class="gantt-background">
-            <div class="gantt-container">
-                <table class="gantt-table">
-                    <thead>
-                        <tr>
-                            <th>Room <button @click="fetchSchedule()" class="gantt-btn"><i class="fa-solid fa-arrow-rotate-right"></i></button>
-                            </th>
-                            <th v-for="day in days" :key="day.key" class="day-header">
-                                {{ day.label }}
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="(modelData, modelName) in schedules" :key="modelName">
-                            <td class="model-name">{{ modelName }}</td>
-                            <td v-for="day in days" :key="`${modelName}-${day.key}`" class="day-column"
-                                :class="{'disabled-day': !modelData[day.key]?.isEnabled}">
-                                <div class="time-slot">
-                                    <div v-for="(period, index) in modelData[day.key]?.periods || []" :key="index"
-                                        class="period-bar" :style="{
+    <div class="gantt-background">
+        <div class="gantt-container  overflow-x-auto">
+            <table class="gantt-table ">
+                <thead>
+                <tr>
+                    <th>Room
+                        <button @click="fetchSchedule()" class="gantt-btn"><i
+                                class="fa-solid fa-arrow-rotate-right"></i></button>
+                    </th>
+                    <th v-for="day in days" :key="day.key" class="day-header">
+                        {{ day.label }}
+                    </th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr v-for="(modelData, modelName) in schedules" :key="modelName">
+                    <td class="model-name">{{ modelName }}</td>
+                    <td v-for="day in days" :key="`${modelName}-${day.key}`" class="day-column"
+                        :class="{'disabled-day': !modelData[day.key]?.isEnabled}">
+                        <div class="time-slot">
+                            <div v-for="(period, index) in modelData[day.key]?.periods || []" :key="index"
+                                 class="period-bar" :style="{
                                             left: `${calculatePosition(period[0])}%`,
                                             width: `${calculateWidth(period[0], period[1])}%`
                                         }"
-                                        @mouseover="showTooltip($event, {model: modelName, day: day.label, start: period[0], end: period[1]})"
-                                        @mouseout="hideTooltip"
-                                        @click="selectPeriod({model: modelName, day: day.label, start: period[0], end: period[1]})">
-                                        {{ formatPeriodTime(period[0], period[1]) }}
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+                                 @mouseover="showTooltip($event, {model: modelName, day: day.label, start: period[0], end: period[1]})"
+                                 @mouseout="hideTooltip"
+                                 @click="selectPeriod({model: modelName, day: day.label, start: period[0], end: period[1]})">
+                                {{ formatPeriodTime(period[0], period[1]) }}
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
         </div>
+    </div>
 
-        <div v-if="tooltip.visible" class="gantt-tooltip" :style="{left: tooltip.x + 'px', top: tooltip.y + 'px'}">
-            {{ tooltip.text }}
-        </div>
-        <div class="bg-slate-200 rounded-md p-4">
-            <div class="row mb-2">
-                <div class="input flex gap-2">
-                    <label for="new_room" class="text-nowrap">
-                        Add room
-                    </label>
-                    <div class="w-full flex justify-center items-center text-gray-600 bg-slate-300 rounded-md px-2">
-                        <input v-model="addInput" class="outline-none w-full" type="text" name="" id="new_room">
-                        <i class="fa fa-times text-gray-600" aria-hidden="true"></i>
-                    </div>
-                    <select v-model="addQuality" name="quality" id="quality">
-                        <option>160p</option>
-                        <option>240p</option>
-                        <option>480p</option>
-                        <option>720p</option>
-                        <option>720p60</option>
-                        <option>1080p</option>
-                        <option>1080p60</option>
-                        <option>2560p60</option>
-                    </select>
-                    <button @click="addRoom(true)" class="btn-green size-7 tooltip"><i class="fa fa-paper-plane "
-                            aria-hidden="true"></i><span class="tooltiptext">Add and active</span></button>
-                    <button @click="addRoom(false)" class="btn-green size-7 tooltip"><i class="fa fa-plus"
-                            aria-hidden="true"></i><span class="tooltiptext">Add</span></button>
-
+    <div v-if="tooltip.visible" class="gantt-tooltip" :style="{left: tooltip.x + 'px', top: tooltip.y + 'px'}">
+        {{ tooltip.text }}
+    </div>
+    <div class="bg-slate-200 rounded-md p-4">
+        <div class="row mb-2">
+            <div class="input flex gap-2">
+                <label for="new_room" class="text-nowrap">
+                    Add room
+                </label>
+                <div class="w-full flex justify-center items-center text-gray-600 bg-slate-300 rounded-md px-2">
+                    <input v-model="addInput" class="outline-none w-full" type="text" name="" id="new_room">
+                    <i class="fa fa-times text-gray-600" aria-hidden="true"></i>
                 </div>
+                <select v-model="addQuality" name="quality" id="quality">
+                    <option>160p</option>
+                    <option>240p</option>
+                    <option>480p</option>
+                    <option>720p</option>
+                    <option>720p60</option>
+                    <option>1080p</option>
+                    <option>1080p60</option>
+                    <option>2560p60</option>
+                </select>
+                <button @click="addRoom(true)" class="btn-green size-7 tooltip"><i class="fa fa-paper-plane "
+                                                                                   aria-hidden="true"></i><span
+                        class="tooltiptext">Add and active</span></button>
+                <button @click="addRoom(false)" class="btn-green size-7 tooltip"><i class="fa fa-plus"
+                                                                                    aria-hidden="true"></i><span
+                        class="tooltiptext">Add</span></button>
+
             </div>
-            <table class="control-panel border w-full">
+        </div>
+        <div class="overflow-x-auto">
+            <table class="control-panel border w-full overflow-hidden">
                 <thead class="font-bold">
-                    <tr>
-                        <td class="hover:cursor-pointer" @click="sortToggle('Room')">Room
-                            <span class="select-none" v-if="sort['Room']==1">↓</span>
-                            <span class="select-none" v-if="sort['Room']==2">↑</span>
-                        </td>
-                        <td class="hover:cursor-pointer" @click="sortToggle('ID')">ID
-                            <span class="select-none" v-if="sort['ID']==1">↓</span>
-                            <span class="select-none" v-if="sort['ID']==2">↑</span>
-                        </td>
-                        <td class="hover:cursor-pointer" @click="sortToggle('Quality')">Quality
-                            <span class="select-none" v-if="sort['Quality']==1">↓</span>
-                            <span class="select-none" v-if="sort['Quality']==2">↑</span>
-                        </td>
-                        <td class="hover:cursor-pointer" @click="sortToggle('Status')">Status
-                            <span class="select-none" v-if="sort['Status']==1">↓</span>
-                            <span class="select-none" v-if="sort['Status']==2">↑</span>
-                        </td>
-                        <td>Segments status</td>
-                        <td class="hover:cursor-pointer" @click="sortToggle('Size')">File
-                            size({{formatBytes(Object.values(this.roomDisplay).reduce((a, b) => {
-                            return a + (b.bytesWrite||0)
-                            }, 0))}})
-                            <span class="select-none" v-if="sort['Size']==1">↓</span>
-                            <span class="select-none" v-if="sort['Size']==2">↑</span>
-                        </td>
-                        <td>Control</td>
-                    </tr>
+                <tr>
+                    <td class="hover:cursor-pointer" @click="sortToggle('Room')">Room
+                        <span class="select-none" v-if="sort['Room']==1">↓</span>
+                        <span class="select-none" v-if="sort['Room']==2">↑</span>
+                    </td>
+                    <td style="width: 100px">Thumb</td>
+                    <td class="hover:cursor-pointer" @click="sortToggle('ID')">ID
+                        <span class="select-none" v-if="sort['ID']==1">↓</span>
+                        <span class="select-none" v-if="sort['ID']==2">↑</span>
+                    </td>
+                    <td class="hover:cursor-pointer" @click="sortToggle('Quality')">Quality
+                        <span class="select-none" v-if="sort['Quality']==1">↓</span>
+                        <span class="select-none" v-if="sort['Quality']==2">↑</span>
+                    </td>
+                    <td class="hover:cursor-pointer" @click="sortToggle('Status')">Status
+                        <span class="select-none" v-if="sort['Status']==1">↓</span>
+                        <span class="select-none" v-if="sort['Status']==2">↑</span>
+                    </td>
+                    <td>Segments status</td>
+                    <td class="hover:cursor-pointer" @click="sortToggle('Size')">File
+                        size({{formatBytes(Object.values(this.roomDisplay).reduce((a, b) => {
+                            return a + (b.bytesWrite || 0)
+                        }, 0))}})
+                        <span class="select-none" v-if="sort['Size']==1">↓</span>
+                        <span class="select-none" v-if="sort['Size']==2">↑</span>
+                    </td>
+                    <td>Control</td>
+                </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="room of roomDisplay">
-                        <td>{{room.name}} <a :href="`https://xhamsterlive.com/${room.name}`" target="_blank"><i
+                <tr v-for="room of roomDisplay">
+                    <td>
+                            <span>{{room.name}} <a :href="`https://xhamsterlive.com/${room.name}`" target="_blank"><i
                                     class="fa fa-arrow-up-right-from-square"
-                                    style="font-size: .6em;vertical-align: top;"></i></a></td>
-                        <td>{{room.id}}</td>
-                        <td>
-                            <select @change="ev=>setQuality(ev.target.value,room.name)" :value="room.quality">
-                                <option
+                                    style="font-size: .6em;vertical-align: text-top;"></i></a></span>
+
+                    </td>
+                    <td @mouseover="showSnapshot($event,room.name)" @mouseout="hideSnapshot"><img
+                            v-if="snapshotcache[room.name]?.url" :src="snapshotcache[room.name]?.url"
+                            class="thumb" alt="thumb"></td>
+                    <td>{{room.id}}</td>
+                    <td>
+                        <select @change="ev=>setQuality(ev.target.value,room.name)" :value="room.quality">
+                            <option
                                     v-for="quality in ['160p','240p','480p','720p','720p60','540p','960p','1080p','1080p60','2560p60','raw']">
-                                    {{quality}}</option>
-                            </select>
-                        </td>
-                        <td v-if="room.status=='Recording'"><i class="fa-regular fa-circle-dot"
-                                style="color: rgb(238, 18, 18);"></i></td>
-                        <td v-else-if="room.status=='listening'"><i class="fa-regular fa-hourglass-half fa-fade"
-                                style="color: rgb(45, 90, 236);"></i></td>
-                        <td v-else-if="room.status==''"><i class="fa-solid fa-video-slash" style="color: #c0c0c0;"></i>
-                        </td>
-                        <td v-else>{{room.status}}</td>
-                        <td>
+                                {{quality}}
+                            </option>
+                        </select>
+                    </td>
+                    <td v-if="room.status=='Recording'"><i class="fa-regular fa-circle-dot"
+                                                           style="color: rgb(238, 18, 18);"></i></td>
+                    <td v-else-if="room.status=='listening'"><i class="fa-regular fa-hourglass-half fa-fade"
+                                                                style="color: rgb(45, 90, 236);"></i></td>
+                    <td v-else-if="room.status==''"><i class="fa-solid fa-video-slash" style="color: #c0c0c0;"></i>
+                    </td>
+                    <td v-else>{{room.status}}</td>
+                    <td>
                             <span v-if="room.status=='Recording'" class="text-green-800 mr-1"><i
                                     class="fa-solid fa-arrow-down"
                                     :class="{downloadAnimation:room.running}"></i>{{room.running}}</span>
-                            <span v-if="room.status=='Recording'" class="text-red-800  mr-1"><i
-                                    class="fa-solid fa-exclamation"></i>{{room.failed}}</span>
-                            <span v-if="room.status=='Recording'" class="text-blue-800 mr-1"><i
-                                    class="fa-solid fa-check"></i>{{room.success}}</span>
-                            <!-- / {{room.total}} -->
-                        </td>
-                        <td>{{formatBytes(room.bytesWrite)}}</td>
-                        <td>
-                            <div class="flex flex-nowrap border-none">
-                                <button @click="action('activate',room.name)" class="btn-green size-7 tooltip"><i
-                                        class="fa fa-play" aria-hidden="true"></i><span
-                                        class="tooltiptext">Activate</span></button>
-                                <button @click="action('deactivate',room.name)" class="btn-red   size-7  tooltip"><i
-                                        class="fa fa-stop" aria-hidden="true"></i><span
-                                        class="tooltiptext">Deactivate</span></button>
-                                <button @click="action('break',room.name)" class="btn-blue  size-7 tooltip"><i
-                                        class="fa-solid fa-floppy-disk"></i><span class="tooltiptext">Save and start new
+                        <span v-if="room.status=='Recording'" class="text-red-800  mr-1"><i
+                                class="fa-solid fa-exclamation"></i>{{room.failed}}</span>
+                        <span v-if="room.status=='Recording'" class="text-blue-800 mr-1"><i
+                                class="fa-solid fa-check"></i>{{room.success}}</span>
+                        <!-- / {{room.total}} -->
+                    </td>
+                    <td>{{formatBytes(room.bytesWrite)}}</td>
+                    <td>
+                        <div class="flex flex-nowrap border-none">
+                            <button @click="action('activate',room.name)" class="btn-green size-7 tooltip"><i
+                                    class="fa fa-play" aria-hidden="true"></i><span
+                                    class="tooltiptext">Activate</span></button>
+                            <button @click="action('deactivate',room.name)" class="btn-red   size-7  tooltip"><i
+                                    class="fa fa-stop" aria-hidden="true"></i><span
+                                    class="tooltiptext">Deactivate</span></button>
+                            <button @click="action('break',room.name)" class="btn-blue  size-7 tooltip"><i
+                                    class="fa-solid fa-floppy-disk"></i><span class="tooltiptext">Save and start new
                                         recording</span></button>
-                                <button @click="action('remove',room.name)" class="btn-red   size-7  tooltip"><i
-                                        class="fa fa-trash" aria-hidden="true"></i><span
-                                        class="tooltiptext">Remove</span></button>
-                            </div>
-                        </td>
-                    </tr>
+                            <button @click="action('remove',room.name)" class="btn-red   size-7  tooltip"><i
+                                    class="fa fa-trash" aria-hidden="true"></i><span
+                                    class="tooltiptext">Remove</span></button>
+                        </div>
+                    </td>
+                </tr>
                 </tbody>
             </table>
         </div>
 
-        <div class="url-list overflow-x-scroll">
-            <div id="url-items" class="text-nowrap">
-                <pre v-for="info of allUrls"
-                    class="url-item">{{info.prefix}}[{{info.type}}] <span :class="[info.timeClass]">[SERVER]:{{info.elapsedAbs}}[DOWNLOADER]{{info.elapsed}}</span> {{info.url}}</pre>
-            </div>
+        <div v-if="snapshot.visible" class="gantt-tooltip snapshot"
+             :style="{left: snapshot.x + 'px', top: snapshot.y + 'px'}">
+            <img :src="snapshot.text" alt="">
         </div>
     </div>
-    <script type="module">
-        const HOST = ""
-        import { createApp } from 'vue'
-        async function getSchedule(id) {
-            const r = await fetch(`https://xhamsterlive.com/api/front/models/${id}/broadcastSchedule`)
-            const json = await r.json()
-            console.log(json)
-            return json.broadcastSchedule?.schedule
-        }
-        createApp({
-            data() {
-                return {
-                    addInput: "",
-                    addQuality: "720p",
-                    sort: { "Room": 1, "Status": 1 },
-                    roomInfo: {},
-                    schedules: {},
-                    allurls: [],
-                    ganttData: {
-                        "modelA": {
-                            "mon": {
-                                "isEnabled": true,
-                                "periods": [
-                                    [18000, 39600] // 05:00 - 11:00
-                                ]
-                            },
-                            "tue": {
-                                "isEnabled": true,
-                                "periods": [
-                                    [18000, 39600],
-                                    [43200, 57600] // 12:00 - 16:00
-                                ]
-                            },
-                            "wed": {
-                                "isEnabled": true,
-                                "periods": [
-                                    [21600, 32400], // 06:00 - 09:00
-                                    [39600, 50400]  // 11:00 - 14:00
-                                ]
-                            },
-                            "thu": {
-                                "isEnabled": true,
-                                "periods": [
-                                    [18000, 39600]
-                                ]
-                            },
-                            "fri": {
-                                "isEnabled": true,
-                                "periods": [
-                                    [25200, 43200] // 07:00 - 12:00
-                                ]
-                            },
-                            "sat": {
-                                "isEnabled": false,
-                                "periods": [
-                                    [28800, 43200] // 08:00 - 12:00
-                                ]
-                            },
-                            "sun": {
-                                "isEnabled": false,
-                                "periods": []
-                            }
-                        },
-                        "modelB": {
-                            "mon": {
-                                "isEnabled": true,
-                                "periods": [
-                                    [28800, 46800] // 08:00 - 13:00
-                                ]
-                            },
-                            "tue": {
-                                "isEnabled": true,
-                                "periods": [
-                                    [21600, 36000], // 06:00 - 10:00
-                                    [46800, 61200]  // 13:00 - 17:00
-                                ]
-                            },
-                            "wed": {
-                                "isEnabled": true,
-                                "periods": [
-                                    [32400, 50400] // 09:00 - 14:00
-                                ]
-                            },
-                            "thu": {
-                                "isEnabled": true,
-                                "periods": [
-                                    [18000, 32400], // 05:00 - 09:00
-                                    [43200, 57600]  // 12:00 - 16:00
-                                ]
-                            },
-                            "fri": {
-                                "isEnabled": true,
-                                "periods": [
-                                    [25200, 43200] // 07:00 - 12:00
-                                ]
-                            },
-                            "sat": {
-                                "isEnabled": true,
-                                "periods": [
-                                    [32400, 50400] // 09:00 - 14:00
-                                ]
-                            },
-                            "sun": {
-                                "isEnabled": true,
-                                "periods": [
-                                    [36000, 54000] // 10:00 - 15:00
-                                ]
-                            }
-                        },
-                        "modelC": {
-                            "mon": {
-                                "isEnabled": true,
-                                "periods": [
-                                    [43200, 64800] // 12:00 - 18:00
-                                ]
-                            },
-                            "tue": {
-                                "isEnabled": true,
-                                "periods": [
-                                    [36000, 54000] // 10:00 - 15:00
-                                ]
-                            },
-                            "wed": {
-                                "isEnabled": false,
-                                "periods": []
-                            },
-                            "thu": {
-                                "isEnabled": true,
-                                "periods": [
-                                    [28800, 46800] // 08:00 - 13:00
-                                ]
-                            },
-                            "fri": {
-                                "isEnabled": true,
-                                "periods": [
-                                    [50400, 68400] // 14:00 - 19:00
-                                ]
-                            },
-                            "sat": {
-                                "isEnabled": true,
-                                "periods": [
-                                    [21600, 39600] // 06:00 - 11:00
-                                ]
-                            },
-                            "sun": {
-                                "isEnabled": false,
-                                "periods": []
-                            }
-                        }
-                    },
-                    days: [
-                        { key: 'sun', label: 'Sun' },
-                        { key: 'mon', label: 'Mon' },
-                        { key: 'tue', label: 'Tue' },
-                        { key: 'wed', label: 'Wed' },
-                        { key: 'thu', label: 'Thu' },
-                        { key: 'fri', label: 'Fri' },
-                        { key: 'sat', label: 'Sat' },
-                    ],
-                    tooltip: {
-                        visible: false,
-                        x: 0,
-                        y: 0,
-                        text: ''
-                    }
+
+    <div class="url-list overflow-x-scroll">
+        <div id="url-items" class="text-nowrap">
+                <pre v-for="info of allUrls"
+                     class="url-item">{{info.prefix}}[{{info.type}}] <span
+                        :class="[info.timeClass]">[SERVER]:{{info.elapsedAbs}}[DOWNLOADER]{{info.elapsed}}</span> {{info.url}}</pre>
+        </div>
+    </div>
+</div>
+<script type="module">
+    const HOST = "http://docker.lan:8090"
+    import {createApp} from 'vue'
+
+    async function getSchedule(id) {
+        const r = await fetch(`https://xhamsterlive.com/api/front/models/${id}/broadcastSchedule`)
+        const json = await r.json()
+        console.log(json)
+        return json.broadcastSchedule?.schedule
+    }
+
+    createApp({
+        data() {
+            return {
+                addInput: "",
+                addQuality: "720p",
+                sort: {"Room": 1, "Status": 1},
+                roomInfo: {},
+                schedules: {},
+                allurls: [],
+                days: [
+                    {key: 'sun', label: 'Sun'},
+                    {key: 'mon', label: 'Mon'},
+                    {key: 'tue', label: 'Tue'},
+                    {key: 'wed', label: 'Wed'},
+                    {key: 'thu', label: 'Thu'},
+                    {key: 'fri', label: 'Fri'},
+                    {key: 'sat', label: 'Sat'},
+                ],
+                tooltip: {
+                    visible: false,
+                    x: 0,
+                    y: 0,
+                    text: ''
+                },
+                snapshotcache: {},
+                snapshot: {
+                    visible: false,
+                    x: 0,
+                    y: 0,
+                    text: ''
+                },
+            }
+        },
+        methods: {
+            sortToggle(by) {
+                if (this.sort[by]) {
+                    this.sort[by] = this.sort[by] == 1 ? 2 : undefined
+                } else {
+                    this.sort[by] = 1
                 }
             },
-            methods: {
-                sortToggle(by) {
-                    if (this.sort[by]) {
-                        this.sort[by] = this.sort[by] == 1 ? 2 : undefined
-                    } else {
-                        this.sort[by] = 1
-                    }
-                },
-                formatBytes(bytes) {
-                    if (!bytes) {
-                        return ``
-                    }
-                    const units = ["B", "KB", "MB", "GB"];
-                    let i = 0;
-                    while (bytes >= 1024 && i < units.length - 1) {
-                        bytes /= 1024;
-                        i++;
-                    }
-                    return `${bytes.toFixed(3)} ${units[i]}`;
-                },
-                async setQuality(quality, roomName) {
-                    const r1 = await fetch(`${HOST}/quality?slug=${roomName}&quality=${quality}`)
-                    const data1 = await r1.text()
+            formatBytes(bytes) {
+                if (!bytes) {
+                    return ``
+                }
+                const units = ["B", "KB", "MB", "GB"];
+                let i = 0;
+                while (bytes >= 1024 && i < units.length - 1) {
+                    bytes /= 1024;
+                    i++;
+                }
+                return `${bytes.toFixed(3)} ${units[i]}`;
+            },
+            async setQuality(quality, roomName) {
+                const r1 = await fetch(`${HOST}/quality?slug=${roomName}&quality=${quality}`)
+                const data1 = await r1.text()
+                showToast(data1)
+            },
+            async action(action, roomName) {
+                const r1 = await fetch(`${HOST}/${action}?slug=${roomName}`)
+                const data1 = await r1.text()
+                showToast(data1)
+            },
+            async addRoom(active) {
+                const name = this.addInput.split("/").slice(-1)[0].split("?")[0]
+                const r1 = await fetch(`${HOST}/add?slug=${name}&active=${active}&quality=${this.addQuality}`)
+                const data1 = await r1.text()
+                if (r1.status == 404 || r1.status == 200) {
+                    showToast("OK")
+                    this.addInput = ""
+                } else {
                     showToast(data1)
-                },
-                async action(action, roomName) {
-                    const r1 = await fetch(`${HOST}/${action}?slug=${roomName}`)
-                    const data1 = await r1.text()
-                    showToast(data1)
-                },
-                async addRoom(active) {
-                    const name = this.addInput.split("/").slice(-1)[0].split("?")[0]
-                    const r1 = await fetch(`${HOST}/add?slug=${name}&active=${active}&quality=${this.addQuality}`)
-                    const data1 = await r1.text()
-                    if (r1.status == 404 || r1.status == 200) {
-                        showToast("OK")
-                        this.addInput = ""
-                    } else {
-                        showToast(data1)
-                    }
-                },
-                async fetchSchedule() {
-                    for (let model of this.roomDisplay) {
-                        console.log(model)
-                        const r = await getSchedule(model.id)
-                        if (r)
-                            this.schedules[model.name] = r
-                    }
-                },
-                async fetchdata() {
+                }
+            },
+            async fetchSchedule() {
+                for (let model of this.roomDisplay) {
+                    console.log(model)
+                    const r = await getSchedule(model.id)
+                    if (r)
+                        this.schedules[model.name] = r
+                }
+            },
+            async fetchdata() {
 
-                    const r1 = await fetch(`${HOST}/recorders`)
-                    const data1 = await r1.json()
-                    const r2 = await fetch(`${HOST}/status`)
-                    const data2 = await r2.json()
-                    const r3 = await fetch(`${HOST}/list`)
-                    const data3 = await r3.json()
-                    this.roomInfo = {}
-                    for (const room of data1) {
-                        this.roomInfo[room.name] = room
+                const r1 = await fetch(`${HOST}/recorders`)
+                const data1 = await r1.json()
+                const r2 = await fetch(`${HOST}/status`)
+                const data2 = await r2.json()
+                const r3 = await fetch(`${HOST}/list`)
+                const data3 = await r3.json()
+                this.roomInfo = {}
+                for (const room of data1) {
+                    this.roomInfo[room.name] = room
+                }
+                this.allUrls = []
+                const MAXLEN = 20;
+                const now = Date.now();
+                for (const roomName in data2) {
+                    const element = data2[roomName];
+                    this.roomInfo[roomName] = {
+                        ...this.roomInfo[roomName],
+                        total: element.total,
+                        success: element.success,
+                        bytesWrite: element.bytesWrite,
+                        failed: element.failed,
+                        running: Object.keys(element.running).length,
                     }
-                    this.allUrls = []
-                    const MAXLEN = 20;
-                    const now = Date.now();
-                    for (const roomName in data2) {
-                        const element = data2[roomName];
-                        this.roomInfo[roomName] = {
-                            ...this.roomInfo[roomName],
-                            total: element.total,
-                            success: element.success,
-                            bytesWrite: element.bytesWrite,
-                            failed: element.failed,
-                            running: Object.keys(element.running).length,
-                        }
-                        const entries = Object.entries(element.running)
-                            .map(([url, meta]) => {
-                                let match = /_(\d+)_part.\.mp4/.exec(url)
-                                if (!match) {
-                                    return [url, meta]
-                                }
-                                meta.startAtAbs = match && match.length > 1 && match[1] ? match[1] * 1000 : 0
+                    const entries = Object.entries(element.running)
+                        .map(([url, meta]) => {
+                            let match = /_(\d+)_part.\.mp4/.exec(url)
+                            if (!match) {
                                 return [url, meta]
-                            })
-                        entries.forEach(([url, meta]) => {
-                            const elapsed = (
-                                (now - meta.startAt) /
-                                1000
-                            ).toFixed(1);
-
-                            const elapsedAbs = (
-                                (now - meta.startAtAbs) /
-                                1000
-                            ).toFixed(1);
-                            let timeClass = "time-short";
-                            if (elapsedAbs > 10) {
-                                timeClass = "time-long";
-                            } else if (elapsedAbs > 5) {
-                                timeClass = "time-medium";
                             }
-                            this.allUrls.push({ prefix: (roomName + "                                ").slice(0, MAXLEN), type: meta.type, timeClass, elapsedAbs, elapsed, url });
+                            meta.startAtAbs = match && match.length > 1 && match[1] ? match[1] * 1000 : 0
+                            return [url, meta]
+                        })
+                    entries.forEach(([url, meta]) => {
+                        const elapsed = (
+                            (now - meta.startAt) /
+                            1000
+                        ).toFixed(1);
+
+                        const elapsedAbs = (
+                            (now - meta.startAtAbs) /
+                            1000
+                        ).toFixed(1);
+                        let timeClass = "time-short";
+                        if (elapsedAbs > 10) {
+                            timeClass = "time-long";
+                        } else if (elapsedAbs > 5) {
+                            timeClass = "time-medium";
+                        }
+                        this.allUrls.push({
+                            prefix: (roomName + "                                ").slice(0, MAXLEN),
+                            type: meta.type,
+                            timeClass,
+                            elapsedAbs,
+                            elapsed,
+                            url
                         });
+                    });
+                }
+                for (const room of data3) {
+                    this.roomInfo[(room[3])] = {
+                        ...this.roomInfo[(room[3])],
+                        status: room[0] == "[*]" ? "Recording" : room[1].trim(),
                     }
-                    for (const room of data3) {
-                        this.roomInfo[(room[3])] = {
-                            ...this.roomInfo[(room[3])],
-                            status: room[0] == "[*]" ? "Recording" : room[1].trim(),
-                        }
-                    }
-                },
-                calculatePosition(startTime) {
-                    return (startTime / 86400) * 100;
-                },
-
-                calculateWidth(startTime, endTime) {
-                    const duration = endTime - startTime;
-                    return (duration / 86400) * 100;
-                },
-
-                formatTime(seconds) {
-                    const hours = Math.floor(seconds / 3600);
-                    const minutes = Math.floor((seconds % 3600) / 60);
-                    return `${hours.toString().padStart(2, '0')}${minutes != 0 ? ':' + minutes.toString().padStart(2, '0') : ''}`;
-                },
-
-                formatPeriodTime(start, end) {
-                    return `${this.formatTime(start)}-${this.formatTime(end)}`;
-                },
-
-                showTooltip(event, period) {
-                    this.tooltip = {
-                        visible: true,
-                        x: event.pageX,
-                        y: event.pageY,
-                        text: `${period.model} - ${period.day}: ${this.formatTime(period.start)} 至 ${this.formatTime(period.end)}`
-                    };
-                },
-
-                hideTooltip() {
-                    this.tooltip.visible = false;
                 }
             },
-            computed: {
-                roomDisplay() {
-                    const list = Object.values(this.roomInfo)
-                    list.sort((a, b) => {
-                        if (this.sort["Status"]) {
-                            if (a.status == "Recording" && b.status != "Recording") {
-                                return this.sort["Status"] == 1 ? -1 : 1
-                            }
-                            if (a.status != "Recording" && b.status == "Recording") {
-                                return this.sort["Status"] == 1 ? 1 : -1
-                            }
-                            if (a.status == "listening" && b.status != "listening") {
-                                return this.sort["Status"] == 1 ? -1 : 1
-                            }
-                            if (a.status != "listening" && b.status == "listening") {
-                                return this.sort["Status"] == 1 ? 1 : -1
-                            }
-                        }
-                        if (this.sort["Quality"]) {
-                            if (a.quality == "raw" && b.quality != "raw") {
-                                return 1 * (this.sort["Quality"] == 1 ? 1 : -1)
-                            }
-                            if (a.quality != "raw" && b.quality == "raw") {
-                                return -1 * (this.sort["Quality"] == 1 ? 1 : -1)
-                            }
-                            const res = parseInt(a.quality.split("p")[0]) - parseInt(b.quality.split("p")[0]) +
-                                (a.quality.includes("p") && a.quality.split("p")[1] ? parseInt(a.quality.split("p")[1]) / 60 : 0) - (b.quality.includes("p") && b.quality.split("p")[1] ? parseInt(b.quality.split("p")[1]) / 60 : 0)
-                            if (!isNaN(res))
-                                return this.sort["Quality"] == 1 ? res : -res
-                        }
-                        if (this.sort["ID"]) {
-                            return this.sort["ID"] == 1 ? a.id - b.id : b.id - a.id
-                        }
-                        if (this.sort["Size"]) {
-                            return this.sort["Size"] == 1 ? (a.bytesWrite || 0) - (b.bytesWrite || 0) : (b.bytesWrite || 0) - (a.bytesWrite || 0)
-                        }
-                        if (this.sort["Room"]) {
-                            return this.sort["Room"] == 1 ? a.name.toLowerCase().localeCompare(b.name.toLowerCase()) : b.name.toLowerCase().localeCompare(a.name.toLowerCase())
-                        }
-                        return 0
-                    })
-
-                    return list
-                }
+            calculatePosition(startTime) {
+                return (startTime / 86400) * 100;
             },
 
-            mounted() {
-                (async () => {
-                    await this.fetchdata()
-                    setInterval(async () => {
-                        this.fetchdata()
-                    }, 500);
+            calculateWidth(startTime, endTime) {
+                const duration = endTime - startTime;
+                return (duration / 86400) * 100;
+            },
+
+            formatTime(seconds) {
+                const hours = Math.floor(seconds / 3600);
+                const minutes = Math.floor((seconds % 3600) / 60);
+                return `${hours.toString().padStart(2, '0')}${minutes != 0 ? ':' + minutes.toString().padStart(2, '0') : ''}`;
+            },
+
+            formatPeriodTime(start, end) {
+                return `${this.formatTime(start)}-${this.formatTime(end)}`;
+            },
+
+            showTooltip(event, period) {
+                this.tooltip = {
+                    visible: true,
+                    x: event.pageX,
+                    y: event.pageY,
+                    text: `${period.model} - ${period.day}: ${this.formatTime(period.start)} 至 ${this.formatTime(period.end)}`
+                };
+            },
+            async fetchThumb(modelName) {
+                const cache = this.snapshotcache
+                return cache[modelName] && Date.now() / 1000 - cache[modelName].stamp < 5 * 60 ? cache[modelName] : await (async () => {
+                    try {
+
+                        const r = await (await fetch(`https://zh.xhamsterlive.com/api/front/v1/broadcasts/${modelName}`)).json()
+
+                        const data = r.item.isLive == false ? {
+                            stamp: Date.now() / 1000,
+                            url: null
+                        } : {
+                            stamp: r.item.snapshotTimestamp,
+                            url: `https://img.doppiocdn.org/thumbs/${r.item.snapshotTimestamp}/${r.item.modelId}`
+                        }
+                        cache[modelName] = data
+                        localStorage.setItem('xhrec-thumb', JSON.stringify(cache));
+                        return data
+                    } catch (e) {
+                        console.log(e)
+                        return {
+                            stamp: Date.now() / 1000,
+                            url: null
+                        }
+                    }
                 })()
             },
-        }).mount('#app')
-    </script>
+            async showSnapshot(event, modelName) {
+                const r = await this.fetchThumb(modelName)
+                this.snapshot = {
+                    visible: true,
+                    x: event.pageX,
+                    y: event.pageY,
+                    text: r.url
+                };
+            },
+
+            hideTooltip() {
+                this.tooltip.visible = false;
+            },
+            hideSnapshot() {
+                this.snapshot.visible = false;
+            },
+        },
+        computed: {
+            roomDisplay() {
+                const list = Object.values(this.roomInfo)
+                list.sort((a, b) => {
+                    if (this.sort["Status"]) {
+                        if (a.status == "Recording" && b.status != "Recording") {
+                            return this.sort["Status"] == 1 ? -1 : 1
+                        }
+                        if (a.status != "Recording" && b.status == "Recording") {
+                            return this.sort["Status"] == 1 ? 1 : -1
+                        }
+                        if (a.status == "listening" && b.status != "listening") {
+                            return this.sort["Status"] == 1 ? -1 : 1
+                        }
+                        if (a.status != "listening" && b.status == "listening") {
+                            return this.sort["Status"] == 1 ? 1 : -1
+                        }
+                    }
+                    if (this.sort["Quality"]) {
+                        if (a.quality == "raw" && b.quality != "raw") {
+                            return 1 * (this.sort["Quality"] == 1 ? 1 : -1)
+                        }
+                        if (a.quality != "raw" && b.quality == "raw") {
+                            return -1 * (this.sort["Quality"] == 1 ? 1 : -1)
+                        }
+                        const res = parseInt(a.quality.split("p")[0]) - parseInt(b.quality.split("p")[0]) +
+                            (a.quality.includes("p") && a.quality.split("p")[1] ? parseInt(a.quality.split("p")[1]) / 60 : 0) - (b.quality.includes("p") && b.quality.split("p")[1] ? parseInt(b.quality.split("p")[1]) / 60 : 0)
+                        if (!isNaN(res))
+                            return this.sort["Quality"] == 1 ? res : -res
+                    }
+                    if (this.sort["ID"]) {
+                        return this.sort["ID"] == 1 ? a.id - b.id : b.id - a.id
+                    }
+                    if (this.sort["Size"]) {
+                        return this.sort["Size"] == 1 ? (a.bytesWrite || 0) - (b.bytesWrite || 0) : (b.bytesWrite || 0) - (a.bytesWrite || 0)
+                    }
+                    if (this.sort["Room"]) {
+                        return this.sort["Room"] == 1 ? a.name.toLowerCase().localeCompare(b.name.toLowerCase()) : b.name.toLowerCase().localeCompare(a.name.toLowerCase())
+                    }
+                    return 0
+                })
+
+                return list
+            }
+        },
+
+        mounted() {
+            (async () => {
+                await this.fetchdata()
+                setInterval(async () => {
+                    this.fetchdata()
+                }, 500);
+                await this.fetchdata()
+                this.snapshotcache = JSON.parse(localStorage.getItem("xhrec-thumb"))
+                for (let model of this.roomDisplay) {
+                    await this.fetchThumb(model.name)
+                }
+                setInterval(async () => {
+                    for (let model of this.roomDisplay) {
+                        await this.fetchThumb(model.name)
+                    }
+
+                }, 5 * 60 * 1000);
+            })()
+        },
+    }).mount('#app')
+</script>
 </body>
 
 </html>
