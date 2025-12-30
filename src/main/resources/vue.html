@@ -698,7 +698,7 @@
                 for (const room of data3) {
                     this.roomInfo[(room[3])] = {
                         ...this.roomInfo[(room[3])],
-                        status: room[0] == "[*]" ? "Recording" : room[1].trim(),
+                        status: room[2] === "recording" ? "Recording" : room[1].trim(),
                     }
                 }
             },
