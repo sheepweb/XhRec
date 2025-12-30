@@ -26,6 +26,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import okhttp3.internal.toLongOrDefault
 import org.slf4j.LoggerFactory
+import java.io.File
 import java.util.*
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
@@ -418,27 +419,39 @@ class Session(
                         parameter("pkey", AUTH_KEY_V2)
                         parameter("preferredVideoCodec", "H265")
                     }.bodyAsText().lines()
+                    if (logger.isTraceEnabled){
+                        File("${room.name}.m3u8").writeText(rawList.joinToString("\n"))
+                    }
                     val newList = mutableListOf<String>()
                     for (idx in rawList.indices) {
                         if (rawList[idx].startsWith("#EXT-X-MOUFLON:URI:")) {
                             val mouflon = rawList[idx].substringAfterLast("#EXT-X-MOUFLON:URI:")
                             val encrypted =
-                                mouflon.replace("(_part\\d)?\\.mp4".toRegex(),"")
+                                mouflon.replace("(_part\\d)?\\.mp4".toRegex(), "")
                                     .substringBeforeLast("_")
                                     .substringAfterLast("_")
 
                             val decrypted = try {
-                                logger.trace("decode {} key={}", encrypted, DECRYPT_KEY_V2)
-                                Decrypter.decode(
-                                    encrypted.reversed(),
-                                    DECRYPT_KEY_V2
+                                val result = runCatching {
+                                    Decrypter.decode(
+                                        encrypted.reversed(),
+                                        DECRYPT_KEY_V2
+                                    )
+                                }
+                                logger.trace(
+                                    "decode {} key={} result={}",
+                                    encrypted,
+                                    DECRYPT_KEY_V2,
+                                    result.getOrElse { "Failed" },
+                                    result.exceptionOrNull()
                                 )
+                                result.getOrThrow()
                             } catch (e: Exception) {
                                 logger.error("[ERROR] failed to decrypt $mouflon(${encrypted.reversed()})", e)
                                 println(rawList.joinToString("\n"))
                                 throw e
                             }
-                            val dec = rawList[idx+1].replace(
+                            val dec = rawList[idx + 1].replace(
                                 """https://media-hls\.doppiocdn\.\w+/b-hls-\d+/media.mp4""".toRegex(),
                                 mouflon.replace(encrypted, decrypted)
                             )
@@ -451,6 +464,9 @@ class Session(
                     newList.filterNot { it.contains("media.mp4") }
                 }
 
+                if (logger.isTraceEnabled){
+                    File("${room.name}.decoded.m3u8").writeText(lines.joinToString("\n"))
+                }
                 metric?.updateRefreshLatency(System.currentTimeMillis() - ms)
                 ms = System.currentTimeMillis()
                 val initUrlCur = parseInitUrl(lines)
@@ -466,6 +482,9 @@ class Session(
                     emit(Event.LiveSegmentInit(initUrlCur))
                 }
                 logger.trace("[{}] fetched: {}", room.name, videos.size)
+                if (videos.isEmpty()) {
+                    logger.warn("[{}] Got 0 videos from playlist, maybe decode failed!", room.name)
+                }
                 for (url in videos) {
                     // record time limit
                     if (System.currentTimeMillis() - startTime > room.limit.inWholeMilliseconds && !cache.contains(url) && url.endsWith(
@@ -564,13 +583,16 @@ class Session(
     }
 
     private fun parseSegmentUrl(lines: List<String>): List<String> {
-        return lines.filter { it.startsWith("#EXT-X-PART") && it.contains("URI=\"") }.mapNotNull { line ->
+        val lowLatency = lines.filter { it.startsWith("#EXT-X-PART") && it.contains("URI=\"") }.mapNotNull { line ->
             try {
                 line.substringAfter("URI=\"").substringBefore("\"")
             } catch (e: Exception) {
                 println("Failed to parse segment URL from line: $line, $e")
                 null
             }
+        }
+        return lowLatency.ifEmpty {
+            lines.filter { it.startsWith("https://") && it.endsWith(".mp4") }
         }
     }
 
