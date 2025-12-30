@@ -51,6 +51,9 @@ jobs:
           git tag dev-build
           git push origin dev-build
 
+      - name: Get current time
+        run: echo "CURRENT_TIME=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_ENV
+
       - name: Create Pre-release and Upload Asset
         uses: softprops/action-gh-release@v2
         if: success()
@@ -63,7 +66,7 @@ jobs:
             
             > **Note:** This release is automatically updated to the latest commit on main.
             
-            - **Update Time:** ${{ steps.date.outputs.date }}
+            - **Update Time:** ${{ env.CURRENT_TIME }}
             - **Workflow Run:** [${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
             - **Commit:** [${{ github.sha }}](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
             - **Branch:** ${{ github.ref_name }}
