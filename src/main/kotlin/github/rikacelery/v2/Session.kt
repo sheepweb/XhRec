@@ -389,10 +389,10 @@ class Session(
 
     private val streamUrl: String
         get() {
-            return if (currentQuality != "raw" && currentQuality.isNotBlank()) "https://media-hls.doppiocdn.org/b-hls-%d/%d/%d_%s.m3u8?playlistType=lowLatency".format(
+            return if (currentQuality != "raw" && currentQuality.isNotBlank()) "https://media-hls.doppiocdn.org/b-hls-%d/%d/%d_%s.m3u8".format(
                 Random().nextInt(12, 13), room.id, room.id, currentQuality
             )
-            else "https://media-hls.doppiocdn.org/b-hls-%d/%d/%d.m3u8?playlistType=lowLatency".format(
+            else "https://media-hls.doppiocdn.org/b-hls-%d/%d/%d.m3u8".format(
                 Random().nextInt(
                     12, 13
                 ), room.id, room.id
