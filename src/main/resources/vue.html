@@ -825,7 +825,9 @@
                     this.fetchdata()
                 }, 500);
                 await this.fetchdata()
-                this.snapshotcache = JSON.parse(localStorage.getItem("xhrec-thumb"))
+                try {
+                    this.snapshotcache = JSON.parse(localStorage.getItem("xhrec-thumb")) || {}
+                }catch (_){}
                 for (let model of this.roomDisplay) {
                     await this.fetchThumb(model.name)
                 }
