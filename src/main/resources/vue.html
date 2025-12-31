@@ -428,12 +428,12 @@
                     <option>1080p60</option>
                     <option>2560p60</option>
                 </select>
-                <button @click="addRoom(true)" class="btn-green size-7 tooltip"><i class="fa fa-paper-plane "
-                                                                                   aria-hidden="true"></i><span
+                <button @click="addRoom(true)" class="btn-green size-7 tooltip"><i class="fa fa-paper-plane"></i><span
                         class="tooltiptext">Add and active</span></button>
-                <button @click="addRoom(false)" class="btn-green size-7 tooltip"><i class="fa fa-plus"
-                                                                                    aria-hidden="true"></i><span
+                <button @click="addRoom(false)" class="btn-green size-7 tooltip"><i class="fa fa-plus"></i><span
                         class="tooltiptext">Add</span></button>
+                <button @click="poweroff()" class="btn-red size-7 tooltip"><i class="fa-solid fa-power-off"></i><span
+                        class="tooltiptext">PowerOff</span></button>
 
             </div>
         </div>
@@ -587,6 +587,9 @@
             }
         },
         methods: {
+            poweroff() {
+              window.open("/stop-server","_blank")
+            },
             sortToggle(by) {
                 if (this.sort[by]) {
                     this.sort[by] = this.sort[by] == 1 ? 2 : undefined
@@ -827,7 +830,8 @@
                 await this.fetchdata()
                 try {
                     this.snapshotcache = JSON.parse(localStorage.getItem("xhrec-thumb")) || {}
-                }catch (_){}
+                } catch (_) {
+                }
                 for (let model of this.roomDisplay) {
                     await this.fetchThumb(model.name)
                 }
