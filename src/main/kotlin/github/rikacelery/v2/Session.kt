@@ -613,7 +613,7 @@ class Session(
             is Event.LiveSegmentData -> ClientManager.getClient(room.name)
             is Event.LiveSegmentInit -> ClientManager.getProxiedClient(room.name)
         }
-        val created = (event.url().substringBeforeLast("_").substringAfterLast("_").toLongOrDefault(0))
+        val created = (event.url().replace("(_part\\d)?.mp4".toRegex(),"").substringAfterLast("_").substringAfterLast("_").toLongOrDefault(0))
         val diff = System.currentTimeMillis() / 1000 - created
         val wait = (20L - diff) * 1000
         withTimeoutOrNull(if (wait > 0) wait else 0) {
