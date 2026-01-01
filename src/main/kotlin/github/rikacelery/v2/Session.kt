@@ -231,8 +231,9 @@ class Session(
     }
 
     fun segmentIDFromUrl(url: String): Int? {
+//        "https://media-hls.doppiocdn.org/b-hls-24/roomid/roomid_480p_h265_7970_XXXXXXXXXXX_timestamp.mp4"
         val parts = url.substringAfterLast("/").split("_")
-        return parts[(parts.size - 4).coerceAtLeast(0)].toIntOrNull()
+        return parts[(parts.size - 3).coerceAtLeast(0)].toIntOrNull()
     }
 
     var metric: MetricUpdater? = null
