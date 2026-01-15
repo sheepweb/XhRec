@@ -427,7 +427,9 @@
                     <option>1080p</option>
                     <option>1080p60</option>
                     <option>2560p60</option>
+                    <option>raw</option>
                 </select>
+                <input v-model="addLimit" type="number" min="0" placeholder="limit(秒)" class="w-20 px-2 rounded-md bg-slate-300 text-gray-600 outline-none">
                 <button @click="addRoom(true)" class="btn-green size-7 tooltip"><i class="fa fa-paper-plane"></i><span
                         class="tooltiptext">Add and active</span></button>
                 <button @click="addRoom(false)" class="btn-green size-7 tooltip"><i class="fa fa-plus"></i><span
@@ -558,6 +560,7 @@
             return {
                 addInput: "",
                 addQuality: "720p",
+                addLimit: "",
                 sort: {"Room": 1, "Status": 1},
                 roomInfo: {},
                 schedules: {},
@@ -621,11 +624,16 @@
             },
             async addRoom(active) {
                 const name = this.addInput.split("/").slice(-1)[0].split("?")[0]
-                const r1 = await fetch(`${HOST}/add?slug=${name}&active=${active}&quality=${this.addQuality}`)
+                let url = `${HOST}/add?slug=${name}&active=${active}&quality=${this.addQuality}`
+                if (this.addLimit && parseInt(this.addLimit) > 0) {
+                    url += `&limit=${this.addLimit}`
+                }
+                const r1 = await fetch(url)
                 const data1 = await r1.text()
                 if (r1.status == 404 || r1.status == 200) {
                     showToast("OK")
                     this.addInput = ""
+                    this.addLimit = ""
                 } else {
                     showToast(data1)
                 }
