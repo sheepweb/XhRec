@@ -1,7 +1,9 @@
 package github.rikacelery.utils
 
+import java.util.*
+
 class CircleCache(private val maxSize: Int) {
-    private val cache = mutableListOf<String>()
+    private val cache = LinkedList<String>()
     fun add(item: String) {
         if (cache.contains(item)) return
         cache.add(item)

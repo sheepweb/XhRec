@@ -39,6 +39,7 @@ class Writer(private val name: String, private val destFolder:String, private va
     }
 
     fun append(data: ByteArray) {
+        if (!isInit) throw Exception("Writer not initialized yet.")
         bufferedWriter.write(data)
     }
 
