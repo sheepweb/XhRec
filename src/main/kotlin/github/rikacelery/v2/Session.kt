@@ -158,7 +158,6 @@ class Session(
 
             val element = Json.Default.parseToJsonElement(get.bodyAsText())
             val status = element.PathSingle("item.status").asString()
-            val presets = element.PathSingle("item.settings.presets").jsonArray
             if (status != "public") {
                 logger.trace("[{}] -> false, status={}", room.name, status)
                 _isOpen.set(false)
@@ -169,7 +168,12 @@ class Session(
                 _isOpen.set(true)
                 return true
             }
-            val qualities = presets.map { element -> element.asString() }
+            // 从 v2 API 获取 pixelated 数组
+            val camResponse = ClientManager.getProxiedClient("room-test")
+                .get("https://zh.xhamsterlive.com/api/front/v2/models/username/${room.name}/cam")
+            val camElement = Json.Default.parseToJsonElement(camResponse.bodyAsText())
+            val pixelated = camElement.PathSingle("pixelated").jsonArray
+            val qualities = pixelated.map { it.asString() }
                 .filterNot { it.contains("blurred") }
             val q = qualities.lastOrNull { it == room.quality } ?: qualities.minByOrNull {
                 val split = it.split("p").filterNot(String::isEmpty)
@@ -268,7 +272,15 @@ class Session(
                 var nextIndex = 0
                 var emittedIndex = 0
 
+                // 用于标记切分事件的特殊索引
+                val SPLIT_MARKER = -1
+
                 segmentGenerator().map { event ->
+                    // FileSplit 事件不需要下载，直接返回特殊标记
+                    if (event is Event.FileSplit) {
+                        return@map SPLIT_MARKER to scope.async { Result.success(ByteArray(0)) }
+                    }
+
                     segmentIDFromUrl(event.url())?.let { segmentID ->
                         metric.segmentID(segmentID)
                         metric.segmentMissing(counter(listOf(segmentID)))
@@ -325,6 +337,70 @@ class Session(
                         }
                     }
                 }.buffer(Channel.UNLIMITED).collect { (index, deferred) ->
+                    // 处理 FileSplit 事件
+                    if (index == SPLIT_MARKER) {
+                        logger.info("[{}] FileSplit event received, waiting for pending downloads...", room.name)
+                        // 等待所有 pending 下载完成并写入当前文件
+                        while (readyToEmit.isNotEmpty() || pending.isNotEmpty()) {
+                            if (readyToEmit.peek() == emittedIndex) {
+                                val current = readyToEmit.poll()
+                                val result = pending.remove(current)?.await()
+                                metric.downloadingDecrement()
+                                metric.doneIncrement()
+                                running.decrementAndGet()
+                                if (result != null && result.isSuccess) {
+                                    success.incrementAndGet()
+                                    val data = result.getOrThrow()
+                                    metric.bytesWriteIncrement(data.size.toLong())
+                                    bytesWrite.addAndGet(data.size.toLong())
+                                    writer.append(data)
+                                } else {
+                                    metric.failedIncrement()
+                                    failed.incrementAndGet()
+                                }
+                                emittedIndex++
+                            } else if (pending.isNotEmpty()) {
+                                // 等待下一个 pending 完成
+                                delay(10)
+                            } else {
+                                break
+                            }
+                        }
+                        logger.info("[{}] All pending downloads completed, splitting file...", room.name)
+                        // 关闭当前文件并启动后处理
+                        try {
+                            val file = writer.done()
+                            if (file != null) {
+                                scope.launch(NonCancellable) {
+                                    runCatching {
+                                        PostProcessor.process(
+                                            file.first,
+                                            ProcessorCtx(room, file.second, Date(), file.third, currentQuality)
+                                        )
+                                    }.onFailure {
+                                        logger.error("[{}] Postprocess failed", room.name, it)
+                                    }
+                                }
+                            }
+                        } catch (e: Exception) {
+                            logger.error("[${room.name}] Failed to close file for split", e)
+                        }
+                        // 创建新文件并重置状态
+                        writer.init()
+                        metric.reset()
+                        total.set(0)
+                        success.set(0)
+                        failed.set(0)
+                        bytesWrite.set(0)
+                        nextIndex = 0
+                        emittedIndex = 0
+                        pending.clear()
+                        readyToEmit.clear()
+                        logger.info("[{}] New file started after split", room.name)
+                        return@collect
+                    }
+
+                    // 正常处理 segment
                     pending[index] = deferred
                     readyToEmit.add(index)
 
@@ -487,32 +563,15 @@ class Session(
                     logger.warn("[{}] Got 0 videos from playlist, maybe decode failed!", room.name)
                 }
                 for (url in videos) {
-                    // record time limit
+                    // record time limit - 发送切分事件而不是直接处理
                     if (System.currentTimeMillis() - startTime > room.limit.inWholeMilliseconds && !cache.contains(url)) {
-                        try {
-                            val file = writerReference.get()!!.done()
-                            requireNotNull(file)
-                            scope.launch(NonCancellable) {
-                                runCatching {
-                                    PostProcessor.process(
-                                        file.first,
-                                        ProcessorCtx(room, file.second, Date(), file.third, currentQuality)
-                                    )
-                                }.onFailure {
-                                    logger.error("[{}] Postprocess failed", room.name, it)
-                                }
-                            }
-                        } catch (e: Exception) {
-                            logger.error("[${room.name}] Failed to postprocess", e)
-                        } finally {
-                            // reset state
-                            initSent = false
-                            initUrl = ""
-                            startTime = System.currentTimeMillis()
-                            writerReference.get()?.init()
-                            metric?.reset()
-                            break
-                        }
+                        emit(Event.FileSplit)
+                        // 重置生产者端状态
+                        initSent = false
+                        initUrl = ""
+                        startTime = System.currentTimeMillis()
+                        cache.clear()
+                        break
                     }
                     // normal segments
                     if (currentCoroutineContext().isActive && !cache.contains(url)) {
