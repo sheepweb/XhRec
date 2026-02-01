@@ -419,6 +419,7 @@
                     <i class="fa fa-times text-gray-600" aria-hidden="true"></i>
                 </div>
                 <select v-model="addQuality" name="quality" id="quality">
+                    <option>raw</option>
                     <option>160p</option>
                     <option>240p</option>
                     <option>480p</option>
@@ -428,6 +429,9 @@
                     <option>1080p60</option>
                     <option>2560p60</option>
                 </select>
+                <div class="flex justify-center items-center text-gray-600 bg-slate-300 rounded-md px-2">
+                    <input v-model="addLimit" class="outline-none w-20" type="number" min="0" placeholder="limit(s)">
+                </div>
                 <button @click="addRoom(true)" class="btn-green size-7 tooltip"><i class="fa fa-paper-plane"></i><span
                         class="tooltiptext">Add and active</span></button>
                 <button @click="addRoom(false)" class="btn-green size-7 tooltip"><i class="fa fa-plus"></i><span
@@ -558,6 +562,7 @@
             return {
                 addInput: "",
                 addQuality: "720p",
+                addLimit: "",
                 sort: {"Room": 1, "Status": 1},
                 roomInfo: {},
                 schedules: {},
@@ -621,11 +626,16 @@
             },
             async addRoom(active) {
                 const name = this.addInput.split("/").slice(-1)[0].split("?")[0]
-                const r1 = await fetch(`${HOST}/add?slug=${name}&active=${active}&quality=${this.addQuality}`)
+                let url = `${HOST}/add?slug=${name}&active=${active}&quality=${this.addQuality}`
+                if (this.addLimit && parseInt(this.addLimit) > 0) {
+                    url += `&limit=${this.addLimit}`
+                }
+                const r1 = await fetch(url)
                 const data1 = await r1.text()
                 if (r1.status == 404 || r1.status == 200) {
                     showToast("OK")
                     this.addInput = ""
+                    this.addLimit = ""
                 } else {
                     showToast(data1)
                 }

@@ -48,6 +48,7 @@ class Writer(private val name: String, private val destFolder:String, private va
     fun done(): Triple<File, Date, Long>? {
         if (!isInit) return null
         isInit=false
+        bufferedWriter.flush()
         bufferedWriter.close()
         val duration = Date().time - timeStarted.time
         val formatted = File(tmpfolder, "${name}-${formatedStartTime()}-${format(duration)}.$ext")

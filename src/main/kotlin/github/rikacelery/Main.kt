@@ -221,13 +221,17 @@ fun main(vararg args: String): Unit = runBlocking {
                 }
                 val url = "https://zh.xhamsterlive.com/${slug.substringAfterLast("/").substringBefore("#")}"
                 val q = call.request.queryParameters["quality"] ?: "720p"
-                println("${if (active) "[+]" else "[X]"} $q $slug")
+                val limit = call.request.queryParameters["limit"]?.toLongOrNull() ?: 0
+                println("${if (active) "[+]" else "[X]"} $q limit:${limit}s $slug")
                 val room = withRetryOrNull(5, { it.message?.contains("404") == true }) {
                     ClientManager.getProxiedClient("main").fetchRoomFromUrl(url, q)
                 }
                 if (room == null) {
                     call.respond(HttpStatusCode.InternalServerError, "Failed to get room info.")
                     return@get
+                }
+                if (limit > 0) {
+                    room.limit = limit.seconds
                 }
                 if (scheduler.sessions.keys.any { it.room.name == room.name }) {
                     println("Exist ${room.name}")
