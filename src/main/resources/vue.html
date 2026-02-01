@@ -458,6 +458,7 @@
                         <span class="select-none" v-if="sort['Quality']==1">↓</span>
                         <span class="select-none" v-if="sort['Quality']==2">↑</span>
                     </td>
+                    <td>Limit</td>
                     <td class="hover:cursor-pointer" @click="sortToggle('Status')">Status
                         <span class="select-none" v-if="sort['Status']==1">↓</span>
                         <span class="select-none" v-if="sort['Status']==2">↑</span>
@@ -492,6 +493,11 @@
                                 {{quality}}
                             </option>
                         </select>
+                    </td>
+                    <td>
+                        <input @change="ev=>setLimit(ev.target.value,room.name)" :value="parseDurationToSeconds(room.limit)"
+                               class="outline-none w-16 bg-slate-100 rounded px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                               type="number" min="0" placeholder="∞">
                     </td>
                     <td v-if="room.status=='Recording'"><i class="fa-regular fa-circle-dot"
                                                            style="color: rgb(238, 18, 18);"></i></td>
@@ -614,8 +620,27 @@
                 }
                 return `${bytes.toFixed(3)} ${units[i]}`;
             },
+            parseDurationToSeconds(duration) {
+                // Kotlin Duration serializes as ISO 8601 format like "PT1H30M" or "PT9999999999999999999S" for INFINITE
+                if (!duration || duration.includes('9999999999')) {
+                    return ''  // INFINITE - show empty (placeholder will show ∞)
+                }
+                // Parse ISO 8601 duration: PT[nH][nM][nS]
+                const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?/)
+                if (!match) return ''
+                const hours = parseInt(match[1] || 0)
+                const minutes = parseInt(match[2] || 0)
+                const seconds = parseFloat(match[3] || 0)
+                const total = hours * 3600 + minutes * 60 + seconds
+                return total > 0 ? Math.round(total) : ''
+            },
             async setQuality(quality, roomName) {
                 const r1 = await fetch(`${HOST}/quality?slug=${roomName}&quality=${quality}`)
+                const data1 = await r1.text()
+                showToast(data1)
+            },
+            async setLimit(limit, roomName) {
+                const r1 = await fetch(`${HOST}/limit?slug=${roomName}&limit=${limit || 0}`)
                 const data1 = await r1.text()
                 showToast(data1)
             },

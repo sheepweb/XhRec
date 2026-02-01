@@ -302,6 +302,22 @@ fun main(vararg args: String): Unit = runBlocking {
                 saveJobFile(jobFile, scheduler)
                 call.respond(room)
             }
+            get("/limit") {
+                val slug = call.request.queryParameters["slug"]
+                if (slug == null) {
+                    call.respond(HttpStatusCode.NotAcceptable, "Room slug not provided.")
+                    return@get
+                }
+                val limit = call.request.queryParameters["limit"]?.toLongOrNull() ?: 0
+                val room = scheduler.sessions.keys.find { it.room.name.equals(slug, true) }?.room
+                if (room == null) {
+                    call.respond(HttpStatusCode.NotAcceptable, "Room $slug not found.")
+                    return@get
+                }
+                room.limit = if (limit > 0) limit.seconds else Duration.INFINITE
+                saveJobFile(jobFile, scheduler)
+                call.respond(room)
+            }
             get("/deactivate") {
 
                 val slug = call.request.queryParameters["slug"]
