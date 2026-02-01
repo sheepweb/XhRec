@@ -430,7 +430,7 @@
                     <option>2560p60</option>
                 </select>
                 <div class="flex justify-center items-center text-gray-600 bg-slate-300 rounded-md px-2">
-                    <input v-model="addLimit" class="outline-none w-20" type="number" min="0" placeholder="limit(s)">
+                    <input v-model="addLimit" class="outline-none w-20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" type="number" min="0" placeholder="limit(s)">
                 </div>
                 <button @click="addRoom(true)" class="btn-green size-7 tooltip"><i class="fa fa-paper-plane"></i><span
                         class="tooltiptext">Add and active</span></button>
@@ -561,7 +561,7 @@
         data() {
             return {
                 addInput: "",
-                addQuality: "720p",
+                addQuality: "raw",
                 addLimit: "",
                 sort: {"Room": 1, "Status": 1},
                 roomInfo: {},
