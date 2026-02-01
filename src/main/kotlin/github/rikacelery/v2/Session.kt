@@ -669,6 +669,7 @@ class Session(
         val c = when (event) {
             is Event.LiveSegmentData -> ClientManager.getClient(room.name)
             is Event.LiveSegmentInit -> ClientManager.getProxiedClient(room.name)
+            is Event.FileSplit -> throw IllegalArgumentException("FileSplit event should not be downloaded")
         }
         val created =
             (event.url().replace("(_part\\d)?.mp4".toRegex(), "").substringAfterLast("_").substringAfterLast("_")
