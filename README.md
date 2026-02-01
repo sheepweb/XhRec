@@ -46,14 +46,15 @@ java -jar XhRec-all.jar -p 12340 -f list.conf -post postprocessor.json -t /path/
 ## Configuration
 
 ```plain
-# https://zh.xhamsterlive.com/modelA q:720p limit:120
+# https://zh.xhamsterlive.com/modelA q:720p limit:120 sizelimit:500
 ; https://zh.xhamsterlive.com/modelB q:240p
 https://zh.xhamsterlive.com/modelC q:raw
 ```
 
 - Start with `#` or `;` will be marked as `INACTIVE`, means will not automatically start recording.
-- limit:120 means record time (in seconds). **NOT RECOMMEND, MAY EASILY CORRUPT YOUR VIDEO**.
-- q:XXXX means preferred quality, raw means original quality.
+- `limit:120` means record time limit (in seconds). When reached, the file will be split.
+- `sizelimit:500` means record file size limit (in MB). When reached, the file will be split.
+- `q:XXXX` means preferred quality, `raw` means original quality.
   **_If no quality matches, program will select closest one._**
 - `zh.` is optional, dont care about it.
 
@@ -61,27 +62,112 @@ https://zh.xhamsterlive.com/modelC q:raw
 
 Run processors one by one.
 
+### Available Processors
+
+#### cleanup
+Delete files that are too short or too small. Useful for cleaning up fragmented recordings.
+
+| Parameter | Description |
+|-----------|-------------|
+| min_duration_seconds | Minimum duration in seconds. Files shorter than this will be deleted. |
+| min_size_mb | Minimum file size in MB. Files smaller than this will be deleted. |
+
+**Note**: The two conditions are OR relationship - file will be deleted if **either** condition is met.
+
+```json
+{
+  "type": "cleanup",
+  "min_duration_seconds": 10,
+  "min_size_mb": 10
+}
+```
+
+#### fix_stamp
+Fix video timestamps using ffmpeg. This is usually needed for fMP4 recordings.
+
+| Parameter | Description |
+|-----------|-------------|
+| output | Output directory for fixed files |
+
+```json
+{
+  "type": "fix_stamp",
+  "output": "out"
+}
+```
+
+#### move
+Move/rename files with pattern support.
+
+| Parameter | Description |
+|-----------|-------------|
+| dest | Destination path pattern |
+| date_pattern | Date format pattern for `{{RECORD_START}}` and `{{RECORD_END}}` |
+
+**Available variables:**
+- `{{ROOM_NAME}}` - Model/Room name
+- `{{ROOM_ID}}` - Room ID (e.g., 12345)
+- `{{RECORD_START}}` - Formatted date time using "date_pattern"
+- `{{RECORD_END}}` - Formatted date time using "date_pattern"
+- `{{RECORD_DURATION}}` - Duration in milliseconds (e.g., 90000)
+- `{{RECORD_DURATION_STR}}` - Formatted duration (e.g., 00h01m30s)
+- `{{INPUT}}` - Full input file path
+- `{{INPUT_DIR}}` - Input file directory
+- `{{FILE_NAME}}` - Input file name with extension
+- `{{FILE_NAME_NOEXT}}` - Input file name without extension
+- `{{TOTAL_FRAMES}}` - Accurate frame count (slow)
+- `{{TOTAL_FRAMES_GUESS}}` - Estimated frame count (FPS × Duration)
+
+```json
+{
+  "type": "move",
+  "dest": "out/[{{ROOM_ID}}]{{ROOM_NAME}}@{{RECORD_START}}-{{RECORD_END}} {{RECORD_DURATION_STR}}",
+  "date_pattern": "yyyy年MM月dd日HH时mm分ss秒"
+}
+```
+
+#### slice
+Split video into multiple parts by duration.
+
+| Parameter | Description |
+|-----------|-------------|
+| duration | Duration of each slice (ISO-8601 format, e.g., "1m10s", "PT1H") |
+
+```json
+{
+  "type": "slice",
+  "duration": "1m10s"
+}
+```
+
+#### shell
+Run custom shell command.
+
+| Parameter | Description |
+|-----------|-------------|
+| args | Command arguments array |
+| noreturn | If true, return input file; if false, read output path from stdout (default: true) |
+| remove_input | Remove input file after processing (default: false) |
+
+**Available variables:** Same as `move` processor, but `{{RECORD_START}}` and `{{RECORD_END}}` use ISO_DATE_TIME format.
+
+### Example Configuration
+
 ```json lines
 {
   "default": [
+    // First, clean up small/short files
+    {
+      "type": "cleanup",
+      "min_duration_seconds": 10,
+      "min_size_mb": 10
+    },
     {
       "type": "fix_stamp",
       "output": "out"
     },
     {
       "type": "move",
-      //{{ROOM_NAME}}                Model/Room name
-      //{{ROOM_ID}}                  12345
-      //{{RECORD_START}}             formated date time using "date_pattern"
-      //{{RECORD_END}}               formated date time using "date_pattern"
-      //{{RECORD_DURATION}}          90
-      //{{RECORD_DURATION_STR}}      00h01m30s
-      //{{INPUT}}                    /path/to/input/video/folder/a.mp4
-      //{{INPUT_DIR}}                /path/to/input/video/folder
-      //{{FILE_NAME}}                a.mp4
-      //{{FILE_NAME_NOEXT}}          a
-      //{{TOTAL_FRAMES}}             slow but accurate frame count
-      //{{TOTAL_FRAMES_GUESS}}       FPS*Duration
       "dest": "out/[{{ROOM_ID}}]{{ROOM_NAME}}@{{RECORD_START}}-{{RECORD_END}} {{RECORD_DURATION_STR}}",
       "date_pattern": "yyyy年MM月dd日HH时mm分ss秒"
     },
@@ -93,20 +179,7 @@ Run processors one by one.
     {
       "type": "shell",
       "noreturn": true,
-      // default: true
       "remove_input": false,
-       //{{ROOM_NAME}}                Model/Room name
-       //{{ROOM_ID}}                  12345
-       //{{RECORD_START}}             formated date time using "ISO_DATE_TIME" format
-       //{{RECORD_END}}               formated date time using "ISO_DATE_TIME" format
-       //{{RECORD_DURATION}}          90
-       //{{RECORD_DURATION_STR}}      00h01m30s
-       //{{INPUT}}                    /path/to/input/video/folder/a.mp4
-       //{{INPUT_DIR}}                /path/to/input/video/folder
-       //{{FILE_NAME}}                a.mp4
-       //{{FILE_NAME_NOEXT}}          a
-       //{{TOTAL_FRAMES}}             slow but accurate frame count
-       //{{TOTAL_FRAMES_GUESS}}       FPS*Duration
       "args": [
         "ffmpeg",
         "-hide_banner",
@@ -116,8 +189,6 @@ Run processors one by one.
         "-i",
         "{{INPUT}}",
         "-vf",
-        // if you change grid size, please recalculate total pic size
-        // or replace '{{TOTAL_FRAMES_GUESS}}/400' to 50, which means every 50 frames will be one thumbnail
         "thumbnail={{TOTAL_FRAMES_GUESS}}/400,scale=200:-1,tile=20x20",
         "-vframes",
         "1",
@@ -172,6 +243,15 @@ Temporary stop recording
 | slug      | Room/Model name |
 | quality   | Quality         |
 
+#### /limit
+
+Set recording time limit for a room.
+
+| Parameter | Description                              |
+|-----------|------------------------------------------|
+| slug      | Room/Model name                          |
+| limit     | Time limit in seconds (0 = no limit)     |
+
 #### /list (Deprecated)
 
 Simple json status list
@@ -216,9 +296,12 @@ Json status
     "name": "Model Name",
     "id": 12345,
     "quality": "720p60",
-     // record limit, PT2M means 2 minutes (ISO-8601 Duration format)
-     // not recommand, may easily break you video.
+    // record time limit, PT2M means 2 minutes (ISO-8601 Duration format)
+    // triggers file split when reached
     "limit": "PT2M",
+    // record file size limit in MB
+    // triggers file split when reached (0 = no limit)
+    "sizeLimit": 500,
     // useless for now
     "lastSeen": null
   }
