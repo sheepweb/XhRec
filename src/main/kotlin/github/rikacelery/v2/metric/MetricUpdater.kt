@@ -111,6 +111,8 @@ class MetricUpdater(
         metrics?.let {
             it[id] = MetricItem()
         }
+        window.clear()
+        windowRefresh.clear()
     }
 
 
