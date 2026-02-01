@@ -2,6 +2,7 @@ package github.rikacelery.v2.postprocessors
 
 import github.rikacelery.utils.BooleanOrElse
 import github.rikacelery.utils.JsonArray
+import github.rikacelery.utils.Long
 import github.rikacelery.utils.String
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -55,6 +56,16 @@ object PostProcessor {
                             context,
                             processor.String("dest"),
                             processor.String("date_pattern"),
+                        )
+                    )
+                }
+
+                "cleanup" -> {
+                    processors.add(
+                        CleanupProcessor(
+                            context,
+                            processor.Long("min_duration_seconds"),
+                            processor.Long("min_size_mb"),
                         )
                     )
                 }

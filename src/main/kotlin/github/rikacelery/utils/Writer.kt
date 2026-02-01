@@ -14,16 +14,17 @@ class Writer(private val name: String, private val destFolder:String, private va
 
 
     fun init() {
-        timeStarted = Date()
-        file = File(tmpfolder, "${name}-${formatedStartTime()}-init.${ext}")
-        bufferedWriter = file.outputStream().buffered(bufferSize = 1024 * 1024 * 1)
-        isInit = true
+        // 先创建目录，再创建文件
         if (File(tmpfolder).exists().not()) {
             File(tmpfolder).mkdirs()
         }
         if (File(destFolder).exists().not()) {
             File(destFolder).mkdirs()
         }
+        timeStarted = Date()
+        file = File(tmpfolder, "${name}-${formatedStartTime()}-init.${ext}")
+        bufferedWriter = file.outputStream().buffered(bufferSize = 1024 * 1024 * 1)
+        isInit = true
     }
 
     private fun format(time: Long): String {

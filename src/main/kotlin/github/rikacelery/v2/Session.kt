@@ -564,7 +564,17 @@ class Session(
                 }
                 for (url in videos) {
                     // record time limit - 发送切分事件而不是直接处理
-                    if (System.currentTimeMillis() - startTime > room.limit.inWholeMilliseconds && !cache.contains(url)) {
+                    val timeLimitReached = room.limit.isFinite() && System.currentTimeMillis() - startTime > room.limit.inWholeMilliseconds
+                    // record size limit - 检测文件大小是否超过限制 (sizeLimit 单位为 MB)
+                    val sizeLimitReached = room.sizeLimit > 0 && bytesWrite.get() > room.sizeLimit * 1024 * 1024
+
+                    if ((timeLimitReached || sizeLimitReached) && !cache.contains(url)) {
+                        if (timeLimitReached) {
+                            logger.info("[{}] Time limit reached, splitting file...", room.name)
+                        }
+                        if (sizeLimitReached) {
+                            logger.info("[{}] Size limit reached ({}MB > {}MB), splitting file...", room.name, bytesWrite.get() / 1024 / 1024, room.sizeLimit)
+                        }
                         emit(Event.FileSplit)
                         // 重置生产者端状态
                         initSent = false

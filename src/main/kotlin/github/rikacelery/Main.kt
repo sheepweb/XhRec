@@ -33,7 +33,7 @@ import kotlin.time.Duration.Companion.seconds
 
 
 val BUILTIN = setOf(
-    "# https://zh.xhamsterlive.com/ChangeToYourModel q:1080p limit:120",
+    "# https://zh.xhamsterlive.com/ChangeToYourModel q:1080p limit:120 sizelimit:500",
 )
 
 private fun extract(text: String, regex: Regex, default: String): String {
@@ -106,7 +106,8 @@ fun main(vararg args: String): Unit = runBlocking {
         val url = match.groupValues[2]
         val q = extract(match.groupValues[3], "q:(\\S+)".toRegex(), "720p")
         val limit = extract(match.groupValues[3], "limit:(\\d+)".toRegex(), "0")
-        rootLogger.info("loads: ${if (active) "[active]" else "[      ]"} quality:$q limit:$limit url:$url")
+        val sizeLimit = extract(match.groupValues[3], "sizelimit:(\\d+)".toRegex(), "0")
+        rootLogger.info("loads: ${if (active) "[active]" else "[      ]"} quality:$q limit:$limit sizelimit:${sizeLimit}MB url:$url")
         async {
             val room = withRetryOrNull(5, { it.message?.contains("404") == true }) {
                 ClientManager.getProxiedClient("main").fetchRoomFromUrl(url, q)
@@ -117,10 +118,25 @@ fun main(vararg args: String): Unit = runBlocking {
             if (limit.toLong() > 0) {
                 room.limit = limit.toLong().seconds
             }
+            if (sizeLimit.toLong() > 0) {
+                room.sizeLimit = sizeLimit.toLong()
+            }
             println(room)
             room to active
         }
     }.toList().filterNotNull().awaitAll().filterNotNull().toMutableList()
+
+    // 自动创建 output 和 tmp 目录
+    val outputDir = File(commandLine.getOptionValue("o", "out"))
+    val tmpDir = File(commandLine.getOptionValue("t", "tmp"))
+    if (!outputDir.exists()) {
+        outputDir.mkdirs()
+        rootLogger.info("Created output directory: {}", outputDir.absolutePath)
+    }
+    if (!tmpDir.exists()) {
+        tmpDir.mkdirs()
+        rootLogger.info("Created tmp directory: {}", tmpDir.absolutePath)
+    }
 
     val scheduler =
         Scheduler(commandLine.getOptionValue("o", "out"), commandLine.getOptionValue("t", "tmp")) { scheduler ->
@@ -406,7 +422,9 @@ fun main(vararg args: String): Unit = runBlocking {
 private fun saveJobFile(jobFile: File, scheduler: Scheduler) {
     synchronized(jobFile) {
         jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
-            "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}" + (if (it.room.limit.isFinite()) " limit:${it.room.limit.inWholeSeconds}" else "")
+            "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}" +
+                (if (it.room.limit.isFinite()) " limit:${it.room.limit.inWholeSeconds}" else "") +
+                (if (it.room.sizeLimit > 0) " sizelimit:${it.room.sizeLimit}" else "")
         })
     }
 }
