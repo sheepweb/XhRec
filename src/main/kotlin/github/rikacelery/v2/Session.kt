@@ -172,7 +172,9 @@ class Session(
             val camResponse = ClientManager.getProxiedClient("room-test")
                 .get("https://zh.xhamsterlive.com/api/front/v2/models/username/${room.name}/cam")
             val camElement = Json.Default.parseToJsonElement(camResponse.bodyAsText())
-            val pixelated = camElement.PathSingle("pixelated").jsonArray
+
+            // pixelated 在 cam.broadcastSettings.presets.pixelated 路径下
+            val pixelated = camElement.PathSingle("cam.broadcastSettings.presets.pixelated").jsonArray
             val qualities = pixelated.map { it.asString() }
                 .filterNot { it.contains("blurred") }
             val q = qualities.lastOrNull { it == room.quality } ?: qualities.minByOrNull {
