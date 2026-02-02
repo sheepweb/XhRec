@@ -4,6 +4,7 @@ import github.rikacelery.utils.ClientManager
 import github.rikacelery.utils.fetchRoomFromUrl
 import github.rikacelery.utils.withRetryOrNull
 import github.rikacelery.v2.Scheduler
+import github.rikacelery.v2.exceptions.DeletedException
 import github.rikacelery.v2.metric.Metric
 import github.rikacelery.v2.postprocessors.PostProcessor
 import io.ktor.client.plugins.*
@@ -109,7 +110,7 @@ fun main(vararg args: String): Unit = runBlocking {
         val sizeLimit = extract(match.groupValues[3], "sizelimit:(\\d+)".toRegex(), "0")
         rootLogger.info("loads: ${if (active) "[active]" else "[      ]"} quality:$q limit:$limit sizelimit:${sizeLimit}MB url:$url")
         async {
-            val room = withRetryOrNull(5, { it.message?.contains("404") == true }) {
+            val room = withRetryOrNull(5, { it is DeletedException }) {
                 ClientManager.getProxiedClient("main").fetchRoomFromUrl(url, q)
             } ?: run {
                 rootLogger.warn("failed: {}" , url)
@@ -240,11 +241,11 @@ fun main(vararg args: String): Unit = runBlocking {
                 val q = call.request.queryParameters["quality"] ?: "720p"
                 val limit = call.request.queryParameters["limit"]?.toLongOrNull() ?: 0
                 println("${if (active) "[+]" else "[X]"} $q limit:${limit}s $slug")
-                val room = withRetryOrNull(5, { it.message?.contains("404") == true }) {
+                val room = withRetryOrNull(5, { it is DeletedException }) {
                     ClientManager.getProxiedClient("main").fetchRoomFromUrl(url, q)
                 }
                 if (room == null) {
-                    call.respond(HttpStatusCode.InternalServerError, "Failed to get room info.")
+                    call.respond(HttpStatusCode.InternalServerError, "Failed to get room info (model deleted or not found).")
                     return@get
                 }
                 if (limit > 0) {
