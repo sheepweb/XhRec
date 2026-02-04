@@ -53,10 +53,21 @@ class Scheduler(
         opLock.withLock {
             if (job != null) return@withLock
             job = scope.launch {
+                var loopCount = 0L
                 while (currentCoroutineContext().isActive) {
-                    loop()
+                    loopCount++
+                    logger.debug("scheduler loop #{} starting...", loopCount)
+                    val loopStart = System.currentTimeMillis()
+                    try {
+                        loop()
+                    } catch (e: Exception) {
+                        logger.error("scheduler loop #{} failed", loopCount, e)
+                    }
+                    val loopDuration = System.currentTimeMillis() - loopStart
+                    logger.debug("scheduler loop #{} completed in {}ms, next loop in 30s", loopCount, loopDuration)
                     delay(30_000)
                 }
+                logger.warn("scheduler loop exited! isActive={}", currentCoroutineContext().isActive)
             }
         }
         logger.info("scheduler started")
@@ -64,33 +75,49 @@ class Scheduler(
         return job
     }
 
-    suspend fun loop() = opLock.withLock {
-        sessions.onEach {
-        }.filterKeys { it.listen }.forEach { (k, v) ->
-            if (v.isActive) return@forEach
-            if (k.room.quality == "model already deleted") return@forEach
-            scope.launch {
-                try {
-                    if (v.testAndConfigure()) {
-                        logger.debug("start ${k.room.name}")
-                        v.start()
-                        logger.debug("stop ${k.room.name}")
-                        v.stop()
+    suspend fun loop() {
+        logger.debug("loop() trying to acquire opLock...")
+        val lockAcquireStart = System.currentTimeMillis()
+        opLock.withLock {
+            val lockAcquireTime = System.currentTimeMillis() - lockAcquireStart
+            if (lockAcquireTime > 1000) {
+                logger.warn("loop() acquired opLock after {}ms (slow!)", lockAcquireTime)
+            } else {
+                logger.debug("loop() acquired opLock in {}ms", lockAcquireTime)
+            }
+
+            val activeCount = sessions.count { it.value.isActive }
+            val listenCount = sessions.count { it.key.listen }
+            logger.debug("loop() sessions: total={}, listen={}, active={}", sessions.size, listenCount, activeCount)
+
+            sessions.onEach {
+            }.filterKeys { it.listen }.forEach { (k, v) ->
+                if (v.isActive) return@forEach
+                if (k.room.quality == "model already deleted") return@forEach
+                scope.launch {
+                    try {
+                        if (v.testAndConfigure()) {
+                            logger.debug("start ${k.room.name}")
+                            v.start()
+                            logger.debug("stop ${k.room.name}")
+                            v.stop()
+                        }
+                    } catch (ex: RenameException) {
+                        add(k.room.copy(name = ex.newName), k.listen)
+                        listUpdate(this@Scheduler)
+                        logger.info("model {} renamed to {}", k.room.name, ex.newName)
+                    } catch (e: DeletedException) {
+                        logger.info("model {} deleted", e.name)
+                        deactivate(e.name)
+                        k.room.quality = "model already deleted"
+                        listUpdate(this@Scheduler)
+                    } catch (e: Exception) {
+                        logger.error("session start failed", e)
                     }
-                } catch (ex: RenameException) {
-                    add(k.room.copy(name = ex.newName), k.listen)
-                    listUpdate(this@Scheduler)
-                    logger.info("model {} renamed to {}", k.room.name, ex.newName)
-                } catch (e: DeletedException) {
-                    logger.info("model {} deleted", e.name)
-                    deactivate(e.name)
-                    k.room.quality = "model already deleted"
-                    listUpdate(this@Scheduler)
-                } catch (e: Exception) {
-                    logger.error("session start failed", e)
                 }
             }
         }
+        logger.debug("loop() completed")
     }
 
     suspend fun add(room: Room, listen: Boolean) {
