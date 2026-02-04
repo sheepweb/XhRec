@@ -28,4 +28,6 @@
     <logger name="io.netty" level="INFO"/>
     <logger name="ch.qos.logback" level="WARN"/>
     <logger name="io.ktor" level="OFF"/>
+    <!-- Session 调试日志 -->
+    <logger name="github.rikacelery.v2.Session" level="DEBUG"/>
 </configuration>

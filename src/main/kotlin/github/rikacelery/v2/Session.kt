@@ -337,8 +337,30 @@ class Session(
                                 )
                             }
                         }
+                        // 调试日志：下载完成时记录数据大小
+                        result.onSuccess { data ->
+                            logger.debug("[{}] Segment {} downloaded, size={}KB", room.name, index, data.size / 1024)
+                        }
                     }
                 }.buffer(Channel.UNLIMITED).collect { (index, deferred) ->
+                    // 调试日志：监控内存和pending状态
+                    if (index % 10 == 0 || pending.size > 20) {
+                        val runtime = Runtime.getRuntime()
+                        val usedMB = (runtime.totalMemory() - runtime.freeMemory()) / 1024 / 1024
+                        val maxMB = runtime.maxMemory() / 1024 / 1024
+                        logger.debug(
+                            "[{}] Memory: {}MB/{}MB, pending.size={}, readyToEmit.size={}, nextIndex={}, emittedIndex={}, index={}",
+                            room.name, usedMB, maxMB, pending.size, readyToEmit.size, nextIndex, emittedIndex, index
+                        )
+                        if (pending.size > 20) {
+                            val waitingIndices = pending.keys.sorted().take(10)
+                            logger.warn(
+                                "[{}] Large pending detected! Waiting for indices: {}, emittedIndex={}",
+                                room.name, waitingIndices, emittedIndex
+                            )
+                        }
+                    }
+
                     // 处理 FileSplit 事件
                     if (index == SPLIT_MARKER) {
                         logger.info("[{}] FileSplit event received, waiting for pending downloads...", room.name)
@@ -418,9 +440,12 @@ class Session(
                             metric.bytesWriteIncrement(data.size.toLong())
                             bytesWrite.addAndGet(data.size.toLong())
                             writer.append(data)
+                            // 调试日志：写入完成
+                            logger.trace("[{}] Segment {} written, size={}KB, pending.size={}", room.name, current, data.size / 1024, pending.size)
                         } else {
                             metric.failedIncrement()
                             failed.incrementAndGet()
+                            logger.debug("[{}] Segment {} failed, skipping. pending.size={}", room.name, current, pending.size)
                         }
                         emittedIndex++
                     }
