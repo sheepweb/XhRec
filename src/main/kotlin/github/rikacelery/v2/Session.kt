@@ -269,6 +269,32 @@ class Session(
 
         try {
             generatorJob = scope.launch {
+                /*
+                 * ========== OOM 问题追踪 ==========
+                 * 问题描述：2026-02-04 15:31:48 发生 OutOfMemoryError: Java heap space
+                 *
+                 * 可能原因分析：
+                 * 1. pending Map 中积压大量已下载但未写入的 ByteArray 数据
+                 * 2. 由于必须按顺序写入（emittedIndex 递增），如果某个早期 segment 下载卡住，
+                 *    后续所有已完成的 segment 数据都会积压在内存中
+                 * 3. 每个 segment 约 2.7MB，积压 100 个就是 270MB
+                 *
+                 * 触发场景（推测）：
+                 * - 14:57:24 FileSplit 事件触发，开始等待 pending downloads
+                 * - 等待循环卡住 34 分钟（可能某个 segment 下载永远不完成）
+                 * - 15:31:48 OOM
+                 *
+                 * 调试日志结果（2026-02-04 18:18 - 19:04）：
+                 * - pending.size 始终为 0，系统运行正常
+                 * - 内存稳定在 50MB - 177MB
+                 * - 需要等待问题再次复现收集更多日志
+                 *
+                 * 潜在解决方案（待问题复现后实施）：
+                 * 1. 当 pending.size > 30 且最早的 segment 等待超过 60 秒时，跳过该 segment
+                 * 2. 添加单个 segment 下载的超时限制
+                 * 3. 将已下载数据写入临时文件而非保存在内存中
+                 * ===================================
+                 */
                 val pending = mutableMapOf<Int, Deferred<Result<ByteArray>>>()
                 val readyToEmit = PriorityQueue<Int>()
                 var nextIndex = 0
