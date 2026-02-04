@@ -103,6 +103,22 @@ class Scheduler(
         }
     }
 
+    /*
+     * ========== 卡死问题追踪 ==========
+     * 问题描述：2026-02-04 17:09:46 - 21:18:40 系统卡死 4 小时无日志
+     *
+     * 原因分析：
+     * 1. remove() 在持有 opLock 的情况下调用 session.stop()
+     * 2. stop() 会调用 PostProcessor.process() 进行视频转码，可能耗时很长
+     * 3. 在此期间 opLock 一直被持有，导致：
+     *    - loop() 无法执行（每30秒的定时任务被阻塞）
+     *    - 其他 HTTP 请求（add/remove/deactivate）也被阻塞
+     *
+     * 修复方案（待实施）：
+     * 1. 参考 deactivate() 的实现，使用 scope.launch { stop() } 异步调用
+     * 2. 或者先释放锁，再调用 stop()
+     * ===================================
+     */
     suspend fun remove(roomName: String) {
         opLock.withLock {
             val found = sessions.filter { it.key.room.name == roomName }.entries.singleOrNull()
@@ -128,6 +144,7 @@ class Scheduler(
         }
     }
 
+    // TODO: 同 remove() 的问题，在锁内调用 stop() 可能导致长时间阻塞
     suspend fun stopRecorder(roomName: String) {
         val entry = sessions.filterKeys { it.room.name == roomName }.entries.singleOrNull()
         if (entry == null) {
