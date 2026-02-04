@@ -1,6 +1,5 @@
 package github.rikacelery.v2.metric
 
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.Hashtable
@@ -23,7 +22,9 @@ object Metric {
         }
     }
 
-    suspend fun removeMetric(id: Long) = lock.withLock(NonCancellable) {
+    // 修复：移除 NonCancellable 参数，避免多个协程使用相同 owner 导致 Mutex 重入错误
+    // 原错误：java.lang.IllegalStateException: This mutex is already locked by the specified owner: NonCancellable
+    suspend fun removeMetric(id: Long) = lock.withLock {
         updaters.remove(id)?.dispose()
         metrics.remove(id)
     }

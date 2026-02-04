@@ -493,8 +493,14 @@ class Session(
 
             generatorJob?.join()
         } finally {
+            // 确保 _isActive 被重置，即使后续操作抛出异常
+            _isActive.set(false)
             logger.info("[-] stop recording {}({}) q:{}(want {})", room.name, room.id, currentQuality, room.quality)
-            Metric.removeMetric(room.id)
+            runCatching {
+                Metric.removeMetric(room.id)
+            }.onFailure {
+                logger.error("[{}] Failed to remove metric", room.name, it)
+            }
         }
     }
 
