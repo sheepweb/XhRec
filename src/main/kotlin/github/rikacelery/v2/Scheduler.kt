@@ -104,7 +104,7 @@ class Scheduler(
     }
 
     /*
-     * ========== 卡死问题追踪 ==========
+     * ========== 卡死问题修复 ==========
      * 问题描述：2026-02-04 17:09:46 - 21:18:40 系统卡死 4 小时无日志
      *
      * 原因分析：
@@ -114,20 +114,24 @@ class Scheduler(
      *    - loop() 无法执行（每30秒的定时任务被阻塞）
      *    - 其他 HTTP 请求（add/remove/deactivate）也被阻塞
      *
-     * 修复方案（待实施）：
-     * 1. 参考 deactivate() 的实现，使用 scope.launch { stop() } 异步调用
-     * 2. 或者先释放锁，再调用 stop()
+     * 修复方案：
+     * 先在锁内完成数据结构操作，释放锁后再调用 stop()
      * ===================================
      */
     suspend fun remove(roomName: String) {
-        opLock.withLock {
+        // 在锁内只做数据结构操作，获取需要停止的 session
+        val sessionToStop = opLock.withLock {
             val found = sessions.filter { it.key.room.name == roomName }.entries.singleOrNull()
             if (found != null) {
                 logger.info("remove {}", found.key.room.name)
-                found.value.stop()
                 sessions.remove(found.key)
+                found.value
+            } else {
+                null
             }
         }
+        // 在锁外调用 stop()，避免长时间持有锁
+        sessionToStop?.stop()
     }
 
     suspend fun deactivate(roomName: String) {
@@ -144,18 +148,19 @@ class Scheduler(
         }
     }
 
-    // TODO: 同 remove() 的问题，在锁内调用 stop() 可能导致长时间阻塞
+    // 修复：在锁外调用 stop()，避免长时间持有锁
     suspend fun stopRecorder(roomName: String) {
-        val entry = sessions.filterKeys { it.room.name == roomName }.entries.singleOrNull()
-        if (entry == null) {
-            return
-        }
-        opLock.withLock {
-            logger.info("stop {}", entry.key.room.name)
-            if (entry.value.isActive) {
-                entry.value.stop()
+        val sessionToStop = opLock.withLock {
+            val entry = sessions.filterKeys { it.room.name == roomName }.entries.singleOrNull()
+            if (entry != null && entry.value.isActive) {
+                logger.info("stop {}", entry.key.room.name)
+                entry.value
+            } else {
+                null
             }
         }
+        // 在锁外调用 stop()
+        sessionToStop?.stop()
     }
 
     suspend fun active(roomName: String) {
