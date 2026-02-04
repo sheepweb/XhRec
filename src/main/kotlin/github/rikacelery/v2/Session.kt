@@ -468,8 +468,10 @@ class Session(
 
             generatorJob?.join()
         } finally {
-            // 确保 _isActive 被重置，即使后续操作抛出异常
-            _isActive.set(false)
+            // 使用 compareAndSet 而非 set，避免覆盖 stop() 已设置的状态
+            // 场景：stop() 先执行 compareAndSet(true, false)，然后 start() 的 finally 执行
+            // 如果用 set(false)，没问题；但如果 stop() 还没执行，这里需要重置
+            _isActive.compareAndSet(true, false)
             logger.info("[-] stop recording {}({}) q:{}(want {})", room.name, room.id, currentQuality, room.quality)
             runCatching {
                 Metric.removeMetric(room.id)
@@ -480,13 +482,13 @@ class Session(
     }
 
     suspend fun stop() {
-        if (_isActive.compareAndSet(true, false)) {
-            generatorJob?.cancelAndJoin()
+        // 只有成功将状态从 true 改为 false 时才取消 job
+        // 这确保了 stop() 只执行一次核心逻辑
+        if (!_isActive.compareAndSet(true, false)) {
+            return  // 已经停止或从未启动，直接返回
         }
-        val file = writerReference.getAndSet(null)?.done()
-        if (file == null) {
-            return
-        }
+        generatorJob?.cancelAndJoin()
+        val file = writerReference.getAndSet(null)?.done() ?: return
         runCatching {
             PostProcessor.process(
                 file.first,
