@@ -23,7 +23,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonArray
 import okhttp3.internal.toLongOrDefault
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -33,7 +32,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
-import kotlin.math.abs
 
 class Session(
 
@@ -79,9 +77,6 @@ class Session(
     val isActive: Boolean get() = _isActive.get()
     val isOpen: Boolean get() = _isOpen.get()
     var currentQuality = room.quality
-
-    // 当清晰度对应的流返回 404 时,回退到 source (无后缀 URL)
-    private var useSourceFallback = false
 
     private val writerReference = AtomicReference<Writer?>(null)
     private var generatorJob: Job? = null
@@ -168,38 +163,7 @@ class Session(
                 _isOpen.set(false)
                 return false//不开播
             }
-            if (room.quality == "raw") {
-                logger.trace("[{}] -> true, skip quality selection for 'raw'", room.name)
-                _isOpen.set(true)
-                return true
-            }
-            // 从 v2 API 获取 pixelated 数组
-            val camResponse = ClientManager.getProxiedClient("room-test")
-                .get("https://zh.xhamsterlive.com/api/front/v2/models/username/${room.name}/cam")
-            val camElement = Json.Default.parseToJsonElement(camResponse.bodyAsText())
-
-            // pixelated 在 cam.broadcastSettings.presets.pixelated 路径下
-            val pixelated = camElement.PathSingle("cam.broadcastSettings.presets.pixelated").jsonArray
-            val qualities = pixelated.map { it.asString() }
-                .filterNot { it.contains("blurred") }
-            val q = qualities.lastOrNull { it == room.quality } ?: qualities.minByOrNull {
-                val split = it.split("p").filterNot(String::isEmpty)
-                val split1 = room.quality.split("p").filterNot(String::isEmpty)
-                if (split1.size == 2) {
-                    // 尝试获取帧率和清晰度都接近的
-                    abs(split[0].toInt() - split1[0].toInt()) + abs(split1[1].toInt() - split.getOrElse(1) { "30" }
-                        .toInt())
-                } else {
-                    // 只判断清晰度，选到什么纯看运气
-                    abs(split[0].toInt() - split1[0].toInt())
-                }
-            }
-            val new = q ?: "raw" // 只有一种清晰度的
-            logger.trace("[{}] select {} from {} (want {})", room.name, new, qualities, room.quality)
-            if (currentQuality != new && !isActive) {
-                logger.info("[{}] quality changed to {} (want {})", room.name, new, room.quality)
-                currentQuality = new
-            }
+            // 画质选择现在由 getStreamUrl() 从 Master Playlist 动态获取
             logger.trace("[{}] -> true", room.name)
             _isOpen.set(true)
             return true
@@ -249,9 +213,6 @@ class Session(
 
     var metric: MetricUpdater? = null
     suspend fun start() {
-        // 重置回退状态，允许新的录制尝试使用指定清晰度
-        useSourceFallback = false
-
         if (!_isActive.compareAndSet(false, true)) {
             throw IllegalStateException("Session is already active")
         }
@@ -517,19 +478,37 @@ class Session(
     }
 
 
-    private val streamUrl: String
-        get() {
-            // 如果已回退到 source,或者用户选择 raw,使用无后缀 URL
-            if (useSourceFallback || currentQuality == "raw" || currentQuality.isBlank()) {
-                return "https://media-hls.doppiocdn.org/b-hls-%d/%d/%d.m3u8".format(
-                    Random().nextInt(12, 13), room.id, room.id
-                )
-            }
-            // 否则使用带清晰度后缀的 URL
-            return "https://media-hls.doppiocdn.org/b-hls-%d/%d/%d_%s.m3u8".format(
-                Random().nextInt(12, 13), room.id, room.id, currentQuality
-            )
-        }
+    /**
+     * 从 Master Playlist 获取可用画质的流 URL
+     */
+    private suspend fun getStreamUrl(): String {
+        val host = "doppiocdn." + listOf("org", "com", "net").random()
+        val masterUrl = "https://edge-hls.$host/hls/${room.id}/master/${room.id}_auto.m3u8"
+
+        val content = ClientManager.getProxiedClient(room.name).get(masterUrl).bodyAsText()
+        val lines = content.lines()
+
+        // 解析 #EXT-X-STREAM-INF 获取可用画质
+        val qualities = lines.mapIndexedNotNull { i, line ->
+            if (line.startsWith("#EXT-X-STREAM-INF:") && i + 1 < lines.size) {
+                val name = """NAME="([^"]+)"""".toRegex().find(line)?.groupValues?.get(1)
+                val url = lines[i + 1].trim()
+                if (name != null && url.startsWith("https://")) name to url else null
+            } else null
+        }.toMap()
+
+        require(qualities.isNotEmpty()) { "No available qualities in master playlist" }
+
+        // 画质选择: raw -> source, 720p60 -> 720p60 或 720p, 720 -> 720p
+        val key = if (currentQuality == "raw" || currentQuality.isBlank()) "source"
+                  else if (currentQuality.contains("p")) currentQuality
+                  else currentQuality + "p"
+
+        return qualities[key]
+            ?: qualities[key.replace("""p\d+$""".toRegex(), "p")]
+            ?: qualities["source"]
+            ?: qualities.values.first()
+    }
 
     private fun segmentGenerator(): Flow<Event> = flow {
         var initSent = false
@@ -538,6 +517,8 @@ class Session(
         var retry = 0
         var ms = System.currentTimeMillis()
         var startTime = ms
+        // 该次录制只获取一次流 URL，下次主播重新上线时再重新获取
+        val streamUrl = getStreamUrl()
         while (currentCoroutineContext().isActive) {
             retry++
             try {
@@ -646,7 +627,7 @@ class Session(
                 }
                 retry = 0
             } catch (_: TimeoutCancellationException) {
-                logger.warn("[${room.name}] Refresh list timeout {}, trys={}", streamUrl, retry)
+                logger.warn("[{}] Refresh list timeout, quality={}, trys={}", room.name, currentQuality, retry)
                 if (!runCatching { testAndConfigure() }.getOrElse { false }) {
                     logger.info("[STOP] [{}] Room off or non-public", room.name)
                     break
@@ -654,19 +635,8 @@ class Session(
                 continue
             } catch (e: ClientRequestException) {
                 if (e.response.status.value == 404) {
-                    // 如果还没尝试过 source,先回退到 source 再试
-                    if (!useSourceFallback && currentQuality != "raw") {
-                        logger.info(
-                            "[{}] Stream url {} returns 404, trying fallback to source",
-                            room.name,
-                            streamUrl
-                        )
-                        useSourceFallback = true
-                        continue
-                    }
-                    // 已经是 source 了还是 404,说明真的没有流
                     logger.info(
-                        "[STOP] [{}] Stream url returns 404 (already using source), this is caused by model's network connection issue",
+                        "[STOP] [{}] Stream url returns 404, this is caused by model's network connection issue",
                         room.name
                     )
                     break
@@ -674,14 +644,6 @@ class Session(
                 if (e.response.status.value == 403) {
                     if (!runCatching { testAndConfigure() }.getOrElse { false }) {
                         logger.info("[STOP] [{}] Room off or non-public (403)", room.name)
-                        break
-                    } else if (currentQuality == "raw") {
-                        // https://github.com/RikaCelery/XhRec/issues/2
-                        logger.warn(
-                            "[{}] Unable to use 'raw' quality, try using the highest one. Room will stop record now",
-                            room.name
-                        )
-                        room.quality = "2560p60" // try selecting the highest quality
                         break
                     } else {
                         logger.error(
