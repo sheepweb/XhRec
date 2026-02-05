@@ -137,6 +137,11 @@ class Session(
     }
 
     private fun shouldPostProcess(file: File): Boolean {
+        if (file.length() == 0L) {
+            logger.info("[{}] 文件大小 0B，跳过后处理并删除: {}", room.name, file.name)
+            file.delete()
+            return false
+        }
         val thresholds = readCleanupThresholds() ?: return true
         val fileSizeMB = file.length() / (1024 * 1024)
         if (thresholds.minSizeMB > 0 && fileSizeMB < thresholds.minSizeMB) {

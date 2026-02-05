@@ -48,15 +48,19 @@ class Writer(private val name: String, private val destFolder:String, private va
 
     fun done(): Triple<File, Date, Long>? {
         if (!isInit) return null
-        isInit=false
+        isInit = false
         bufferedWriter.flush()
         bufferedWriter.close()
+        if (file.length() == 0L) {
+            file.delete()
+            return null
+        }
         val duration = Date().time - timeStarted.time
         val formatted = File(tmpfolder, "${name}-${formatedStartTime()}-${format(duration)}.$ext")
         if (!file.renameTo(formatted)) {
             throw Exception("Failed to rename $formatted")
         }
-        return Triple(formatted,timeStarted,duration)
+        return Triple(formatted, timeStarted, duration)
     }
 
     fun dispose() {
