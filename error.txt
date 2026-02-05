@@ -1,0 +1,1040 @@
+2026-02-05 12:31:31.486 [DefaultDispatcher-worker-50] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:31:31.486 [DefaultDispatcher-worker-50] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:31:31.486 [DefaultDispatcher-worker-50] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:32:01.157 [DefaultDispatcher-worker-42] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:32:01.157 [DefaultDispatcher-worker-42] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:32:01.373 [DefaultDispatcher-worker-17] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend
+2026-02-05 12:32:01.374 [DefaultDispatcher-worker-17] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:32:01.374 [DefaultDispatcher-worker-17] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:32:01.374 [DefaultDispatcher-worker-17] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:32:01.374 [DefaultDispatcher-worker-17] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:32:29.106 [DefaultDispatcher-worker-56] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:32:29.106 [DefaultDispatcher-worker-56] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:32:29.320 [DefaultDispatcher-worker-4] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend
+2026-02-05 12:32:29.320 [DefaultDispatcher-worker-4] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:32:29.320 [DefaultDispatcher-worker-4] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:32:29.320 [DefaultDispatcher-worker-4] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:32:29.320 [DefaultDispatcher-worker-4] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:33:00.703 [DefaultDispatcher-worker-19] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:33:00.703 [DefaultDispatcher-worker-19] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:33:00.920 [DefaultDispatcher-worker-21] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend
+2026-02-05 12:33:00.920 [DefaultDispatcher-worker-21] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:33:00.920 [DefaultDispatcher-worker-21] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:33:00.920 [DefaultDispatcher-worker-38] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:33:00.920 [DefaultDispatcher-worker-38] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:33:30.545 [DefaultDispatcher-worker-2] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:33:30.545 [DefaultDispatcher-worker-2] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:33:30.761 [DefaultDispatcher-worker-33] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend
+2026-02-05 12:33:30.762 [DefaultDispatcher-worker-33] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:33:30.762 [DefaultDispatcher-worker-33] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:33:30.762 [DefaultDispatcher-worker-33] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:33:30.762 [DefaultDispatcher-worker-33] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:34:00.582 [DefaultDispatcher-worker-56] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:34:00.582 [DefaultDispatcher-worker-56] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:34:00.797 [DefaultDispatcher-worker-65] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:34:00.798 [DefaultDispatcher-worker-65] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:34:00.798 [DefaultDispatcher-worker-65] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:34:00.798 [DefaultDispatcher-worker-65] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:34:00.798 [DefaultDispatcher-worker-65] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:34:30.798 [DefaultDispatcher-worker-64] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:34:30.798 [DefaultDispatcher-worker-64] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:34:31.014 [DefaultDispatcher-worker-69] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:34:31.014 [DefaultDispatcher-worker-69] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:34:31.014 [DefaultDispatcher-worker-69] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:34:31.014 [DefaultDispatcher-worker-69] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:34:31.014 [DefaultDispatcher-worker-69] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:35:00.727 [DefaultDispatcher-worker-15] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:35:00.728 [DefaultDispatcher-worker-15] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:35:00.947 [DefaultDispatcher-worker-3] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend
+2026-02-05 12:35:00.947 [DefaultDispatcher-worker-3] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:35:00.947 [DefaultDispatcher-worker-3] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:35:00.947 [DefaultDispatcher-worker-3] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:35:00.947 [DefaultDispatcher-worker-3] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:35:30.764 [DefaultDispatcher-worker-1] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:35:30.764 [DefaultDispatcher-worker-1] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:35:30.979 [DefaultDispatcher-worker-17] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:35:30.979 [DefaultDispatcher-worker-17] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:35:30.979 [DefaultDispatcher-worker-17] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:35:30.979 [DefaultDispatcher-worker-17] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:35:30.979 [DefaultDispatcher-worker-17] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:36:00.983 [DefaultDispatcher-worker-21] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:36:00.984 [DefaultDispatcher-worker-21] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:36:01.200 [DefaultDispatcher-worker-33] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:36:01.200 [DefaultDispatcher-worker-33] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:36:01.200 [DefaultDispatcher-worker-33] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:36:01.200 [DefaultDispatcher-worker-53] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:36:01.200 [DefaultDispatcher-worker-53] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:36:29.464 [DefaultDispatcher-worker-34] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:36:29.464 [DefaultDispatcher-worker-34] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:36:29.679 [DefaultDispatcher-worker-44] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:36:29.679 [DefaultDispatcher-worker-44] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:36:29.679 [DefaultDispatcher-worker-44] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:36:29.679 [DefaultDispatcher-worker-44] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:36:29.679 [DefaultDispatcher-worker-44] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:36:59.222 [DefaultDispatcher-worker-55] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:36:59.223 [DefaultDispatcher-worker-55] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:36:59.437 [DefaultDispatcher-worker-15] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:36:59.437 [DefaultDispatcher-worker-15] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:36:59.437 [DefaultDispatcher-worker-15] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:36:59.438 [DefaultDispatcher-worker-15] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:36:59.438 [DefaultDispatcher-worker-15] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:37:30.643 [DefaultDispatcher-worker-61] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:37:30.643 [DefaultDispatcher-worker-61] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:37:30.859 [DefaultDispatcher-worker-46] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:37:30.859 [DefaultDispatcher-worker-46] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:37:30.859 [DefaultDispatcher-worker-46] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:37:30.859 [DefaultDispatcher-worker-46] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:37:30.859 [DefaultDispatcher-worker-46] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:38:00.843 [DefaultDispatcher-worker-58] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:38:00.843 [DefaultDispatcher-worker-58] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:38:01.058 [DefaultDispatcher-worker-49] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:38:01.058 [DefaultDispatcher-worker-49] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:38:01.058 [DefaultDispatcher-worker-49] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:38:01.059 [DefaultDispatcher-worker-49] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:38:01.059 [DefaultDispatcher-worker-49] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:38:30.880 [DefaultDispatcher-worker-37] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:38:30.881 [DefaultDispatcher-worker-37] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:38:31.097 [DefaultDispatcher-worker-11] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:38:31.097 [DefaultDispatcher-worker-11] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:38:31.097 [DefaultDispatcher-worker-11] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:38:31.097 [DefaultDispatcher-worker-11] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:38:31.097 [DefaultDispatcher-worker-11] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:39:00.788 [DefaultDispatcher-worker-66] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:39:00.788 [DefaultDispatcher-worker-66] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:39:01.004 [DefaultDispatcher-worker-8] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend
+2026-02-05 12:39:01.004 [DefaultDispatcher-worker-8] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:39:01.004 [DefaultDispatcher-worker-8] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:39:01.004 [DefaultDispatcher-worker-8] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:39:01.004 [DefaultDispatcher-worker-8] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:39:30.868 [DefaultDispatcher-worker-61] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:39:30.868 [DefaultDispatcher-worker-61] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:39:31.082 [DefaultDispatcher-worker-47] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:39:31.082 [DefaultDispatcher-worker-47] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:39:31.082 [DefaultDispatcher-worker-47] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:39:31.082 [DefaultDispatcher-worker-47] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:39:31.082 [DefaultDispatcher-worker-47] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:40:00.197 [DefaultDispatcher-worker-51] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:40:00.197 [DefaultDispatcher-worker-51] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:40:00.414 [DefaultDispatcher-worker-58] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:40:00.414 [DefaultDispatcher-worker-58] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:40:00.414 [DefaultDispatcher-worker-58] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:40:00.414 [DefaultDispatcher-worker-58] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:40:00.414 [DefaultDispatcher-worker-58] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:40:31.656 [DefaultDispatcher-worker-53] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:40:31.657 [DefaultDispatcher-worker-53] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:40:31.870 [DefaultDispatcher-worker-13] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:40:31.870 [DefaultDispatcher-worker-13] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:40:31.870 [DefaultDispatcher-worker-13] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:40:31.871 [DefaultDispatcher-worker-13] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:40:31.871 [DefaultDispatcher-worker-13] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:41:00.953 [DefaultDispatcher-worker-43] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:41:00.954 [DefaultDispatcher-worker-43] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:41:01.169 [DefaultDispatcher-worker-28] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:41:01.169 [DefaultDispatcher-worker-28] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:41:01.169 [DefaultDispatcher-worker-28] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:41:01.169 [DefaultDispatcher-worker-28] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:41:01.169 [DefaultDispatcher-worker-28] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:41:30.700 [DefaultDispatcher-worker-47] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:41:30.700 [DefaultDispatcher-worker-47] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:41:30.915 [DefaultDispatcher-worker-63] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:41:30.915 [DefaultDispatcher-worker-63] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:41:30.915 [DefaultDispatcher-worker-63] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:41:30.916 [DefaultDispatcher-worker-63] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:41:30.916 [DefaultDispatcher-worker-63] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:41:59.794 [DefaultDispatcher-worker-67] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:41:59.794 [DefaultDispatcher-worker-67] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:42:00.011 [DefaultDispatcher-worker-49] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:42:00.011 [DefaultDispatcher-worker-49] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:42:00.011 [DefaultDispatcher-worker-49] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:42:00.011 [DefaultDispatcher-worker-49] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:42:00.011 [DefaultDispatcher-worker-49] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:42:30.643 [DefaultDispatcher-worker-61] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:42:30.643 [DefaultDispatcher-worker-61] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:42:30.859 [DefaultDispatcher-worker-33] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:42:30.860 [DefaultDispatcher-worker-33] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:42:30.860 [DefaultDispatcher-worker-33] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:42:30.860 [DefaultDispatcher-worker-33] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:42:30.860 [DefaultDispatcher-worker-33] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:42:59.540 [DefaultDispatcher-worker-69] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:42:59.540 [DefaultDispatcher-worker-69] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:42:59.776 [DefaultDispatcher-worker-16] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:42:59.776 [DefaultDispatcher-worker-16] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:42:59.776 [DefaultDispatcher-worker-16] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:42:59.776 [DefaultDispatcher-worker-16] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:42:59.776 [DefaultDispatcher-worker-16] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:43:29.405 [DefaultDispatcher-worker-53] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:43:29.405 [DefaultDispatcher-worker-53] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:43:29.624 [DefaultDispatcher-worker-55] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:43:29.625 [DefaultDispatcher-worker-55] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:43:29.625 [DefaultDispatcher-worker-55] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:43:29.625 [DefaultDispatcher-worker-33] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:43:29.625 [DefaultDispatcher-worker-33] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:44:00.824 [DefaultDispatcher-worker-17] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:44:00.824 [DefaultDispatcher-worker-17] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:44:01.039 [DefaultDispatcher-worker-49] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:44:01.039 [DefaultDispatcher-worker-49] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:44:01.039 [DefaultDispatcher-worker-49] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:44:01.040 [DefaultDispatcher-worker-9] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:44:01.040 [DefaultDispatcher-worker-9] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:44:30.844 [DefaultDispatcher-worker-20] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:44:30.845 [DefaultDispatcher-worker-20] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:44:31.060 [DefaultDispatcher-worker-9] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend
+2026-02-05 12:44:31.060 [DefaultDispatcher-worker-9] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:44:31.060 [DefaultDispatcher-worker-9] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:44:31.061 [DefaultDispatcher-worker-9] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:44:31.061 [DefaultDispatcher-worker-9] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:45:00.681 [DefaultDispatcher-worker-49] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:45:00.682 [DefaultDispatcher-worker-49] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:45:00.899 [DefaultDispatcher-worker-30] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:45:00.899 [DefaultDispatcher-worker-30] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:45:00.899 [DefaultDispatcher-worker-30] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:45:00.899 [DefaultDispatcher-worker-16] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:45:00.899 [DefaultDispatcher-worker-16] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:45:30.952 [DefaultDispatcher-worker-63] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:45:30.953 [DefaultDispatcher-worker-63] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:45:31.172 [DefaultDispatcher-worker-63] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:45:31.172 [DefaultDispatcher-worker-63] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:45:31.172 [DefaultDispatcher-worker-63] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:45:31.172 [DefaultDispatcher-worker-63] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:45:31.172 [DefaultDispatcher-worker-63] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:46:00.768 [DefaultDispatcher-worker-30] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:46:00.768 [DefaultDispatcher-worker-30] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:46:00.984 [DefaultDispatcher-worker-4] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend
+2026-02-05 12:46:00.984 [DefaultDispatcher-worker-4] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:46:00.985 [DefaultDispatcher-worker-4] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:46:00.985 [DefaultDispatcher-worker-4] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:46:00.985 [DefaultDispatcher-worker-4] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:46:31.422 [DefaultDispatcher-worker-42] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:46:31.422 [DefaultDispatcher-worker-42] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:46:31.637 [DefaultDispatcher-worker-1] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend
+2026-02-05 12:46:31.638 [DefaultDispatcher-worker-1] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:46:31.638 [DefaultDispatcher-worker-1] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:46:31.638 [DefaultDispatcher-worker-32] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:46:31.638 [DefaultDispatcher-worker-32] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:47:00.796 [DefaultDispatcher-worker-11] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:47:00.796 [DefaultDispatcher-worker-11] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:47:01.011 [DefaultDispatcher-worker-8] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend
+2026-02-05 12:47:01.011 [DefaultDispatcher-worker-8] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:47:01.011 [DefaultDispatcher-worker-8] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:47:01.011 [DefaultDispatcher-worker-8] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:47:01.011 [DefaultDispatcher-worker-8] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:47:31.598 [DefaultDispatcher-worker-51] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:47:31.598 [DefaultDispatcher-worker-51] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:47:31.813 [DefaultDispatcher-worker-35] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:47:31.813 [DefaultDispatcher-worker-35] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:47:31.813 [DefaultDispatcher-worker-35] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:47:31.815 [DefaultDispatcher-worker-50] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:47:31.815 [DefaultDispatcher-worker-50] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:48:00.883 [DefaultDispatcher-worker-46] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:48:00.883 [DefaultDispatcher-worker-46] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:48:01.100 [DefaultDispatcher-worker-21] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:48:01.100 [DefaultDispatcher-worker-21] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:48:01.100 [DefaultDispatcher-worker-21] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:48:01.101 [DefaultDispatcher-worker-21] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:48:01.101 [DefaultDispatcher-worker-21] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:48:29.873 [DefaultDispatcher-worker-69] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:48:29.873 [DefaultDispatcher-worker-69] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:48:30.089 [DefaultDispatcher-worker-57] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:48:30.089 [DefaultDispatcher-worker-57] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:48:30.089 [DefaultDispatcher-worker-57] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:48:30.089 [DefaultDispatcher-worker-57] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:48:30.089 [DefaultDispatcher-worker-57] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:49:00.754 [DefaultDispatcher-worker-25] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:49:00.754 [DefaultDispatcher-worker-25] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:49:00.969 [DefaultDispatcher-worker-21] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:49:00.970 [DefaultDispatcher-worker-21] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:49:00.970 [DefaultDispatcher-worker-21] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:49:00.970 [DefaultDispatcher-worker-21] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:49:00.970 [DefaultDispatcher-worker-21] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:49:31.066 [DefaultDispatcher-worker-26] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:49:31.066 [DefaultDispatcher-worker-26] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:49:31.280 [DefaultDispatcher-worker-17] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:49:31.280 [DefaultDispatcher-worker-17] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:49:31.280 [DefaultDispatcher-worker-17] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:49:31.280 [DefaultDispatcher-worker-34] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:49:31.280 [DefaultDispatcher-worker-34] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:50:00.830 [DefaultDispatcher-worker-12] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:50:00.830 [DefaultDispatcher-worker-12] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:50:01.046 [DefaultDispatcher-worker-7] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend
+2026-02-05 12:50:01.046 [DefaultDispatcher-worker-7] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:50:01.046 [DefaultDispatcher-worker-7] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:50:01.046 [DefaultDispatcher-worker-7] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:50:01.046 [DefaultDispatcher-worker-7] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:50:30.747 [DefaultDispatcher-worker-3] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:50:30.747 [DefaultDispatcher-worker-3] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:50:30.964 [DefaultDispatcher-worker-65] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:50:30.964 [DefaultDispatcher-worker-65] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:50:30.964 [DefaultDispatcher-worker-65] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:50:30.964 [DefaultDispatcher-worker-43] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:50:30.964 [DefaultDispatcher-worker-43] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:51:00.878 [DefaultDispatcher-worker-36] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:51:00.878 [DefaultDispatcher-worker-36] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:51:01.095 [DefaultDispatcher-worker-2] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend
+2026-02-05 12:51:01.096 [DefaultDispatcher-worker-2] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:51:01.096 [DefaultDispatcher-worker-2] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:51:01.096 [DefaultDispatcher-worker-2] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:51:01.096 [DefaultDispatcher-worker-2] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:51:29.670 [DefaultDispatcher-worker-23] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:51:29.670 [DefaultDispatcher-worker-23] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:51:29.885 [DefaultDispatcher-worker-58] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:51:29.885 [DefaultDispatcher-worker-58] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:51:29.885 [DefaultDispatcher-worker-58] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:51:29.885 [DefaultDispatcher-worker-58] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:51:29.885 [DefaultDispatcher-worker-58] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:52:02.295 [DefaultDispatcher-worker-15] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:52:02.295 [DefaultDispatcher-worker-15] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:52:02.510 [DefaultDispatcher-worker-49] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:52:02.510 [DefaultDispatcher-worker-49] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:52:02.510 [DefaultDispatcher-worker-49] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:52:02.510 [DefaultDispatcher-worker-49] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:52:02.510 [DefaultDispatcher-worker-49] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:52:32.349 [DefaultDispatcher-worker-28] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:52:32.350 [DefaultDispatcher-worker-28] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:52:32.565 [DefaultDispatcher-worker-65] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:52:32.565 [DefaultDispatcher-worker-65] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:52:32.566 [DefaultDispatcher-worker-65] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:52:32.566 [DefaultDispatcher-worker-65] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:52:32.566 [DefaultDispatcher-worker-65] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:53:02.863 [DefaultDispatcher-worker-42] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:53:02.863 [DefaultDispatcher-worker-42] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:53:03.079 [DefaultDispatcher-worker-6] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend
+2026-02-05 12:53:03.079 [DefaultDispatcher-worker-6] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:53:03.079 [DefaultDispatcher-worker-6] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:53:03.079 [DefaultDispatcher-worker-6] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:53:03.080 [DefaultDispatcher-worker-6] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:53:32.238 [DefaultDispatcher-worker-14] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:53:32.238 [DefaultDispatcher-worker-14] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:53:32.457 [DefaultDispatcher-worker-49] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:53:32.457 [DefaultDispatcher-worker-49] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:53:32.457 [DefaultDispatcher-worker-49] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:53:32.457 [DefaultDispatcher-worker-49] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:53:32.457 [DefaultDispatcher-worker-49] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:54:02.313 [DefaultDispatcher-worker-40] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:54:02.313 [DefaultDispatcher-worker-40] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:54:02.535 [DefaultDispatcher-worker-41] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:54:02.535 [DefaultDispatcher-worker-41] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:54:02.535 [DefaultDispatcher-worker-41] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:54:02.535 [DefaultDispatcher-worker-41] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:54:02.535 [DefaultDispatcher-worker-41] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:54:34.498 [DefaultDispatcher-worker-40] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:54:34.498 [DefaultDispatcher-worker-40] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:54:34.714 [DefaultDispatcher-worker-60] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:54:34.715 [DefaultDispatcher-worker-60] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:54:34.715 [DefaultDispatcher-worker-60] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:54:34.715 [DefaultDispatcher-worker-60] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:54:34.715 [DefaultDispatcher-worker-60] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:55:01.991 [DefaultDispatcher-worker-56] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:55:01.991 [DefaultDispatcher-worker-56] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:55:02.205 [DefaultDispatcher-worker-56] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:55:02.205 [DefaultDispatcher-worker-56] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:55:02.205 [DefaultDispatcher-worker-56] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:55:02.206 [DefaultDispatcher-worker-58] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:55:02.206 [DefaultDispatcher-worker-58] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:55:32.254 [DefaultDispatcher-worker-37] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:55:32.255 [DefaultDispatcher-worker-37] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:55:32.470 [DefaultDispatcher-worker-63] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:55:32.470 [DefaultDispatcher-worker-63] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:55:32.470 [DefaultDispatcher-worker-63] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:55:32.470 [DefaultDispatcher-worker-63] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:55:32.470 [DefaultDispatcher-worker-63] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:56:02.064 [DefaultDispatcher-worker-9] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:56:02.065 [DefaultDispatcher-worker-9] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:56:02.282 [DefaultDispatcher-worker-66] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:56:02.283 [DefaultDispatcher-worker-66] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:56:02.283 [DefaultDispatcher-worker-66] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:56:02.283 [DefaultDispatcher-worker-66] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:56:02.283 [DefaultDispatcher-worker-66] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:56:32.887 [DefaultDispatcher-worker-39] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:56:32.887 [DefaultDispatcher-worker-39] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:56:33.101 [DefaultDispatcher-worker-17] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:56:33.101 [DefaultDispatcher-worker-17] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:56:33.101 [DefaultDispatcher-worker-17] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:56:33.101 [DefaultDispatcher-worker-17] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:56:33.101 [DefaultDispatcher-worker-17] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:57:02.536 [DefaultDispatcher-worker-44] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:57:02.536 [DefaultDispatcher-worker-44] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:57:02.756 [DefaultDispatcher-worker-49] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:57:02.756 [DefaultDispatcher-worker-49] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:57:02.756 [DefaultDispatcher-worker-49] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:57:02.757 [DefaultDispatcher-worker-18] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:57:02.758 [DefaultDispatcher-worker-18] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:57:32.648 [DefaultDispatcher-worker-12] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:57:32.648 [DefaultDispatcher-worker-12] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:57:32.863 [DefaultDispatcher-worker-44] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:57:32.863 [DefaultDispatcher-worker-44] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:57:32.864 [DefaultDispatcher-worker-44] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:57:32.864 [DefaultDispatcher-worker-44] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:57:32.864 [DefaultDispatcher-worker-44] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:58:02.369 [DefaultDispatcher-worker-32] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:58:02.369 [DefaultDispatcher-worker-32] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:58:02.584 [DefaultDispatcher-worker-32] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:58:02.585 [DefaultDispatcher-worker-32] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:58:02.585 [DefaultDispatcher-worker-32] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:58:02.585 [DefaultDispatcher-worker-32] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:58:02.585 [DefaultDispatcher-worker-32] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:58:32.226 [DefaultDispatcher-worker-43] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:58:32.226 [DefaultDispatcher-worker-43] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:58:32.442 [DefaultDispatcher-worker-49] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:58:32.443 [DefaultDispatcher-worker-49] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:58:32.443 [DefaultDispatcher-worker-49] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:58:32.443 [DefaultDispatcher-worker-49] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:58:32.443 [DefaultDispatcher-worker-49] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:59:02.606 [DefaultDispatcher-worker-24] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:59:02.606 [DefaultDispatcher-worker-24] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:59:02.821 [DefaultDispatcher-worker-21] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 12:59:02.821 [DefaultDispatcher-worker-21] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:59:02.821 [DefaultDispatcher-worker-21] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:59:02.821 [DefaultDispatcher-worker-21] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:59:02.821 [DefaultDispatcher-worker-21] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 12:59:31.569 [DefaultDispatcher-worker-14] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 12:59:31.569 [DefaultDispatcher-worker-14] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 12:59:31.787 [DefaultDispatcher-worker-1] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend
+2026-02-05 12:59:31.787 [DefaultDispatcher-worker-1] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 12:59:31.787 [DefaultDispatcher-worker-1] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 12:59:31.788 [DefaultDispatcher-worker-1] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 12:59:31.788 [DefaultDispatcher-worker-1] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:00:03.062 [DefaultDispatcher-worker-15] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:00:03.062 [DefaultDispatcher-worker-15] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:00:03.335 [DefaultDispatcher-worker-24] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:00:03.336 [DefaultDispatcher-worker-24] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:00:03.336 [DefaultDispatcher-worker-24] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:00:03.336 [DefaultDispatcher-worker-24] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:00:03.336 [DefaultDispatcher-worker-24] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:00:34.650 [DefaultDispatcher-worker-22] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:00:34.650 [DefaultDispatcher-worker-22] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:00:37.953 [DefaultDispatcher-worker-62] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:00:37.953 [DefaultDispatcher-worker-62] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:00:37.953 [DefaultDispatcher-worker-62] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:00:37.953 [DefaultDispatcher-worker-62] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:00:37.953 [DefaultDispatcher-worker-62] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:01:01.516 [DefaultDispatcher-worker-2] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:01:01.516 [DefaultDispatcher-worker-2] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:01:01.789 [DefaultDispatcher-worker-23] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:01:01.789 [DefaultDispatcher-worker-23] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:01:01.790 [DefaultDispatcher-worker-23] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:01:01.790 [DefaultDispatcher-worker-23] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:01:01.790 [DefaultDispatcher-worker-23] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:01:29.330 [DefaultDispatcher-worker-57] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:01:29.330 [DefaultDispatcher-worker-57] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:01:29.947 [DefaultDispatcher-worker-51] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:01:29.947 [DefaultDispatcher-worker-51] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:01:29.947 [DefaultDispatcher-worker-51] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:01:29.948 [DefaultDispatcher-worker-50] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:01:29.948 [DefaultDispatcher-worker-50] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:02:00.906 [DefaultDispatcher-worker-13] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:02:00.906 [DefaultDispatcher-worker-13] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:02:01.187 [DefaultDispatcher-worker-13] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:02:01.187 [DefaultDispatcher-worker-13] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:02:01.188 [DefaultDispatcher-worker-13] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:02:01.188 [DefaultDispatcher-worker-13] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:02:01.188 [DefaultDispatcher-worker-13] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:02:29.032 [DefaultDispatcher-worker-22] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:02:29.032 [DefaultDispatcher-worker-22] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:02:29.995 [DefaultDispatcher-worker-60] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:02:29.995 [DefaultDispatcher-worker-60] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:02:29.995 [DefaultDispatcher-worker-60] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:02:29.995 [DefaultDispatcher-worker-60] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:02:29.995 [DefaultDispatcher-worker-60] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:03:00.514 [DefaultDispatcher-worker-55] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:03:00.514 [DefaultDispatcher-worker-55] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:03:01.483 [DefaultDispatcher-worker-51] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:03:01.483 [DefaultDispatcher-worker-51] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:03:01.483 [DefaultDispatcher-worker-51] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:03:01.484 [DefaultDispatcher-worker-60] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:03:01.484 [DefaultDispatcher-worker-60] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:03:31.050 [DefaultDispatcher-worker-53] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:03:31.050 [DefaultDispatcher-worker-53] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:03:31.272 [DefaultDispatcher-worker-42] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:03:31.272 [DefaultDispatcher-worker-42] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:03:31.272 [DefaultDispatcher-worker-42] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:03:31.273 [DefaultDispatcher-worker-42] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:03:31.274 [DefaultDispatcher-worker-42] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:04:00.695 [DefaultDispatcher-worker-12] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:04:00.696 [DefaultDispatcher-worker-12] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:04:01.048 [DefaultDispatcher-worker-58] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:04:01.048 [DefaultDispatcher-worker-58] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:04:01.048 [DefaultDispatcher-worker-58] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:04:01.048 [DefaultDispatcher-worker-58] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:04:01.048 [DefaultDispatcher-worker-58] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:04:30.851 [DefaultDispatcher-worker-10] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:04:30.851 [DefaultDispatcher-worker-10] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:04:31.162 [DefaultDispatcher-worker-40] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:04:31.162 [DefaultDispatcher-worker-40] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:04:31.162 [DefaultDispatcher-worker-40] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:04:31.162 [DefaultDispatcher-worker-40] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:04:31.162 [DefaultDispatcher-worker-40] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:05:03.029 [DefaultDispatcher-worker-22] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:05:03.029 [DefaultDispatcher-worker-22] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:05:03.384 [DefaultDispatcher-worker-58] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:05:03.384 [DefaultDispatcher-worker-58] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:05:03.384 [DefaultDispatcher-worker-58] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:05:03.384 [DefaultDispatcher-worker-58] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:05:03.384 [DefaultDispatcher-worker-58] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:05:34.576 [DefaultDispatcher-worker-11] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:05:34.576 [DefaultDispatcher-worker-11] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:05:34.790 [DefaultDispatcher-worker-15] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:05:34.790 [DefaultDispatcher-worker-15] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:05:34.791 [DefaultDispatcher-worker-15] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:05:34.791 [DefaultDispatcher-worker-15] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:05:34.791 [DefaultDispatcher-worker-15] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:06:02.868 [DefaultDispatcher-worker-4] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:06:02.868 [DefaultDispatcher-worker-4] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:06:03.084 [DefaultDispatcher-worker-44] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:06:03.084 [DefaultDispatcher-worker-44] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:06:03.084 [DefaultDispatcher-worker-44] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:06:03.084 [DefaultDispatcher-worker-44] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:06:03.084 [DefaultDispatcher-worker-44] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:06:32.197 [DefaultDispatcher-worker-47] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:06:32.197 [DefaultDispatcher-worker-47] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:06:32.413 [DefaultDispatcher-worker-18] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:06:32.413 [DefaultDispatcher-worker-18] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:06:32.413 [DefaultDispatcher-worker-18] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:06:32.413 [DefaultDispatcher-worker-18] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:06:32.413 [DefaultDispatcher-worker-18] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:07:03.012 [DefaultDispatcher-worker-54] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:07:03.013 [DefaultDispatcher-worker-54] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:07:03.227 [DefaultDispatcher-worker-43] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:07:03.227 [DefaultDispatcher-worker-43] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:07:03.227 [DefaultDispatcher-worker-43] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:07:03.227 [DefaultDispatcher-worker-43] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:07:03.228 [DefaultDispatcher-worker-43] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:07:32.217 [DefaultDispatcher-worker-13] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:07:32.217 [DefaultDispatcher-worker-13] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:07:32.432 [DefaultDispatcher-worker-57] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:07:32.432 [DefaultDispatcher-worker-57] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:07:32.432 [DefaultDispatcher-worker-57] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:07:32.432 [DefaultDispatcher-worker-57] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:07:32.432 [DefaultDispatcher-worker-57] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:08:03.124 [DefaultDispatcher-worker-22] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:08:03.124 [DefaultDispatcher-worker-22] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:08:03.342 [DefaultDispatcher-worker-68] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:08:03.342 [DefaultDispatcher-worker-68] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:08:03.342 [DefaultDispatcher-worker-68] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:08:03.342 [DefaultDispatcher-worker-68] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:08:03.343 [DefaultDispatcher-worker-68] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:08:34.834 [DefaultDispatcher-worker-17] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:08:34.835 [DefaultDispatcher-worker-17] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:08:35.050 [DefaultDispatcher-worker-3] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend
+2026-02-05 13:08:35.051 [DefaultDispatcher-worker-3] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:08:35.051 [DefaultDispatcher-worker-3] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:08:35.051 [DefaultDispatcher-worker-33] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:08:35.051 [DefaultDispatcher-worker-33] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:09:03.257 [DefaultDispatcher-worker-66] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:09:03.257 [DefaultDispatcher-worker-66] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:09:03.474 [DefaultDispatcher-worker-17] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:09:03.474 [DefaultDispatcher-worker-17] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:09:03.474 [DefaultDispatcher-worker-17] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:09:03.474 [DefaultDispatcher-worker-17] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:09:03.474 [DefaultDispatcher-worker-17] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:09:34.951 [DefaultDispatcher-worker-7] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:09:34.951 [DefaultDispatcher-worker-7] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:09:35.167 [DefaultDispatcher-worker-23] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:09:35.167 [DefaultDispatcher-worker-23] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:09:35.167 [DefaultDispatcher-worker-23] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:09:35.167 [DefaultDispatcher-worker-23] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:09:35.167 [DefaultDispatcher-worker-23] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:10:02.220 [DefaultDispatcher-worker-18] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:10:02.220 [DefaultDispatcher-worker-18] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:10:02.437 [DefaultDispatcher-worker-52] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:10:02.437 [DefaultDispatcher-worker-52] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:10:02.437 [DefaultDispatcher-worker-52] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:10:02.437 [DefaultDispatcher-worker-52] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:10:02.437 [DefaultDispatcher-worker-52] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:10:33.121 [DefaultDispatcher-worker-2] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:10:33.121 [DefaultDispatcher-worker-2] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:10:33.336 [DefaultDispatcher-worker-65] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:10:33.337 [DefaultDispatcher-worker-65] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:10:33.337 [DefaultDispatcher-worker-65] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:10:33.337 [DefaultDispatcher-worker-65] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:10:33.337 [DefaultDispatcher-worker-65] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:11:02.206 [DefaultDispatcher-worker-39] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:11:02.206 [DefaultDispatcher-worker-39] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:11:02.420 [DefaultDispatcher-worker-40] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:11:02.420 [DefaultDispatcher-worker-40] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:11:02.420 [DefaultDispatcher-worker-40] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:11:02.421 [DefaultDispatcher-worker-48] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:11:02.421 [DefaultDispatcher-worker-48] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:11:33.242 [DefaultDispatcher-worker-51] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:11:33.242 [DefaultDispatcher-worker-51] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:11:33.456 [DefaultDispatcher-worker-59] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:11:33.456 [DefaultDispatcher-worker-59] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:11:33.457 [DefaultDispatcher-worker-59] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:11:33.457 [DefaultDispatcher-worker-59] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:11:33.457 [DefaultDispatcher-worker-59] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:12:02.341 [DefaultDispatcher-worker-19] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:12:02.341 [DefaultDispatcher-worker-19] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:12:02.693 [DefaultDispatcher-worker-39] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:12:02.693 [DefaultDispatcher-worker-39] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:12:02.693 [DefaultDispatcher-worker-39] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:12:02.694 [DefaultDispatcher-worker-39] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:12:02.694 [DefaultDispatcher-worker-39] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:12:32.950 [DefaultDispatcher-worker-62] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:12:32.950 [DefaultDispatcher-worker-62] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:12:33.166 [DefaultDispatcher-worker-14] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:12:33.166 [DefaultDispatcher-worker-14] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:12:33.166 [DefaultDispatcher-worker-14] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:12:33.167 [DefaultDispatcher-worker-14] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:12:33.167 [DefaultDispatcher-worker-14] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:13:02.126 [DefaultDispatcher-worker-24] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:13:02.127 [DefaultDispatcher-worker-24] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:13:02.478 [DefaultDispatcher-worker-34] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:13:02.478 [DefaultDispatcher-worker-34] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:13:02.478 [DefaultDispatcher-worker-34] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:13:02.478 [DefaultDispatcher-worker-34] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:13:02.478 [DefaultDispatcher-worker-34] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:13:32.484 [DefaultDispatcher-worker-21] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:13:32.484 [DefaultDispatcher-worker-21] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:13:32.699 [DefaultDispatcher-worker-18] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:13:32.699 [DefaultDispatcher-worker-18] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:13:32.699 [DefaultDispatcher-worker-18] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:13:32.699 [DefaultDispatcher-worker-18] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:13:32.699 [DefaultDispatcher-worker-18] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:14:01.984 [DefaultDispatcher-worker-20] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:14:01.984 [DefaultDispatcher-worker-20] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:14:02.199 [DefaultDispatcher-worker-62] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:14:02.200 [DefaultDispatcher-worker-62] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:14:02.200 [DefaultDispatcher-worker-62] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:14:02.200 [DefaultDispatcher-worker-61] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:14:02.200 [DefaultDispatcher-worker-61] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:14:34.904 [DefaultDispatcher-worker-50] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:14:34.904 [DefaultDispatcher-worker-50] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:14:35.119 [DefaultDispatcher-worker-59] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:14:35.120 [DefaultDispatcher-worker-59] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:14:35.120 [DefaultDispatcher-worker-59] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:14:35.120 [DefaultDispatcher-worker-59] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:14:35.120 [DefaultDispatcher-worker-59] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:15:03.493 [DefaultDispatcher-worker-38] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:15:03.493 [DefaultDispatcher-worker-38] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:15:03.707 [DefaultDispatcher-worker-52] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:15:03.707 [DefaultDispatcher-worker-52] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:15:03.707 [DefaultDispatcher-worker-52] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:15:03.708 [DefaultDispatcher-worker-52] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:15:03.708 [DefaultDispatcher-worker-52] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:15:33.349 [DefaultDispatcher-worker-59] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:15:33.349 [DefaultDispatcher-worker-59] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:15:33.563 [DefaultDispatcher-worker-60] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:15:33.563 [DefaultDispatcher-worker-60] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:15:33.564 [DefaultDispatcher-worker-60] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:15:33.564 [DefaultDispatcher-worker-31] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:15:33.564 [DefaultDispatcher-worker-31] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:16:02.466 [DefaultDispatcher-worker-49] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:16:02.466 [DefaultDispatcher-worker-49] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:16:02.681 [DefaultDispatcher-worker-9] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend
+2026-02-05 13:16:02.681 [DefaultDispatcher-worker-9] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:16:02.681 [DefaultDispatcher-worker-9] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:16:02.681 [DefaultDispatcher-worker-9] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:16:02.681 [DefaultDispatcher-worker-9] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:16:33.333 [DefaultDispatcher-worker-59] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:16:33.333 [DefaultDispatcher-worker-59] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:16:33.548 [DefaultDispatcher-worker-59] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:16:33.548 [DefaultDispatcher-worker-59] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:16:33.548 [DefaultDispatcher-worker-59] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:16:33.548 [DefaultDispatcher-worker-59] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:16:33.548 [DefaultDispatcher-worker-59] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:17:02.166 [DefaultDispatcher-worker-56] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:17:02.166 [DefaultDispatcher-worker-56] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:17:02.382 [DefaultDispatcher-worker-6] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend
+2026-02-05 13:17:02.382 [DefaultDispatcher-worker-6] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:17:02.382 [DefaultDispatcher-worker-6] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:17:02.382 [DefaultDispatcher-worker-6] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:17:02.382 [DefaultDispatcher-worker-6] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:17:33.425 [DefaultDispatcher-worker-44] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:17:33.425 [DefaultDispatcher-worker-44] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:17:33.641 [DefaultDispatcher-worker-13] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:17:33.641 [DefaultDispatcher-worker-13] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:17:33.641 [DefaultDispatcher-worker-13] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:17:33.642 [DefaultDispatcher-worker-13] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:17:33.642 [DefaultDispatcher-worker-13] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:18:02.202 [DefaultDispatcher-worker-55] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:18:02.202 [DefaultDispatcher-worker-55] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:18:02.417 [DefaultDispatcher-worker-14] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:18:02.417 [DefaultDispatcher-worker-14] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:18:02.417 [DefaultDispatcher-worker-14] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:18:02.418 [DefaultDispatcher-worker-14] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:18:02.418 [DefaultDispatcher-worker-14] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:18:33.351 [DefaultDispatcher-worker-59] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:18:33.351 [DefaultDispatcher-worker-59] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:18:33.568 [DefaultDispatcher-worker-50] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:18:33.568 [DefaultDispatcher-worker-50] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:18:33.568 [DefaultDispatcher-worker-50] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:18:33.569 [DefaultDispatcher-worker-50] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:18:33.569 [DefaultDispatcher-worker-50] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:19:03.302 [DefaultDispatcher-worker-36] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:19:03.303 [DefaultDispatcher-worker-36] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:19:03.521 [DefaultDispatcher-worker-59] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:19:03.521 [DefaultDispatcher-worker-59] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:19:03.521 [DefaultDispatcher-worker-59] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:19:03.522 [DefaultDispatcher-worker-59] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:19:03.522 [DefaultDispatcher-worker-59] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:19:33.337 [DefaultDispatcher-worker-61] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:19:33.338 [DefaultDispatcher-worker-61] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:19:33.552 [DefaultDispatcher-worker-44] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:19:33.552 [DefaultDispatcher-worker-44] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:19:33.553 [DefaultDispatcher-worker-44] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:19:33.553 [DefaultDispatcher-worker-44] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:19:33.553 [DefaultDispatcher-worker-44] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:20:02.412 [DefaultDispatcher-worker-46] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:20:02.412 [DefaultDispatcher-worker-46] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:20:02.764 [DefaultDispatcher-worker-51] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:20:02.765 [DefaultDispatcher-worker-51] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:20:02.765 [DefaultDispatcher-worker-51] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:20:02.765 [DefaultDispatcher-worker-51] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:20:02.765 [DefaultDispatcher-worker-51] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:20:32.812 [DefaultDispatcher-worker-48] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:20:32.812 [DefaultDispatcher-worker-48] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:20:33.028 [DefaultDispatcher-worker-51] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:20:33.028 [DefaultDispatcher-worker-51] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:20:33.028 [DefaultDispatcher-worker-51] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:20:33.028 [DefaultDispatcher-worker-51] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:20:33.028 [DefaultDispatcher-worker-51] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:21:02.379 [DefaultDispatcher-worker-68] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:21:02.379 [DefaultDispatcher-worker-68] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:21:02.733 [DefaultDispatcher-worker-37] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:21:02.733 [DefaultDispatcher-worker-37] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:21:02.733 [DefaultDispatcher-worker-37] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:21:02.733 [DefaultDispatcher-worker-37] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:21:02.733 [DefaultDispatcher-worker-37] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:21:33.075 [DefaultDispatcher-worker-1] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:21:33.076 [DefaultDispatcher-worker-1] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:21:33.292 [DefaultDispatcher-worker-53] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:21:33.292 [DefaultDispatcher-worker-53] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:21:33.292 [DefaultDispatcher-worker-53] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:21:33.292 [DefaultDispatcher-worker-53] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:21:33.292 [DefaultDispatcher-worker-53] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:22:02.698 [DefaultDispatcher-worker-9] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:22:02.698 [DefaultDispatcher-worker-9] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:22:02.918 [DefaultDispatcher-worker-58] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:22:02.918 [DefaultDispatcher-worker-58] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:22:02.918 [DefaultDispatcher-worker-58] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:22:02.918 [DefaultDispatcher-worker-58] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:22:02.918 [DefaultDispatcher-worker-58] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:22:33.676 [DefaultDispatcher-worker-50] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:22:33.676 [DefaultDispatcher-worker-50] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:22:33.891 [DefaultDispatcher-worker-11] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:22:33.891 [DefaultDispatcher-worker-11] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:22:33.891 [DefaultDispatcher-worker-11] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:22:33.892 [DefaultDispatcher-worker-11] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:22:33.892 [DefaultDispatcher-worker-11] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:23:02.413 [DefaultDispatcher-worker-34] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:23:02.413 [DefaultDispatcher-worker-34] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:23:02.630 [DefaultDispatcher-worker-66] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:23:02.630 [DefaultDispatcher-worker-66] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:23:02.630 [DefaultDispatcher-worker-66] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:23:02.630 [DefaultDispatcher-worker-66] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:23:02.630 [DefaultDispatcher-worker-66] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:23:33.618 [DefaultDispatcher-worker-61] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:23:33.618 [DefaultDispatcher-worker-61] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:23:33.840 [DefaultDispatcher-worker-10] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:23:33.840 [DefaultDispatcher-worker-10] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:23:33.841 [DefaultDispatcher-worker-10] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:23:33.841 [DefaultDispatcher-worker-10] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:23:33.841 [DefaultDispatcher-worker-10] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:24:02.444 [DefaultDispatcher-worker-6] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:24:02.444 [DefaultDispatcher-worker-6] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:24:02.662 [DefaultDispatcher-worker-12] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:24:02.662 [DefaultDispatcher-worker-12] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:24:02.662 [DefaultDispatcher-worker-64] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:24:02.662 [DefaultDispatcher-worker-64] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:24:02.662 [DefaultDispatcher-worker-64] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:24:33.722 [DefaultDispatcher-worker-2] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:24:33.722 [DefaultDispatcher-worker-2] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:24:33.940 [DefaultDispatcher-worker-70] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:24:33.940 [DefaultDispatcher-worker-70] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:24:33.940 [DefaultDispatcher-worker-70] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:24:33.940 [DefaultDispatcher-worker-61] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:24:33.940 [DefaultDispatcher-worker-61] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:25:02.602 [DefaultDispatcher-worker-14] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:25:02.602 [DefaultDispatcher-worker-14] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:25:02.817 [DefaultDispatcher-worker-12] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:25:02.817 [DefaultDispatcher-worker-12] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:25:02.817 [DefaultDispatcher-worker-12] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:25:02.817 [DefaultDispatcher-worker-12] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:25:02.817 [DefaultDispatcher-worker-12] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:25:33.571 [DefaultDispatcher-worker-45] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:25:33.572 [DefaultDispatcher-worker-45] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:25:33.790 [DefaultDispatcher-worker-12] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:25:33.790 [DefaultDispatcher-worker-12] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:25:33.791 [DefaultDispatcher-worker-12] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:25:33.791 [DefaultDispatcher-worker-12] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:25:33.791 [DefaultDispatcher-worker-12] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:26:02.680 [DefaultDispatcher-worker-31] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:26:02.680 [DefaultDispatcher-worker-31] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:26:02.896 [DefaultDispatcher-worker-38] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:26:02.897 [DefaultDispatcher-worker-38] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:26:02.897 [DefaultDispatcher-worker-38] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:26:02.897 [DefaultDispatcher-worker-38] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:26:02.897 [DefaultDispatcher-worker-38] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:26:33.883 [DefaultDispatcher-worker-28] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:26:33.883 [DefaultDispatcher-worker-28] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:26:34.098 [DefaultDispatcher-worker-69] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:26:34.098 [DefaultDispatcher-worker-69] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:26:34.098 [DefaultDispatcher-worker-69] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:26:34.099 [DefaultDispatcher-worker-69] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:26:34.099 [DefaultDispatcher-worker-69] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:27:03.950 [DefaultDispatcher-worker-20] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:27:03.950 [DefaultDispatcher-worker-20] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:27:04.164 [DefaultDispatcher-worker-21] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:27:04.164 [DefaultDispatcher-worker-21] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:27:04.164 [DefaultDispatcher-worker-21] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:27:04.165 [DefaultDispatcher-worker-21] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:27:04.165 [DefaultDispatcher-worker-21] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:27:33.251 [DefaultDispatcher-worker-43] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:27:33.251 [DefaultDispatcher-worker-43] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:27:33.469 [DefaultDispatcher-worker-23] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:27:33.469 [DefaultDispatcher-worker-23] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:27:33.469 [DefaultDispatcher-worker-23] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:27:33.469 [DefaultDispatcher-worker-23] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:27:33.469 [DefaultDispatcher-worker-23] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:28:05.165 [DefaultDispatcher-worker-70] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:28:05.166 [DefaultDispatcher-worker-70] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:28:05.388 [DefaultDispatcher-worker-67] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:28:05.388 [DefaultDispatcher-worker-67] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:28:05.388 [DefaultDispatcher-worker-67] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:28:05.389 [DefaultDispatcher-worker-67] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:28:05.389 [DefaultDispatcher-worker-67] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:28:32.541 [DefaultDispatcher-worker-29] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:28:32.541 [DefaultDispatcher-worker-29] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:28:32.763 [DefaultDispatcher-worker-21] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:28:32.763 [DefaultDispatcher-worker-21] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:28:32.763 [DefaultDispatcher-worker-21] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:28:32.763 [DefaultDispatcher-worker-21] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:28:32.763 [DefaultDispatcher-worker-21] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:29:02.684 [DefaultDispatcher-worker-55] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:29:02.684 [DefaultDispatcher-worker-55] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:29:02.898 [DefaultDispatcher-worker-8] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend
+2026-02-05 13:29:02.898 [DefaultDispatcher-worker-8] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:29:02.898 [DefaultDispatcher-worker-8] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:29:02.898 [DefaultDispatcher-worker-8] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:29:02.898 [DefaultDispatcher-worker-8] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:29:30.200 [DefaultDispatcher-worker-34] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:29:30.200 [DefaultDispatcher-worker-34] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:29:30.417 [DefaultDispatcher-worker-24] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:29:30.417 [DefaultDispatcher-worker-24] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:29:30.417 [DefaultDispatcher-worker-24] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:29:30.417 [DefaultDispatcher-worker-17] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:29:30.417 [DefaultDispatcher-worker-17] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:30:00.779 [DefaultDispatcher-worker-37] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:30:00.779 [DefaultDispatcher-worker-37] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:30:00.997 [DefaultDispatcher-worker-15] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:30:00.997 [DefaultDispatcher-worker-15] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:30:00.997 [DefaultDispatcher-worker-15] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:30:00.997 [DefaultDispatcher-worker-15] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:30:00.997 [DefaultDispatcher-worker-15] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:30:31.252 [DefaultDispatcher-worker-21] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:30:31.252 [DefaultDispatcher-worker-21] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:30:31.469 [DefaultDispatcher-worker-21] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend
+2026-02-05 13:30:31.469 [DefaultDispatcher-worker-21] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:30:31.475 [DefaultDispatcher-worker-21] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:30:31.475 [DefaultDispatcher-worker-21] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:30:31.475 [DefaultDispatcher-worker-21] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:31:01.767 [DefaultDispatcher-worker-44] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:31:01.768 [DefaultDispatcher-worker-44] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:31:01.983 [DefaultDispatcher-worker-43] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:31:01.983 [DefaultDispatcher-worker-43] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:31:01.983 [DefaultDispatcher-worker-43] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:31:01.983 [DefaultDispatcher-worker-43] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:31:01.983 [DefaultDispatcher-worker-43] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:31:31.219 [DefaultDispatcher-worker-70] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:31:31.220 [DefaultDispatcher-worker-70] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:31:31.438 [DefaultDispatcher-worker-14] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:31:31.438 [DefaultDispatcher-worker-14] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:31:31.439 [DefaultDispatcher-worker-14] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:31:31.439 [DefaultDispatcher-worker-14] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:31:31.439 [DefaultDispatcher-worker-14] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:32:01.337 [DefaultDispatcher-worker-62] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:32:01.337 [DefaultDispatcher-worker-62] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:32:01.553 [DefaultDispatcher-worker-35] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:32:01.553 [DefaultDispatcher-worker-35] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:32:01.553 [DefaultDispatcher-worker-35] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:32:01.553 [DefaultDispatcher-worker-35] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:32:01.553 [DefaultDispatcher-worker-35] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:32:31.937 [DefaultDispatcher-worker-4] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:32:31.937 [DefaultDispatcher-worker-4] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:32:32.290 [DefaultDispatcher-worker-17] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:32:32.291 [DefaultDispatcher-worker-17] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:32:32.291 [DefaultDispatcher-worker-17] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:32:32.291 [DefaultDispatcher-worker-17] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:32:32.291 [DefaultDispatcher-worker-17] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:33:01.270 [DefaultDispatcher-worker-49] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:33:01.270 [DefaultDispatcher-worker-49] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:33:01.579 [DefaultDispatcher-worker-25] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:33:01.580 [DefaultDispatcher-worker-25] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:33:01.580 [DefaultDispatcher-worker-25] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:33:01.580 [DefaultDispatcher-worker-23] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:33:01.580 [DefaultDispatcher-worker-23] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:33:31.847 [DefaultDispatcher-worker-52] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:33:31.847 [DefaultDispatcher-worker-52] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:33:32.201 [DefaultDispatcher-worker-48] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:33:32.201 [DefaultDispatcher-worker-48] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:33:32.201 [DefaultDispatcher-worker-48] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:33:32.201 [DefaultDispatcher-worker-48] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:33:32.201 [DefaultDispatcher-worker-48] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:34:01.194 [DefaultDispatcher-worker-41] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:34:01.195 [DefaultDispatcher-worker-41] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:34:01.412 [DefaultDispatcher-worker-39] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:34:01.413 [DefaultDispatcher-worker-39] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:34:01.413 [DefaultDispatcher-worker-27] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:34:01.413 [DefaultDispatcher-worker-27] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:34:01.413 [DefaultDispatcher-worker-27] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:34:31.143 [DefaultDispatcher-worker-26] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:34:31.143 [DefaultDispatcher-worker-26] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:34:31.495 [DefaultDispatcher-worker-42] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:34:31.495 [DefaultDispatcher-worker-42] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:34:31.495 [DefaultDispatcher-worker-42] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:34:31.495 [DefaultDispatcher-worker-62] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:34:31.495 [DefaultDispatcher-worker-62] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:35:03.847 [DefaultDispatcher-worker-70] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:35:03.847 [DefaultDispatcher-worker-70] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:35:04.061 [DefaultDispatcher-worker-40] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:35:04.061 [DefaultDispatcher-worker-40] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:35:04.062 [DefaultDispatcher-worker-40] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:35:04.062 [DefaultDispatcher-worker-40] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:35:04.062 [DefaultDispatcher-worker-40] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:35:34.527 [DefaultDispatcher-worker-22] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:35:34.528 [DefaultDispatcher-worker-22] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:35:34.745 [DefaultDispatcher-worker-65] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:35:34.745 [DefaultDispatcher-worker-65] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:35:34.745 [DefaultDispatcher-worker-65] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:35:34.745 [DefaultDispatcher-worker-65] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:35:34.745 [DefaultDispatcher-worker-65] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:36:01.317 [DefaultDispatcher-worker-52] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:36:01.317 [DefaultDispatcher-worker-52] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:36:01.534 [DefaultDispatcher-worker-42] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:36:01.534 [DefaultDispatcher-worker-42] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:36:01.534 [DefaultDispatcher-worker-42] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:36:01.534 [DefaultDispatcher-worker-42] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:36:01.534 [DefaultDispatcher-worker-42] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:36:31.351 [DefaultDispatcher-worker-24] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:36:31.351 [DefaultDispatcher-worker-24] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:36:31.564 [DefaultDispatcher-worker-27] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:36:31.564 [DefaultDispatcher-worker-27] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:36:31.564 [DefaultDispatcher-worker-27] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:36:31.564 [DefaultDispatcher-worker-29] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:36:31.564 [DefaultDispatcher-worker-29] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:37:01.544 [DefaultDispatcher-worker-4] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:37:01.544 [DefaultDispatcher-worker-4] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:37:01.759 [DefaultDispatcher-worker-11] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:37:01.759 [DefaultDispatcher-worker-11] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:37:01.759 [DefaultDispatcher-worker-11] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:37:01.759 [DefaultDispatcher-worker-11] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:37:01.759 [DefaultDispatcher-worker-11] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:37:33.764 [DefaultDispatcher-worker-45] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:37:33.764 [DefaultDispatcher-worker-45] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:37:34.115 [DefaultDispatcher-worker-46] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:37:34.115 [DefaultDispatcher-worker-46] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:37:34.115 [DefaultDispatcher-worker-46] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:37:34.116 [DefaultDispatcher-worker-46] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:37:34.116 [DefaultDispatcher-worker-46] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:38:01.325 [DefaultDispatcher-worker-16] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:38:01.325 [DefaultDispatcher-worker-16] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:38:01.540 [DefaultDispatcher-worker-23] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:38:01.540 [DefaultDispatcher-worker-23] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:38:01.540 [DefaultDispatcher-worker-23] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:38:01.540 [DefaultDispatcher-worker-23] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:38:01.540 [DefaultDispatcher-worker-23] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:38:31.557 [DefaultDispatcher-worker-20] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:38:31.557 [DefaultDispatcher-worker-20] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:38:31.771 [DefaultDispatcher-worker-42] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:38:31.771 [DefaultDispatcher-worker-42] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:38:31.771 [DefaultDispatcher-worker-42] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:38:31.771 [DefaultDispatcher-worker-42] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:38:31.771 [DefaultDispatcher-worker-42] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:38:59.918 [DefaultDispatcher-worker-68] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:38:59.918 [DefaultDispatcher-worker-68] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:39:00.134 [DefaultDispatcher-worker-31] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:39:00.134 [DefaultDispatcher-worker-31] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:39:00.134 [DefaultDispatcher-worker-31] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:39:00.134 [DefaultDispatcher-worker-31] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:39:00.134 [DefaultDispatcher-worker-31] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:39:31.347 [DefaultDispatcher-worker-59] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:39:31.347 [DefaultDispatcher-worker-59] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:39:31.563 [DefaultDispatcher-worker-25] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:39:31.563 [DefaultDispatcher-worker-25] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:39:31.563 [DefaultDispatcher-worker-25] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:39:31.563 [DefaultDispatcher-worker-25] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:39:31.563 [DefaultDispatcher-worker-25] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:40:01.897 [DefaultDispatcher-worker-47] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:40:01.897 [DefaultDispatcher-worker-47] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:40:02.113 [DefaultDispatcher-worker-45] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:40:02.113 [DefaultDispatcher-worker-45] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:40:02.113 [DefaultDispatcher-worker-45] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:40:02.113 [DefaultDispatcher-worker-33] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:40:02.113 [DefaultDispatcher-worker-33] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:40:31.427 [DefaultDispatcher-worker-50] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:40:31.427 [DefaultDispatcher-worker-50] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:40:31.642 [DefaultDispatcher-worker-30] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:40:31.642 [DefaultDispatcher-worker-30] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:40:31.642 [DefaultDispatcher-worker-30] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:40:31.642 [DefaultDispatcher-worker-30] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:40:31.642 [DefaultDispatcher-worker-30] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:41:01.381 [DefaultDispatcher-worker-59] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:41:01.381 [DefaultDispatcher-worker-59] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:41:01.596 [DefaultDispatcher-worker-50] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:41:01.597 [DefaultDispatcher-worker-50] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:41:01.597 [DefaultDispatcher-worker-50] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:41:01.597 [DefaultDispatcher-worker-50] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:41:01.597 [DefaultDispatcher-worker-50] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:41:31.406 [DefaultDispatcher-worker-22] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:41:31.406 [DefaultDispatcher-worker-22] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:41:31.620 [DefaultDispatcher-worker-47] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:41:31.620 [DefaultDispatcher-worker-47] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:41:31.620 [DefaultDispatcher-worker-47] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:41:31.620 [DefaultDispatcher-worker-47] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:41:31.620 [DefaultDispatcher-worker-47] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:42:01.525 [DefaultDispatcher-worker-21] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:42:01.525 [DefaultDispatcher-worker-21] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:42:01.740 [DefaultDispatcher-worker-28] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:42:01.740 [DefaultDispatcher-worker-28] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:42:01.740 [DefaultDispatcher-worker-28] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:42:01.740 [DefaultDispatcher-worker-28] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:42:01.740 [DefaultDispatcher-worker-28] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:42:22.434 [DefaultDispatcher-worker-41] INFO  github.rikacelery.v2.Scheduler - activate yangyang-777 ::active
+2026-02-05 13:42:31.716 [DefaultDispatcher-worker-9] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:42:31.716 [DefaultDispatcher-worker-9] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:42:31.932 [DefaultDispatcher-worker-52] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:42:31.932 [DefaultDispatcher-worker-52] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:42:31.932 [DefaultDispatcher-worker-52] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:42:31.932 [DefaultDispatcher-worker-59] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:42:31.932 [DefaultDispatcher-worker-59] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:43:01.613 [DefaultDispatcher-worker-48] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:43:01.613 [DefaultDispatcher-worker-48] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:43:01.834 [DefaultDispatcher-worker-65] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:43:01.834 [DefaultDispatcher-worker-65] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:43:01.834 [DefaultDispatcher-worker-65] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:43:01.835 [DefaultDispatcher-worker-35] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:43:01.835 [DefaultDispatcher-worker-35] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:43:31.449 [DefaultDispatcher-worker-26] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:43:31.449 [DefaultDispatcher-worker-26] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:43:31.665 [DefaultDispatcher-worker-60] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:43:31.665 [DefaultDispatcher-worker-60] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:43:31.666 [DefaultDispatcher-worker-60] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:43:31.666 [DefaultDispatcher-worker-60] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:43:31.666 [DefaultDispatcher-worker-60] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:44:02.355 [DefaultDispatcher-worker-9] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:44:02.355 [DefaultDispatcher-worker-9] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:44:02.571 [DefaultDispatcher-worker-34] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:44:02.571 [DefaultDispatcher-worker-34] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:44:02.571 [DefaultDispatcher-worker-34] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:44:02.571 [DefaultDispatcher-worker-34] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:44:02.571 [DefaultDispatcher-worker-34] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:44:31.650 [DefaultDispatcher-worker-33] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:44:31.650 [DefaultDispatcher-worker-33] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:44:31.867 [DefaultDispatcher-worker-10] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:44:31.867 [DefaultDispatcher-worker-10] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:44:31.867 [DefaultDispatcher-worker-10] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:44:31.867 [DefaultDispatcher-worker-10] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:44:31.867 [DefaultDispatcher-worker-10] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:45:01.386 [DefaultDispatcher-worker-60] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:45:01.387 [DefaultDispatcher-worker-60] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:45:01.601 [DefaultDispatcher-worker-36] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend        
+2026-02-05 13:45:01.601 [DefaultDispatcher-worker-36] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:45:01.601 [DefaultDispatcher-worker-36] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:45:01.602 [DefaultDispatcher-worker-36] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:45:01.602 [DefaultDispatcher-worker-36] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend
+2026-02-05 13:45:31.694 [DefaultDispatcher-worker-17] DEBUG github.rikacelery.v2.Scheduler - start yangyang-777 ::invokeSuspend
+2026-02-05 13:45:31.694 [DefaultDispatcher-worker-17] INFO  github.rikacelery.v2.Session - [+] start recording yangyang-777(185693539) q:1080p60(want 2560p60) open:true ::start
+2026-02-05 13:45:31.909 [DefaultDispatcher-worker-1] INFO  github.rikacelery.v2.Session - [STOP] [yangyang-777] Stream url returns 404, this is caused by model's network connection issue ::invokeSuspend
+2026-02-05 13:45:31.909 [DefaultDispatcher-worker-1] INFO  github.rikacelery.v2.Session - [yangyang-777] Segment generator exited. ::invokeSuspend
+2026-02-05 13:45:31.909 [DefaultDispatcher-worker-1] INFO  github.rikacelery.v2.Session - [yangyang-777}] No valid segments downloaded(0/0) since start. clean empty file ::invokeSuspend
+2026-02-05 13:45:31.909 [DefaultDispatcher-worker-1] INFO  github.rikacelery.v2.Session - [-] stop recording yangyang-777(185693539) q:1080p60(want 2560p60) ::start
+2026-02-05 13:45:31.909 [DefaultDispatcher-worker-1] DEBUG github.rikacelery.v2.Scheduler - stop yangyang-777 ::invokeSuspend

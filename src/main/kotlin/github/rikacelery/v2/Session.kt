@@ -78,6 +78,9 @@ class Session(
     val isOpen: Boolean get() = _isOpen.get()
     var currentQuality = room.quality
 
+    // 当清晰度对应的流返回 404 时,回退到 source (无后缀 URL)
+    private var useSourceFallback = false
+
     private val writerReference = AtomicReference<Writer?>(null)
     private var generatorJob: Job? = null
 
@@ -502,13 +505,15 @@ class Session(
 
     private val streamUrl: String
         get() {
-            return if (currentQuality != "raw" && currentQuality.isNotBlank()) "https://media-hls.doppiocdn.org/b-hls-%d/%d/%d_%s.m3u8".format(
+            // 如果已回退到 source,或者用户选择 raw,使用无后缀 URL
+            if (useSourceFallback || currentQuality == "raw" || currentQuality.isBlank()) {
+                return "https://media-hls.doppiocdn.org/b-hls-%d/%d/%d.m3u8".format(
+                    Random().nextInt(12, 13), room.id, room.id
+                )
+            }
+            // 否则使用带清晰度后缀的 URL
+            return "https://media-hls.doppiocdn.org/b-hls-%d/%d/%d_%s.m3u8".format(
                 Random().nextInt(12, 13), room.id, room.id, currentQuality
-            )
-            else "https://media-hls.doppiocdn.org/b-hls-%d/%d/%d.m3u8".format(
-                Random().nextInt(
-                    12, 13
-                ), room.id, room.id
             )
         }
 
@@ -635,8 +640,19 @@ class Session(
                 continue
             } catch (e: ClientRequestException) {
                 if (e.response.status.value == 404) {
+                    // 如果还没尝试过 source,先回退到 source 再试
+                    if (!useSourceFallback && currentQuality != "raw") {
+                        logger.info(
+                            "[{}] Stream url {} returns 404, trying fallback to source",
+                            room.name,
+                            streamUrl
+                        )
+                        useSourceFallback = true
+                        continue
+                    }
+                    // 已经是 source 了还是 404,说明真的没有流
                     logger.info(
-                        "[STOP] [{}] Stream url returns 404, this is caused by model's network connection issue",
+                        "[STOP] [{}] Stream url returns 404 (already using source), this is caused by model's network connection issue",
                         room.name
                     )
                     break
