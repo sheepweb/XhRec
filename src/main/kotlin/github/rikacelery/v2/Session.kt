@@ -562,7 +562,9 @@ class Session(
                 // 解析 #EXT-X-STREAM-INF 获取可用画质
                 val qualities = lines.mapIndexedNotNull { i, line ->
                     if (line.startsWith("#EXT-X-STREAM-INF:") && i + 1 < lines.size) {
-                        val name = """NAME=\"([^\"]+)\""".toRegex().find(line)?.groupValues?.get(1)
+                        val name = line.substringAfter("NAME=\"", "")
+                            .substringBefore("\"", "")
+                            .takeIf { it.isNotEmpty() }
                         val url = lines[i + 1].trim()
                         if (name != null && url.startsWith("https://")) name to url else null
                     } else null
