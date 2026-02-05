@@ -771,7 +771,12 @@ class Session(
                         break
                     }
                 }
-                logger.error("[{}] Refresh list error status={}, url={}", room.name, status, e.request.url)
+                logger.error(
+                    "[{}] Refresh list error status={}, url={}",
+                    room.name,
+                    status,
+                    e.response.request.url
+                )
             } catch (e: CombinedException) {
                 val shouldStop = e.exceptions.any(shouldStop())
                 if (shouldStop) {
