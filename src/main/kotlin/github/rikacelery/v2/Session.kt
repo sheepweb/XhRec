@@ -22,7 +22,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.*
 import okhttp3.internal.toLongOrDefault
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -119,6 +119,71 @@ class Session(
             })
         }
     }
+
+    private data class CleanupThresholds(
+        val minDurationSeconds: Long,
+        val minSizeMB: Long
+    )
+
+    private fun readCleanupThresholds(): CleanupThresholds? {
+        val config = runCatching { PostProcessor.config }.getOrNull() ?: return null
+        val cleanup = config.firstOrNull { element ->
+            element.jsonObject["type"]?.jsonPrimitive?.contentOrNull == "cleanup"
+        } ?: return null
+        val json = cleanup.jsonObject
+        val minDurationSeconds = json["min_duration_seconds"]?.jsonPrimitive?.longOrNull ?: 0L
+        val minSizeMB = json["min_size_mb"]?.jsonPrimitive?.longOrNull ?: 0L
+        return CleanupThresholds(minDurationSeconds, minSizeMB)
+    }
+
+    private fun shouldPostProcess(file: File): Boolean {
+        val thresholds = readCleanupThresholds() ?: return true
+        val fileSizeMB = file.length() / (1024 * 1024)
+        if (thresholds.minSizeMB > 0 && fileSizeMB < thresholds.minSizeMB) {
+            logger.info(
+                "[{}] 文件大小 {}MB < {}MB，跳过后处理并删除: {}",
+                room.name,
+                fileSizeMB,
+                thresholds.minSizeMB,
+                file.name
+            )
+            file.delete()
+            return false
+        }
+
+        if (thresholds.minDurationSeconds > 0) {
+            val duration = try {
+                runProcessGetStdout(
+                    "ffprobe",
+                    "-v",
+                    "error",
+                    "-show_entries",
+                    "format=duration",
+                    "-of",
+                    "default=noprint_wrappers=1:nokey=1",
+                    file.absolutePath
+                ).trim().toDoubleOrNull() ?: 0.0
+            } catch (e: Exception) {
+                logger.warn("[{}] 无法获取文件时长: {}", room.name, e.message)
+                0.0
+            }
+
+            if (duration < thresholds.minDurationSeconds) {
+                logger.info(
+                    "[{}] 文件时长 {}s < {}s，跳过后处理并删除: {}",
+                    room.name,
+                    duration.toLong(),
+                    thresholds.minDurationSeconds,
+                    file.name
+                )
+                file.delete()
+                return false
+            }
+        }
+
+        return true
+    }
+
 
     /**
      * @throws github.rikacelery.v2.exceptions.RenameException
@@ -296,14 +361,13 @@ class Session(
                                 logger.error("failed to download init segment {}, download stopped", event.url())
                                 throw InitSegmentDownloadFiledException(it)
                             } else {
-                                val created = (event.url().substringBeforeLast("_").substringAfterLast("_")
-                                    .toLongOrDefault(0))
-                                val diff = System.currentTimeMillis() / 1000 - created
+                                val createdSeconds = segmentCreatedSeconds(event.url())
+                                val diffSeconds = System.currentTimeMillis() / 1000 - createdSeconds
                                 logger.warn(
                                     "Download segment:{} failed({}), delayed: {}s",
                                     index,
                                     (it as? ClientRequestException)?.response?.status?.value ?: it.message,
-                                    diff / 1000
+                                    diffSeconds
                                 )
                             }
                         }
@@ -365,14 +429,16 @@ class Session(
                         try {
                             val file = writer.done()
                             if (file != null) {
-                                scope.launch(NonCancellable) {
-                                    runCatching {
-                                        PostProcessor.process(
-                                            file.first,
-                                            ProcessorCtx(room, file.second, Date(), file.third, currentQuality)
-                                        )
-                                    }.onFailure {
-                                        logger.error("[{}] Postprocess failed", room.name, it)
+                                if (shouldPostProcess(file.first)) {
+                                    scope.launch(NonCancellable) {
+                                        runCatching {
+                                            PostProcessor.process(
+                                                file.first,
+                                                ProcessorCtx(room, file.second, Date(), file.third, currentQuality)
+                                            )
+                                        }.onFailure {
+                                            logger.error("[{}] Postprocess failed", room.name, it)
+                                        }
                                     }
                                 }
                             }
@@ -447,14 +513,16 @@ class Session(
             // 需要在这里完成文件处理和后处理
             val file = writerReference.getAndSet(null)?.done()
             if (file != null) {
-                logger.info("[{}] Processing file after normal exit: {}", room.name, file.first.name)
-                runCatching {
-                    PostProcessor.process(
-                        file.first,
-                        ProcessorCtx(room, file.second, Date(), file.third, currentQuality)
-                    )
-                }.onFailure {
-                    logger.error("[{}] Postprocess failed", room.name, it)
+                if (shouldPostProcess(file.first)) {
+                    logger.info("[{}] Processing file after normal exit: {}", room.name, file.first.name)
+                    runCatching {
+                        PostProcessor.process(
+                            file.first,
+                            ProcessorCtx(room, file.second, Date(), file.third, currentQuality)
+                        )
+                    }.onFailure {
+                        logger.error("[{}] Postprocess failed", room.name, it)
+                    }
                 }
             }
 
@@ -485,29 +553,58 @@ class Session(
         val host = "doppiocdn." + listOf("org", "com", "net").random()
         val masterUrl = "https://edge-hls.$host/hls/${room.id}/master/${room.id}_auto.m3u8"
 
-        val content = ClientManager.getProxiedClient(room.name).get(masterUrl).bodyAsText()
-        val lines = content.lines()
+        var lastException: ClientRequestException? = null
+        repeat(3) { attempt ->
+            try {
+                val content = ClientManager.getProxiedClient(room.name).get(masterUrl).bodyAsText()
+                val lines = content.lines()
 
-        // 解析 #EXT-X-STREAM-INF 获取可用画质
-        val qualities = lines.mapIndexedNotNull { i, line ->
-            if (line.startsWith("#EXT-X-STREAM-INF:") && i + 1 < lines.size) {
-                val name = """NAME="([^"]+)"""".toRegex().find(line)?.groupValues?.get(1)
-                val url = lines[i + 1].trim()
-                if (name != null && url.startsWith("https://")) name to url else null
-            } else null
-        }.toMap()
+                // 解析 #EXT-X-STREAM-INF 获取可用画质
+                val qualities = lines.mapIndexedNotNull { i, line ->
+                    if (line.startsWith("#EXT-X-STREAM-INF:") && i + 1 < lines.size) {
+                        val name = """NAME=\"([^\"]+)\""".toRegex().find(line)?.groupValues?.get(1)
+                        val url = lines[i + 1].trim()
+                        if (name != null && url.startsWith("https://")) name to url else null
+                    } else null
+                }.toMap()
 
-        require(qualities.isNotEmpty()) { "No available qualities in master playlist" }
+                require(qualities.isNotEmpty()) { "No available qualities in master playlist" }
 
-        // 画质选择: raw -> source, 720p60 -> 720p60 或 720p, 720 -> 720p
-        val key = if (currentQuality == "raw" || currentQuality.isBlank()) "source"
-                  else if (currentQuality.contains("p")) currentQuality
-                  else currentQuality + "p"
+                // 画质选择: raw -> source, 720p60 -> 720p60 或 720p, 720 -> 720p
+                val key = if (currentQuality == "raw" || currentQuality.isBlank()) "source"
+                else if (currentQuality.contains("p")) currentQuality
+                else currentQuality + "p"
 
-        return qualities[key]
-            ?: qualities[key.replace("""p\d+$""".toRegex(), "p")]
-            ?: qualities["source"]
-            ?: qualities.values.first()
+                return qualities[key]
+                    ?: qualities[key.replace("""p\d+$""".toRegex(), "p")]
+                    ?: qualities["source"]
+                    ?: qualities.values.first()
+            } catch (e: ClientRequestException) {
+                lastException = e
+                val status = e.response.status.value
+                if (status == 404 || status == 403) {
+                    val online = runCatching { testAndConfigure() }.getOrElse { false }
+                    if (!online) {
+                        logger.info("[STOP] [{}] Room off or non-public (master {})", room.name, status)
+                        throw e
+                    }
+                    if (attempt < 2) {
+                        logger.info(
+                            "[{}] Master playlist unavailable ({}), retry after 3s ({}/{})",
+                            room.name,
+                            status,
+                            attempt + 1,
+                            3
+                        )
+                        delay(3_000)
+                        return@repeat
+                    }
+                }
+                throw e
+            }
+        }
+
+        throw lastException ?: IllegalStateException("Failed to fetch master playlist")
     }
 
     private fun segmentGenerator(): Flow<Event> = flow {
@@ -517,6 +614,10 @@ class Session(
         var retry = 0
         var ms = System.currentTimeMillis()
         var startTime = ms
+        if (isOpen) {
+            logger.info("[{}] Broadcast is online, wait 3 seconds for CDN ready", room.name)
+            delay(3_000)
+        }
         // 该次录制只获取一次流 URL，下次主播重新上线时再重新获取
         val streamUrl = getStreamUrl()
         while (currentCoroutineContext().isActive) {
@@ -703,17 +804,23 @@ class Session(
 
     private val regexCache = """media-hls\.doppiocdn\.\w+/(b-hls-\d+)""".toRegex()
 
+    private fun segmentCreatedSeconds(url: String): Long {
+        val created = url.replace("(_part\\d)?.mp4".toRegex(), "")
+            .substringAfterLast("_")
+            .substringAfterLast("_")
+            .toLongOrDefault(0)
+        return if (created > 1_000_000_000_000L) created / 1000 else created
+    }
+
     private fun tryDownload(event: Event): Deferred<ByteArray?> = scope.async {
         val c = when (event) {
             is Event.LiveSegmentData -> ClientManager.getClient(room.name)
             is Event.LiveSegmentInit -> ClientManager.getProxiedClient(room.name)
             is Event.FileSplit -> throw IllegalArgumentException("FileSplit event should not be downloaded")
         }
-        val created =
-            (event.url().replace("(_part\\d)?.mp4".toRegex(), "").substringAfterLast("_").substringAfterLast("_")
-                .toLongOrDefault(0))
-        val diff = System.currentTimeMillis() / 1000 - created
-        val wait = (20L - diff) * 1000
+        val createdSeconds = segmentCreatedSeconds(event.url())
+        val diffSeconds = System.currentTimeMillis() / 1000 - createdSeconds
+        val wait = (20L - diffSeconds) * 1000
         withTimeoutOrNull(if (wait > 0) wait else 0) {
             withRetry(25) { attempt ->
                 try {
