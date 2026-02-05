@@ -28,6 +28,6 @@
     <logger name="io.netty" level="INFO"/>
     <logger name="ch.qos.logback" level="WARN"/>
     <logger name="io.ktor" level="OFF"/>
-    <!-- Session 调试日志 -->
-    <logger name="github.rikacelery.v2.Session" level="DEBUG"/>
+    <!-- Session 日志级别：生产环境建议使用 INFO -->
+    <logger name="github.rikacelery.v2.Session" level="INFO"/>
 </configuration>

@@ -43,6 +43,8 @@ class Session(
     dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
     companion object {
+        private val MODEL_RENAME_REGEX = "Model has new name: newName=(.*)".toRegex()
+
         val DECRYPT_KEY = String(
             String(
                 Base64.getDecoder().decode("NTEgNzUgNjUgNjEgNmUgMzQgNjMgNjEgNjkgMzkgNjIgNmYgNGEgNjEgMzUgNjE=")
@@ -144,8 +146,8 @@ class Session(
                     return false
                 }
                 when {
-                    reason.matches("Model has new name: newName=(.*)".toRegex()) -> {
-                        val newName = "Model has new name: newName=(.*)".toRegex().find(reason)!!.groupValues[1]
+                    MODEL_RENAME_REGEX.matches(reason) -> {
+                        val newName = MODEL_RENAME_REGEX.find(reason)!!.groupValues[1]
                         logger.debug("[{}] model renamed to {}", room.name, newName)
                         throw RenameException(
                             newName
@@ -247,6 +249,9 @@ class Session(
 
     var metric: MetricUpdater? = null
     suspend fun start() {
+        // 重置回退状态，允许新的录制尝试使用指定清晰度
+        useSourceFallback = false
+
         if (!_isActive.compareAndSet(false, true)) {
             throw IllegalStateException("Session is already active")
         }

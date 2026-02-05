@@ -124,13 +124,12 @@ class Scheduler(
     suspend fun deactivate(roomName: String) {
         val entry = sessions.filterKeys { it.room.name == roomName }.entries.singleOrNull()
             ?: return
-        opLock.withLock {
+        val sessionToStop = opLock.withLock {
             logger.info("deactivate {}", entry.key.room.name)
-            if (entry.value.isActive) {
-                scope.launch { entry.value.stop() }
-            }
             entry.key.listen = false
+            if (entry.value.isActive) entry.value else null
         }
+        sessionToStop?.stop()
     }
 
     suspend fun stopRecorder(roomName: String) {

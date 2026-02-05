@@ -3,13 +3,14 @@ package github.rikacelery.utils
 import github.rikacelery.Room
 import github.rikacelery.rootLogger
 import github.rikacelery.v2.exceptions.DeletedException
-import github.rikacelery.v2.exceptions.RenameException
 import io.ktor.client.*
 import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import kotlinx.serialization.json.Json
+
+private val MODEL_RENAME_REGEX = "Model has new name: newName=(.*)".toRegex()
 
 suspend fun HttpClient.fetchContentLength(segmentUrl: String): Long {
     val resp = head(segmentUrl)
@@ -31,8 +32,8 @@ suspend fun HttpClient.fetchRoomFromUrl(url: String, quality: String): Room {
             }.getOrNull()
 
             when {
-                reason?.matches("Model has new name: newName=(.*)".toRegex()) == true -> {
-                    val newName = "Model has new name: newName=(.*)".toRegex().find(reason)!!.groupValues[1]
+                reason?.let { MODEL_RENAME_REGEX.matches(it) } == true -> {
+                    val newName = MODEL_RENAME_REGEX.find(reason)!!.groupValues[1]
                     rootLogger.info("[{}] model renamed to {}, auto-updating", roomHash, newName)
                     // 递归调用获取新名称的房间信息
                     return fetchRoomFromUrl("https://xhamsterlive.com/$newName", quality)
@@ -61,8 +62,6 @@ suspend fun HttpClient.fetchRoomFromUrl(url: String, quality: String): Room {
         val str = response.bodyAsText()
         val j = Json.Default.parseToJsonElement(str)
         return Room(j.PathSingle("item.username").asString(), j.PathSingle("item.modelId").asLong(), quality)
-    } catch (e: RenameException) {
-        throw e
     } catch (e: DeletedException) {
         throw e
     } catch (e: Exception) {
