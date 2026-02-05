@@ -688,7 +688,12 @@ class Session(
                 val initUrlCur = parseInitUrl(lines)
                 if (initUrl.isEmpty()) initUrl = initUrlCur
                 if (initUrlCur != initUrl) {
-                    println("[${room.name}] Init segment changed, exiting...")
+                    logger.info(
+                        "[{}] Init segment changed, exiting... old={}, new={}",
+                        room.name,
+                        initUrl,
+                        initUrlCur
+                    )
                     break
                 }
                 val videos = parseSegmentUrl(lines)
@@ -730,35 +735,51 @@ class Session(
                 }
                 retry = 0
             } catch (_: TimeoutCancellationException) {
-                logger.warn("[{}] Refresh list timeout, quality={}, trys={}", room.name, currentQuality, retry)
-                if (!runCatching { testAndConfigure() }.getOrElse { false }) {
-                    logger.info("[STOP] [{}] Room off or non-public", room.name)
+                val online = runCatching { testAndConfigure() }.getOrElse { false }
+                logger.warn(
+                    "[{}] Refresh list timeout, quality={}, trys={}, online={}",
+                    room.name,
+                    currentQuality,
+                    retry,
+                    online
+                )
+                if (!online) {
+                    logger.info("[STOP] [{}] Room off or non-public after timeout", room.name)
                     break
                 }
                 continue
             } catch (e: ClientRequestException) {
-                if (e.response.status.value == 404) {
+                val status = e.response.status.value
+                if (status == 404) {
                     logger.info(
                         "[STOP] [{}] Stream url returns 404, this is caused by model's network connection issue",
                         room.name
                     )
                     break
                 }
-                if (e.response.status.value == 403) {
-                    if (!runCatching { testAndConfigure() }.getOrElse { false }) {
-                        logger.info("[STOP] [{}] Room off or non-public (403)", room.name)
+                if (status == 403) {
+                    val online = runCatching { testAndConfigure() }.getOrElse { false }
+                    if (!online) {
+                        logger.info("[STOP] [{}] Room off or non-public (403), online=false", room.name)
                         break
                     } else {
                         logger.error(
-                            "[STOP] [{}] Refresh list error {}. Stop recording",
+                            "[STOP] [{}] Refresh list error {}, online=true. Stop recording",
                             room.name,
-                            e.response.status.value
+                            status
                         )
                         break
                     }
                 }
+                logger.error("[{}] Refresh list error status={}, url={}", room.name, status, e.request.url)
             } catch (e: CombinedException) {
-                if (e.exceptions.any(shouldStop())) {
+                val shouldStop = e.exceptions.any(shouldStop())
+                if (shouldStop) {
+                    logger.error(
+                        "[STOP] [{}] CombinedException requires stop. reasons={}",
+                        room.name,
+                        e.exceptions.joinToString { it::class.simpleName ?: "Unknown" }
+                    )
                     scope.launch { stop() }
                     break
                 } else {
@@ -768,9 +789,10 @@ class Session(
                 logger.error("[{}] Segment generator is cancelled, exiting...", room.name)
                 break
             } catch (e: Exception) {
-                logger.error("[{}] Unexpected error in segment generator", room.name, e)
-                if (!runCatching { testAndConfigure() }.getOrElse { false }) {
-                    logger.error("[STOP] [{}] Room off or non-public:", room.name)
+                val online = runCatching { testAndConfigure() }.getOrElse { false }
+                logger.error("[{}] Unexpected error in segment generator, online={}", room.name, online, e)
+                if (!online) {
+                    logger.error("[STOP] [{}] Room off or non-public after exception", room.name)
                     break
                 }
             }
