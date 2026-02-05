@@ -481,6 +481,22 @@ class Session(
             // 如果用 set(false)，没问题；但如果 stop() 还没执行，这里需要重置
             _isActive.compareAndSet(true, false)
             logger.info("[-] stop recording {}({}) q:{}(want {})", room.name, room.id, currentQuality, room.quality)
+
+            // 处理正常结束的情况：如果 writerReference 还有值，说明不是通过 stop() 结束的
+            // 需要在这里完成文件处理和后处理
+            val file = writerReference.getAndSet(null)?.done()
+            if (file != null) {
+                logger.info("[{}] Processing file after normal exit: {}", room.name, file.first.name)
+                runCatching {
+                    PostProcessor.process(
+                        file.first,
+                        ProcessorCtx(room, file.second, Date(), file.third, currentQuality)
+                    )
+                }.onFailure {
+                    logger.error("[{}] Postprocess failed", room.name, it)
+                }
+            }
+
             runCatching {
                 Metric.removeMetric(room.id)
             }.onFailure {
@@ -496,15 +512,8 @@ class Session(
             return  // 已经停止或从未启动，直接返回
         }
         generatorJob?.cancelAndJoin()
-        val file = writerReference.getAndSet(null)?.done() ?: return
-        runCatching {
-            PostProcessor.process(
-                file.first,
-                ProcessorCtx(room, file.second, Date(), file.third, currentQuality)
-            )
-        }.onFailure {
-            logger.error("[{}] Postprocess failed", room.name, it)
-        }
+        // 注意：文件处理已移至 start() 的 finally 块中统一处理
+        // 这里只需要取消 job，writerReference 会在 finally 中被处理
     }
 
 
