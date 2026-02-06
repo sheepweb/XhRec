@@ -361,14 +361,8 @@ class Session(
                                     try {
                                         val response = ClientManager.getProxiedClient(room.name).get(event.url())
                                         val channel = response.bodyAsChannel()
-                                        tempFile.outputStream().buffered().use { output ->
-                                            val buffer = ByteArray(8192)
-                                            while (!channel.isClosedForRead) {
-                                                val read = channel.readAvailable(buffer)
-                                                if (read > 0) {
-                                                    output.write(buffer, 0, read)
-                                                }
-                                            }
+                                        tempFile.outputStream().use { output ->
+                                            channel.copyTo(output)
                                         }
                                         SegmentData(tempFile, tempFile.length()).also {
                                             metric.successProxiedIncrement()
@@ -890,14 +884,8 @@ class Session(
                     try {
                         val response = c.get(event.url())
                         val channel = response.bodyAsChannel()
-                        tempFile.outputStream().buffered().use { output ->
-                            val buffer = ByteArray(8192)
-                            while (!channel.isClosedForRead) {
-                                val read = channel.readAvailable(buffer)
-                                if (read > 0) {
-                                    output.write(buffer, 0, read)
-                                }
-                            }
+                        tempFile.outputStream().use { output ->
+                            channel.copyTo(output)
                         }
                         SegmentData(tempFile, tempFile.length())
                     } catch (e: Exception) {
