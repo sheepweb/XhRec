@@ -23,7 +23,7 @@ dependencies {
     implementation("ch.qos.logback:logback-classic:1.4.12")
     implementation("io.ktor:ktor-server-core-jvm")
     implementation("io.ktor:ktor-client-core-jvm")
-    implementation("io.ktor:ktor-server-cio-jvm")
+    implementation("io.ktor:ktor-server-netty-jvm")
     implementation("io.ktor:ktor-client-okhttp-jvm:2.3.12")
     implementation("io.ktor:ktor-server-content-negotiation-jvm")
     implementation("io.ktor:ktor-serialization-kotlinx-json")
@@ -35,8 +35,6 @@ dependencies {
     // https://mvnrepository.com/artifact/commons-cli/commons-cli
     implementation("commons-cli:commons-cli:1.9.0")
     implementation("io.ktor:ktor-server-cors:2.3.12")
-    implementation("io.ktor:ktor-client-cio-jvm:2.3.12")
-    implementation("io.ktor:ktor-client-jetty:2.3.12")
     implementation("io.ktor:ktor-client-logging:2.3.12")
 
     testImplementation("io.ktor:ktor-server-test-host-jvm")

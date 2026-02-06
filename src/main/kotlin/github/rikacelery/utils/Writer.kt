@@ -43,6 +43,12 @@ class Writer(private val name: String, private val destFolder:String, private va
         bufferedWriter.write(data)
     }
 
+    fun appendFromFile(file: File) {
+        file.inputStream().buffered().use { input ->
+            input.copyTo(bufferedWriter)
+        }
+    }
+
     private fun formatedStartTime(): String =
         timeStarted.toLocalDateTime().format(DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm_ss"))
 

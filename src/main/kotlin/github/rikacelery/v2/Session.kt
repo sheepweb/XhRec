@@ -67,6 +67,15 @@ class Session(
         private val logger = LoggerFactory.getLogger(Session::class.java)
     }
 
+    /**
+     * 分片下载结果，使用临时文件存储数据避免内存堆积
+     */
+    private data class SegmentData(val tempFile: File, val size: Long) {
+        fun deleteFile() {
+            tempFile.delete()
+        }
+    }
+
     private val scope =
         CoroutineScope(dispatcher + SupervisorJob() + CoroutineExceptionHandler { coroutineContext, throwable ->
             logger.error("Exception in {}", coroutineContext, throwable)
@@ -308,8 +317,8 @@ class Session(
 
         try {
             generatorJob = scope.launch {
-                // TODO: 如果 pending 积压过多可能导致 OOM，考虑添加超时跳过机制
-                val pending = mutableMapOf<Int, Deferred<Result<ByteArray>>>()
+                // 使用 SegmentData 存储临时文件路径，避免 ByteArray 堆积导致 OOM
+                val pending = mutableMapOf<Int, Deferred<Result<SegmentData>>>()
                 val readyToEmit = PriorityQueue<Int>()
                 var nextIndex = 0
                 var emittedIndex = 0
@@ -320,7 +329,7 @@ class Session(
                 segmentGenerator().map { event ->
                     // FileSplit 事件不需要下载，直接返回特殊标记
                     if (event is Event.FileSplit) {
-                        return@map SPLIT_MARKER to scope.async { Result.success(ByteArray(0)) }
+                        return@map SPLIT_MARKER to scope.async { Result.success(SegmentData(File(""), 0)) }
                     }
 
                     segmentIDFromUrl(event.url())?.let { segmentID ->
@@ -348,11 +357,26 @@ class Session(
                                     runningUrl[event.url()] = UrlInfo(ClientType.PROXY, System.currentTimeMillis())
                                 }
                                 withRetry(2) {
-                                    ClientManager.getProxiedClient(room.name).get(
-                                        event.url()
-                                    ).readBytes().also {
-                                        metric.successProxiedIncrement()
-                                        successProxied.incrementAndGet()
+                                    val tempFile = File.createTempFile("seg_proxy_", ".tmp", File(tmp))
+                                    try {
+                                        val response = ClientManager.getProxiedClient(room.name).get(event.url())
+                                        val channel = response.bodyAsChannel()
+                                        tempFile.outputStream().buffered().use { output ->
+                                            val buffer = ByteArray(8192)
+                                            while (!channel.isClosedForRead) {
+                                                val read = channel.readAvailable(buffer)
+                                                if (read > 0) {
+                                                    output.write(buffer, 0, read)
+                                                }
+                                            }
+                                        }
+                                        SegmentData(tempFile, tempFile.length()).also {
+                                            metric.successProxiedIncrement()
+                                            successProxied.incrementAndGet()
+                                        }
+                                    } catch (e: Exception) {
+                                        tempFile.delete()
+                                        throw e
                                     }
                                 }
                             }
@@ -413,10 +437,13 @@ class Session(
                                 running.decrementAndGet()
                                 if (result != null && result.isSuccess) {
                                     success.incrementAndGet()
-                                    val data = result.getOrThrow()
-                                    metric.bytesWriteIncrement(data.size.toLong())
-                                    bytesWrite.addAndGet(data.size.toLong())
-                                    writer.append(data)
+                                    val segmentData = result.getOrThrow()
+                                    if (segmentData.size > 0) {
+                                        metric.bytesWriteIncrement(segmentData.size)
+                                        bytesWrite.addAndGet(segmentData.size)
+                                        writer.appendFromFile(segmentData.tempFile)
+                                        segmentData.deleteFile()
+                                    }
                                 } else {
                                     metric.failedIncrement()
                                     failed.incrementAndGet()
@@ -477,12 +504,13 @@ class Session(
                         running.decrementAndGet()
                         if (result != null && result.isSuccess) {
                             success.incrementAndGet()
-                            val data = result.getOrThrow()
-                            metric.bytesWriteIncrement(data.size.toLong())
-                            bytesWrite.addAndGet(data.size.toLong())
-                            writer.append(data)
+                            val segmentData = result.getOrThrow()
+                            metric.bytesWriteIncrement(segmentData.size)
+                            bytesWrite.addAndGet(segmentData.size)
+                            writer.appendFromFile(segmentData.tempFile)
+                            segmentData.deleteFile()
                             // 调试日志：写入完成
-                            logger.trace("[{}] Segment {} written, size={}KB, pending.size={}", room.name, current, data.size / 1024, pending.size)
+                            logger.trace("[{}] Segment {} written, size={}KB, pending.size={}", room.name, current, segmentData.size / 1024, pending.size)
                         } else {
                             metric.failedIncrement()
                             failed.incrementAndGet()
@@ -846,7 +874,7 @@ class Session(
         return if (created > 1_000_000_000_000L) created / 1000 else created
     }
 
-    private fun tryDownload(event: Event): Deferred<ByteArray?> = scope.async {
+    private fun tryDownload(event: Event): Deferred<SegmentData?> = scope.async {
         val c = when (event) {
             is Event.LiveSegmentData -> ClientManager.getClient(room.name)
             is Event.LiveSegmentInit -> ClientManager.getProxiedClient(room.name)
@@ -858,7 +886,24 @@ class Session(
         withTimeoutOrNull(if (wait > 0) wait else 0) {
             withRetry(25) { attempt ->
                 try {
-                    c.get(event.url()).readBytes()
+                    val tempFile = File.createTempFile("seg_", ".tmp", File(tmp))
+                    try {
+                        val response = c.get(event.url())
+                        val channel = response.bodyAsChannel()
+                        tempFile.outputStream().buffered().use { output ->
+                            val buffer = ByteArray(8192)
+                            while (!channel.isClosedForRead) {
+                                val read = channel.readAvailable(buffer)
+                                if (read > 0) {
+                                    output.write(buffer, 0, read)
+                                }
+                            }
+                        }
+                        SegmentData(tempFile, tempFile.length())
+                    } catch (e: Exception) {
+                        tempFile.delete()
+                        throw e
+                    }
                 } catch (_: TimeoutCancellationException) {
                     null
                 } catch (e: CancellationException) {

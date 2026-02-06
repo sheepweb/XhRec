@@ -216,7 +216,7 @@ fun main(vararg args: String): Unit = runBlocking {
     // web server
     var engine: ApplicationEngine? = null
     engine = embeddedServer(
-        io.ktor.server.cio.CIO,
+        io.ktor.server.netty.Netty,
         port = commandLine.getOptionValue("p", "8090").toInt(),
         host = "0.0.0.0"
     ) {
