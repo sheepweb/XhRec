@@ -23,7 +23,7 @@ dependencies {
     implementation("ch.qos.logback:logback-classic:1.4.12")
     implementation("io.ktor:ktor-server-core-jvm")
     implementation("io.ktor:ktor-client-core-jvm")
-    implementation("io.ktor:ktor-server-netty-jvm")
+    implementation("io.ktor:ktor-server-cio-jvm")
     implementation("io.ktor:ktor-client-okhttp-jvm:2.3.12")
     implementation("io.ktor:ktor-server-content-negotiation-jvm")
     implementation("io.ktor:ktor-serialization-kotlinx-json")

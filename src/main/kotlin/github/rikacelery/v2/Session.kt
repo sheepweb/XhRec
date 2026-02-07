@@ -668,7 +668,7 @@ class Session(
         val diff = System.currentTimeMillis() / 1000 - created
         val wait = (20L - diff) * 1000
         withTimeoutOrNull(if (wait > 0) wait else 0) {
-            withRetry(25) { attempt ->
+            withRetry(25) { _ ->
                 try {
                     c.get(event.url()).readBytes()
                 } catch (_: TimeoutCancellationException) {

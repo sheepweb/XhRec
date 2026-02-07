@@ -10,6 +10,8 @@ data class Room(
     var quality: String,
     //config
     var limit: Duration = Duration.INFINITE,
+    // size limit in MB, 0 means no limit
+    var sizeLimit: Long = 0,
     val lastSeen: String? = null
 )
 

@@ -29,7 +29,7 @@ fun bytesToHumanReadable(bytes: Long): String {
 
 suspend fun <T> withRetry(i: Int, stopIf: (Throwable) -> Boolean = { false }, function: suspend (n:Int) -> T): T {
     var err: Throwable? = null
-    (0 until i).forEach { j ->
+    (0 until i).forEach { _ ->
         runCatching {
             return function(i)
         }.onFailure {
@@ -44,7 +44,7 @@ suspend fun <T> withRetry(i: Int, stopIf: (Throwable) -> Boolean = { false }, fu
     throw err!!
 }
 suspend fun <T> withRetryOrNull(i: Int, stopIf: (Throwable) -> Boolean = { false }, function: suspend () -> T): T? {
-    (0 until i).forEach { j ->
+    (0 until i).forEach { _ ->
         runCatching {
             return function()
         }.onFailure {
