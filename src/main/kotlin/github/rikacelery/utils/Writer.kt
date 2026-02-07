@@ -1,7 +1,5 @@
 package github.rikacelery.utils
 
-import io.ktor.utils.io.ByteReadChannel
-import io.ktor.utils.io.jvm.javaio.copyTo
 import java.io.BufferedOutputStream
 import java.io.File
 import java.time.format.DateTimeFormatter
@@ -16,17 +14,16 @@ class Writer(private val name: String, private val destFolder:String, private va
 
 
     fun init() {
-        // 先创建目录，再创建文件
+        timeStarted = Date()
+        file = File(tmpfolder, "${name}-${formatedStartTime()}-init.${ext}")
+        bufferedWriter = file.outputStream().buffered(bufferSize = 1024 * 1024 * 1)
+        isInit = true
         if (File(tmpfolder).exists().not()) {
             File(tmpfolder).mkdirs()
         }
         if (File(destFolder).exists().not()) {
             File(destFolder).mkdirs()
         }
-        timeStarted = Date()
-        file = File(tmpfolder, "${name}-${formatedStartTime()}-init.${ext}")
-        bufferedWriter = file.outputStream().buffered(bufferSize = 1024 * 1024 * 1)
-        isInit = true
     }
 
     private fun format(time: Long): String {
@@ -45,35 +42,19 @@ class Writer(private val name: String, private val destFolder:String, private va
         bufferedWriter.write(data)
     }
 
-    fun appendFromFile(file: File) {
-        file.inputStream().buffered().use { input ->
-            input.copyTo(bufferedWriter)
-        }
-    }
-
-    suspend fun appendFromChannel(channel: ByteReadChannel): Long {
-        return channel.copyTo(bufferedWriter)
-    }
-
-
     private fun formatedStartTime(): String =
         timeStarted.toLocalDateTime().format(DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm_ss"))
 
     fun done(): Triple<File, Date, Long>? {
         if (!isInit) return null
-        isInit = false
-        bufferedWriter.flush()
+        isInit=false
         bufferedWriter.close()
-        if (file.length() == 0L) {
-            file.delete()
-            return null
-        }
         val duration = Date().time - timeStarted.time
         val formatted = File(tmpfolder, "${name}-${formatedStartTime()}-${format(duration)}.$ext")
         if (!file.renameTo(formatted)) {
             throw Exception("Failed to rename $formatted")
         }
-        return Triple(formatted, timeStarted, duration)
+        return Triple(formatted,timeStarted,duration)
     }
 
     fun dispose() {

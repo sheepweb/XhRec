@@ -13,14 +13,16 @@ import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
-
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.*
+import kotlinx.serialization.json.Json
 import okhttp3.internal.toLongOrDefault
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -39,8 +41,6 @@ class Session(
     dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
     companion object {
-        private val MODEL_RENAME_REGEX = "Model has new name: newName=(.*)".toRegex()
-
         val DECRYPT_KEY = String(
             String(
                 Base64.getDecoder().decode("NTEgNzUgNjUgNjEgNmUgMzQgNjMgNjEgNjkgMzkgNjIgNmYgNGEgNjEgMzUgNjE=")
@@ -118,76 +118,6 @@ class Session(
         }
     }
 
-    private data class CleanupThresholds(
-        val minDurationSeconds: Long,
-        val minSizeMB: Long
-    )
-
-    private fun readCleanupThresholds(): CleanupThresholds? {
-        val config = runCatching { PostProcessor.config }.getOrNull() ?: return null
-        val cleanup = config.firstOrNull { element ->
-            element.jsonObject["type"]?.jsonPrimitive?.contentOrNull == "cleanup"
-        } ?: return null
-        val json = cleanup.jsonObject
-        val minDurationSeconds = json["min_duration_seconds"]?.jsonPrimitive?.longOrNull ?: 0L
-        val minSizeMB = json["min_size_mb"]?.jsonPrimitive?.longOrNull ?: 0L
-        return CleanupThresholds(minDurationSeconds, minSizeMB)
-    }
-
-    private fun shouldPostProcess(file: File): Boolean {
-        if (file.length() == 0L) {
-            logger.info("[{}] 文件大小 0B，跳过后处理并删除: {}", room.name, file.name)
-            file.delete()
-            return false
-        }
-        val thresholds = readCleanupThresholds() ?: return true
-        val fileSizeMB = file.length() / (1024 * 1024)
-        if (thresholds.minSizeMB > 0 && fileSizeMB < thresholds.minSizeMB) {
-            logger.info(
-                "[{}] 文件大小 {}MB < {}MB，跳过后处理并删除: {}",
-                room.name,
-                fileSizeMB,
-                thresholds.minSizeMB,
-                file.name
-            )
-            file.delete()
-            return false
-        }
-
-        if (thresholds.minDurationSeconds > 0) {
-            val duration = try {
-                runProcessGetStdout(
-                    "ffprobe",
-                    "-v",
-                    "error",
-                    "-show_entries",
-                    "format=duration",
-                    "-of",
-                    "default=noprint_wrappers=1:nokey=1",
-                    file.absolutePath
-                ).trim().toDoubleOrNull() ?: 0.0
-            } catch (e: Exception) {
-                logger.warn("[{}] 无法获取文件时长: {}", room.name, e.message)
-                0.0
-            }
-
-            if (duration < thresholds.minDurationSeconds) {
-                logger.info(
-                    "[{}] 文件时长 {}s < {}s，跳过后处理并删除: {}",
-                    room.name,
-                    duration.toLong(),
-                    thresholds.minDurationSeconds,
-                    file.name
-                )
-                file.delete()
-                return false
-            }
-        }
-
-        return true
-    }
-
-
     /**
      * @throws github.rikacelery.v2.exceptions.RenameException
      * @throws github.rikacelery.v2.exceptions.DeletedException
@@ -209,8 +139,8 @@ class Session(
                     return false
                 }
                 when {
-                    MODEL_RENAME_REGEX.matches(reason) -> {
-                        val newName = MODEL_RENAME_REGEX.find(reason)!!.groupValues[1]
+                    reason.matches("Model has new name: newName=(.*)".toRegex()) -> {
+                        val newName = "Model has new name: newName=(.*)".toRegex().find(reason)!!.groupValues[1]
                         logger.debug("[{}] model renamed to {}", room.name, newName)
                         throw RenameException(
                             newName
@@ -306,109 +236,88 @@ class Session(
 
         try {
             generatorJob = scope.launch {
-                var index = 0
-                segmentGenerator().collect { event ->
-                    when (event) {
-                        is Event.FileSplit -> {
-                            logger.info("[{}] FileSplit event received, splitting file...", room.name)
-                            runCatching {
-                                val file = writer.done()
-                                if (file != null && shouldPostProcess(file.first)) {
-                                    scope.launch(NonCancellable) {
-                                        runCatching {
-                                            PostProcessor.process(
-                                                file.first,
-                                                ProcessorCtx(room, file.second, Date(), file.third, currentQuality)
-                                            )
-                                        }.onFailure {
-                                            logger.error("[{}] Postprocess failed", room.name, it)
-                                        }
-                                    }
-                                }
-                            }.onFailure { e ->
-                                logger.error("[${room.name}] Failed to close file for split", e)
-                            }
+                val pending = mutableMapOf<Int, Deferred<Result<ByteArray>>>()
+                val readyToEmit = PriorityQueue<Int>()
+                var nextIndex = 0
+                var emittedIndex = 0
 
-                            writer.init()
-                            metric.reset()
-                            total.set(0)
-                            success.set(0)
-                            failed.set(0)
-                            bytesWrite.set(0)
-                            index = 0
-                            logger.info("[{}] New file started after split", room.name)
-                            return@collect
-                        }
-
-                        is Event.LiveSegmentInit,
-                        is Event.LiveSegmentData -> {
-                            val currentIndex = index++
-                            segmentIDFromUrl(event.url())?.let { segmentID ->
-                                metric.segmentID(segmentID)
-                                metric.segmentMissing(counter(listOf(segmentID)))
-                                metric.quality(currentQuality)
-                            }
-
-                            metric.downloadingIncrement()
-                            metric.totalIncrement()
-                            running.incrementAndGet()
-                            total.incrementAndGet()
-
-                            val ms = System.currentTimeMillis()
-                            val result = runCatching {
-                                synchronized(runningUrl) {
-                                    runningUrl[event.url()] = UrlInfo(ClientType.DIRECT, System.currentTimeMillis())
-                                }
-                                val directBytes = tryDownload(event, writer, 25, false)
-                                if (directBytes != null) {
-                                    metric.successDirectIncrement()
-                                    successDirect.incrementAndGet()
-                                    directBytes
-                                } else {
-                                    synchronized(runningUrl) {
-                                        runningUrl[event.url()] = UrlInfo(ClientType.PROXY, System.currentTimeMillis())
-                                    }
-                                    val proxyBytes = tryDownload(event, writer, 2, true)
-                                        ?: throw TimeoutException("Proxy download timeout")
-                                    metric.successProxiedIncrement()
-                                    successProxied.incrementAndGet()
-                                    proxyBytes
-                                }
-                            }
-
-                            metric.updateLatency(System.currentTimeMillis() - ms)
+                segmentGenerator().map { event ->
+                    segmentIDFromUrl(event.url())?.let { segmentID ->
+                        metric.segmentID(segmentID)
+                        metric.segmentMissing(counter(listOf(segmentID)))
+                        metric.quality(currentQuality)
+                    }
+                    val index = nextIndex++
+                    index to scope.async {
+                        metric.downloadingIncrement()
+                        metric.totalIncrement()
+                        running.incrementAndGet()
+                        total.incrementAndGet()
+                        val ms = System.currentTimeMillis()
+                        val result = runCatching {
                             synchronized(runningUrl) {
-                                runningUrl.remove(event.url())
+                                runningUrl[event.url()] = UrlInfo(ClientType.DIRECT, System.currentTimeMillis())
                             }
-
-                            metric.downloadingDecrement()
-                            metric.doneIncrement()
-                            running.decrementAndGet()
-
-                            result.onSuccess { bytes ->
-                                success.incrementAndGet()
-                                metric.bytesWriteIncrement(bytes)
-                                bytesWrite.addAndGet(bytes)
-                                logger.trace("[{}] Segment {} written, size={}KB", room.name, currentIndex, bytes / 1024)
-                            }.onFailure { t ->
-                                metric.failedIncrement()
-                                failed.incrementAndGet()
-
-                                if (event is Event.LiveSegmentInit) {
-                                    logger.error("failed to download init segment {}, download stopped", event.url())
-                                    throw InitSegmentDownloadFiledException(t)
-                                } else {
-                                    val createdSeconds = segmentCreatedSeconds(event.url())
-                                    val diffSeconds = System.currentTimeMillis() / 1000 - createdSeconds
-                                    logger.warn(
-                                        "Download segment:{} failed({}), delayed: {}s",
-                                        currentIndex,
-                                        (t as? ClientRequestException)?.response?.status?.value ?: t.message,
-                                        diffSeconds
-                                    )
+                            tryDownload(event).await()?.also {
+                                metric.successDirectIncrement()
+                                successDirect.incrementAndGet()
+                            } ?: run {
+//                                    println("Falling back to proxy download for ${room.name}")
+                                synchronized(runningUrl) {
+                                    runningUrl[event.url()] = UrlInfo(ClientType.PROXY, System.currentTimeMillis())
+                                }
+                                withRetry(2) {
+                                    ClientManager.getProxiedClient(room.name).get(
+                                        event.url()
+                                    ).readBytes().also {
+                                        metric.successProxiedIncrement()
+                                        successProxied.incrementAndGet()
+                                    }
                                 }
                             }
                         }
+                        metric.updateLatency(System.currentTimeMillis() - ms)
+                        synchronized(runningUrl) {
+                            runningUrl.remove(event.url())
+                        }
+                        result.onFailure {
+                            if (event is Event.LiveSegmentInit) {
+                                logger.error("failed to download init segment {}, download stopped", event.url())
+                                throw InitSegmentDownloadFiledException(it)
+                            } else {
+                                val created = (event.url().substringBeforeLast("_").substringAfterLast("_")
+                                    .toLongOrDefault(0))
+                                val diff = System.currentTimeMillis() / 1000 - created
+                                logger.warn(
+                                    "Download segment:{} failed({}), delayed: {}s",
+                                    index,
+                                    (it as? ClientRequestException)?.response?.status?.value ?: it.message,
+                                    diff / 1000
+                                )
+                            }
+                        }
+                    }
+                }.buffer(Channel.UNLIMITED).collect { (index, deferred) ->
+                    pending[index] = deferred
+                    readyToEmit.add(index)
+
+                    while (readyToEmit.peek() == emittedIndex) {
+                        val current = readyToEmit.poll()
+                        val result = pending.remove(current)?.await()
+                        metric.downloadingDecrement()
+                        metric.doneIncrement()
+                        running.decrementAndGet()
+                        if (result != null && result.isSuccess) {
+                            success.incrementAndGet()
+                            val data = result.getOrThrow()
+                            metric.bytesWriteIncrement(data.size.toLong())
+                            bytesWrite.addAndGet(data.size.toLong())
+                            writer.append(data)
+                        } else {
+                            metric.failedIncrement()
+                            failed.incrementAndGet()
+                        }
+                        emittedIndex++
                     }
                 }
                 if (success.get() <= 1) {
@@ -428,46 +337,27 @@ class Session(
 
             generatorJob?.join()
         } finally {
-            // 使用 compareAndSet 而非 set，避免覆盖 stop() 已设置的状态
-            // 场景：stop() 先执行 compareAndSet(true, false)，然后 start() 的 finally 执行
-            // 如果用 set(false)，没问题；但如果 stop() 还没执行，这里需要重置
-            _isActive.compareAndSet(true, false)
             logger.info("[-] stop recording {}({}) q:{}(want {})", room.name, room.id, currentQuality, room.quality)
-
-            // 处理正常结束的情况：如果 writerReference 还有值，说明不是通过 stop() 结束的
-            // 需要在这里完成文件处理和后处理
-            val file = writerReference.getAndSet(null)?.done()
-            if (file != null) {
-                if (shouldPostProcess(file.first)) {
-                    logger.info("[{}] Processing file after normal exit: {}", room.name, file.first.name)
-                    runCatching {
-                        PostProcessor.process(
-                            file.first,
-                            ProcessorCtx(room, file.second, Date(), file.third, currentQuality)
-                        )
-                    }.onFailure {
-                        logger.error("[{}] Postprocess failed", room.name, it)
-                    }
-                }
-            }
-
-            runCatching {
-                Metric.removeMetric(room.id)
-            }.onFailure {
-                logger.error("[{}] Failed to remove metric", room.name, it)
-            }
+            Metric.removeMetric(room.id)
         }
     }
 
     suspend fun stop() {
-        // 只有成功将状态从 true 改为 false 时才取消 job
-        // 这确保了 stop() 只执行一次核心逻辑
-        if (!_isActive.compareAndSet(true, false)) {
-            return  // 已经停止或从未启动，直接返回
+        if (_isActive.compareAndSet(true, false)) {
+            generatorJob?.cancelAndJoin()
         }
-        generatorJob?.cancelAndJoin()
-        // 注意：文件处理已移至 start() 的 finally 块中统一处理
-        // 这里只需要取消 job，writerReference 会在 finally 中被处理
+        val file = writerReference.getAndSet(null)?.done()
+        if (file == null) {
+            return
+        }
+        runCatching {
+            PostProcessor.process(
+                file.first,
+                ProcessorCtx(room, file.second, Date(), file.third, currentQuality)
+            )
+        }.onFailure {
+            logger.error("[{}] Postprocess failed", room.name, it)
+        }
     }
 
 
@@ -632,25 +522,34 @@ class Session(
                     logger.warn("[{}] Got 0 videos from playlist, maybe decode failed!", room.name)
                 }
                 for (url in videos) {
-                    // record time limit - 发送切分事件而不是直接处理
-                    val timeLimitReached = room.limit.isFinite() && System.currentTimeMillis() - startTime > room.limit.inWholeMilliseconds
-                    // record size limit - 检测文件大小是否超过限制 (sizeLimit 单位为 MB)
+                    // record time limit or size limit
+                    val timeLimitReached = System.currentTimeMillis() - startTime > room.limit.inWholeMilliseconds
                     val sizeLimitReached = room.sizeLimit > 0 && bytesWrite.get() > room.sizeLimit * 1024 * 1024
-
                     if ((timeLimitReached || sizeLimitReached) && !cache.contains(url)) {
-                        if (timeLimitReached) {
-                            logger.info("[{}] Time limit reached, splitting file...", room.name)
+                        try {
+                            val file = writerReference.get()!!.done()
+                            requireNotNull(file)
+                            scope.launch(NonCancellable) {
+                                runCatching {
+                                    PostProcessor.process(
+                                        file.first,
+                                        ProcessorCtx(room, file.second, Date(), file.third, currentQuality)
+                                    )
+                                }.onFailure {
+                                    logger.error("[{}] Postprocess failed", room.name, it)
+                                }
+                            }
+                        } catch (e: Exception) {
+                            logger.error("[${room.name}] Failed to postprocess", e)
+                        } finally {
+                            // reset state
+                            initSent = false
+                            initUrl = ""
+                            startTime = System.currentTimeMillis()
+                            writerReference.get()?.init()
+                            metric?.reset()
+                            break
                         }
-                        if (sizeLimitReached) {
-                            logger.info("[{}] Size limit reached ({}MB > {}MB), splitting file...", room.name, bytesWrite.get() / 1024 / 1024, room.sizeLimit)
-                        }
-                        emit(Event.FileSplit)
-                        // 重置生产者端状态
-                        initSent = false
-                        initUrl = ""
-                        startTime = System.currentTimeMillis()
-                        cache.clear()
-                        break
                     }
                     // normal segments
                     if (currentCoroutineContext().isActive && !cache.contains(url)) {
@@ -758,51 +657,26 @@ class Session(
 
     private val regexCache = """media-hls\.doppiocdn\.\w+/(b-hls-\d+)""".toRegex()
 
-    private fun segmentCreatedSeconds(url: String): Long {
-        val created = url.replace("(_part\\d)?.mp4".toRegex(), "")
-            .substringAfterLast("_")
-            .substringAfterLast("_")
-            .toLongOrDefault(0)
-        return if (created > 1_000_000_000_000L) created / 1000 else created
-    }
-
-    private suspend fun tryDownload(
-        event: Event,
-        writer: Writer,
-        retryCount: Int,
-        useProxy: Boolean
-    ): Long? {
-        val client = if (useProxy) {
-            ClientManager.getProxiedClient(room.name)
-        } else {
-            ClientManager.getClient(room.name)
+    private fun tryDownload(event: Event): Deferred<ByteArray?> = scope.async {
+        val c = when (event) {
+            is Event.LiveSegmentData -> ClientManager.getClient(room.name)
+            is Event.LiveSegmentInit -> ClientManager.getProxiedClient(room.name)
         }
-
-        val timeoutMs = when (event) {
-            is Event.LiveSegmentInit -> 10_000L
-            else -> {
-                val createdSeconds = segmentCreatedSeconds(event.url())
-                if (createdSeconds <= 0L) {
-                    10_000L
-                } else {
-                    val diffSeconds = System.currentTimeMillis() / 1000 - createdSeconds
-                    val wait = (20L - diffSeconds) * 1000
-                    if (wait > 0) wait else 10_000L
-                }
-            }
-        }
-
-        return withTimeoutOrNull(timeoutMs) {
-            withRetry(retryCount) { _ ->
+        val created =
+            (event.url().replace("(_part\\d)?.mp4".toRegex(), "").substringAfterLast("_").substringAfterLast("_")
+                .toLongOrDefault(0))
+        val diff = System.currentTimeMillis() / 1000 - created
+        val wait = (20L - diff) * 1000
+        withTimeoutOrNull(if (wait > 0) wait else 0) {
+            withRetry(25) { attempt ->
                 try {
-                    val response = client.get(event.url())
-                    val channel = response.bodyAsChannel()
-                    writer.appendFromChannel(channel)
+                    c.get(event.url()).readBytes()
                 } catch (_: TimeoutCancellationException) {
                     null
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
+//                    println("Download attempt $attempt failed: ${e.message}")
                     throw e
                 }
             }
