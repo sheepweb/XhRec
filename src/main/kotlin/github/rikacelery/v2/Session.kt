@@ -67,7 +67,12 @@ class Session(
 
     private val scope =
         CoroutineScope(dispatcher + SupervisorJob() + CoroutineExceptionHandler { coroutineContext, throwable ->
-            logger.error("Exception in {}", coroutineContext, throwable)
+            // 404 错误（主播下播/非公开/主播网络卡顿）使用 INFO 级别
+            if (throwable is ClientRequestException && throwable.response.status.value == 404) {
+                logger.info("[{}] Stream unavailable (404): {}", room.name, throwable.message)
+            } else {
+                logger.error("Exception in {}", coroutineContext, throwable)
+            }
         })
 
     private val _isOpen = AtomicBoolean(false)
