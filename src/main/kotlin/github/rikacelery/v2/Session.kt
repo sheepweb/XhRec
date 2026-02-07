@@ -778,11 +778,21 @@ class Session(
             ClientManager.getClient(room.name)
         }
 
-        val createdSeconds = segmentCreatedSeconds(event.url())
-        val diffSeconds = System.currentTimeMillis() / 1000 - createdSeconds
-        val wait = (20L - diffSeconds) * 1000
+        val timeoutMs = when (event) {
+            is Event.LiveSegmentInit -> 10_000L
+            else -> {
+                val createdSeconds = segmentCreatedSeconds(event.url())
+                if (createdSeconds <= 0L) {
+                    10_000L
+                } else {
+                    val diffSeconds = System.currentTimeMillis() / 1000 - createdSeconds
+                    val wait = (20L - diffSeconds) * 1000
+                    if (wait > 0) wait else 10_000L
+                }
+            }
+        }
 
-        return withTimeoutOrNull(if (wait > 0) wait else 0) {
+        return withTimeoutOrNull(timeoutMs) {
             withRetry(retryCount) { _ ->
                 try {
                     val response = client.get(event.url())
