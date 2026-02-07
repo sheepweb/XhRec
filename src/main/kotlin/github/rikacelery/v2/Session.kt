@@ -223,7 +223,7 @@ class Session(
             isOpen
         )
 
-        val writer = Writer(room.name, dest, tmp).apply { init() }
+        var writer = Writer(room.name, dest, tmp).apply { init() }
         writerReference.set(writer)
         metric = Metric.newMetric(room.id, room.name)
         val metric = metric!!
@@ -234,9 +234,13 @@ class Session(
         running.set(0)
         bytesWrite.set(0)
 
+        // 用于切分的状态
+        var cachedInitData: ByteArray? = null  // 缓存 Init Segment
+        var startTime = System.currentTimeMillis()
+
         try {
             generatorJob = scope.launch {
-                val pending = mutableMapOf<Int, Deferred<Result<ByteArray>>>()
+                val pending = mutableMapOf<Int, Deferred<Pair<Event, Result<ByteArray>>>>()
                 val readyToEmit = PriorityQueue<Int>()
                 var nextIndex = 0
                 var emittedIndex = 0
@@ -262,7 +266,6 @@ class Session(
                                 metric.successDirectIncrement()
                                 successDirect.incrementAndGet()
                             } ?: run {
-//                                    println("Falling back to proxy download for ${room.name}")
                                 synchronized(runningUrl) {
                                     runningUrl[event.url()] = UrlInfo(ClientType.PROXY, System.currentTimeMillis())
                                 }
@@ -296,23 +299,78 @@ class Session(
                                 )
                             }
                         }
+                        event to result  // 返回 event 和 result
                     }
-                }.buffer(Channel.UNLIMITED).collect { (index, deferred) ->
+                }.buffer(10).collect { (index, deferred) ->  // 限制 buffer 为 10
                     pending[index] = deferred
                     readyToEmit.add(index)
 
                     while (readyToEmit.peek() == emittedIndex) {
                         val current = readyToEmit.poll()
-                        val result = pending.remove(current)?.await()
+                        val (event, result) = pending.remove(current)?.await() ?: continue
                         metric.downloadingDecrement()
                         metric.doneIncrement()
                         running.decrementAndGet()
-                        if (result != null && result.isSuccess) {
+
+                        if (result.isSuccess) {
                             success.incrementAndGet()
                             val data = result.getOrThrow()
                             metric.bytesWriteIncrement(data.size.toLong())
                             bytesWrite.addAndGet(data.size.toLong())
+
+                            // 缓存 Init Segment
+                            if (event is Event.LiveSegmentInit) {
+                                cachedInitData = data
+                            }
+
                             writer.append(data)
+
+                            // 在 Data Segment 写入后检查是否需要切分
+                            if (event is Event.LiveSegmentData && cachedInitData != null) {
+                                val timeLimitReached = room.limit.isFinite() &&
+                                    System.currentTimeMillis() - startTime > room.limit.inWholeMilliseconds
+                                val sizeLimitReached = room.sizeLimit > 0 &&
+                                    bytesWrite.get() > room.sizeLimit * 1024 * 1024
+
+                                if (timeLimitReached || sizeLimitReached) {
+                                    if (timeLimitReached) {
+                                        logger.info("[{}] Time limit reached, splitting file...", room.name)
+                                    }
+                                    if (sizeLimitReached) {
+                                        logger.info("[{}] Size limit reached ({}MB > {}MB), splitting file...",
+                                            room.name, bytesWrite.get() / 1024 / 1024, room.sizeLimit)
+                                    }
+
+                                    // 完成当前文件
+                                    val file = writer.done()
+                                    if (file != null && file.first.length() > 0) {
+                                        scope.launch(NonCancellable) {
+                                            runCatching {
+                                                PostProcessor.process(
+                                                    file.first,
+                                                    ProcessorCtx(room, file.second, Date(), file.third, currentQuality)
+                                                )
+                                            }.onFailure {
+                                                logger.error("[{}] Postprocess failed", room.name, it)
+                                            }
+                                        }
+                                    } else {
+                                        file?.first?.delete()
+                                    }
+
+                                    // 重新初始化 writer
+                                    writer = Writer(room.name, dest, tmp).apply { init() }
+                                    writerReference.set(writer)
+
+                                    // 写入缓存的 Init Segment
+                                    writer.append(cachedInitData!!)
+
+                                    // 重置计数器
+                                    startTime = System.currentTimeMillis()
+                                    bytesWrite.set(cachedInitData!!.size.toLong())
+                                    metric.reset()
+                                }
+                            }
                         } else {
                             metric.failedIncrement()
                             failed.incrementAndGet()
@@ -322,14 +380,11 @@ class Session(
                 }
                 if (success.get() <= 1) {
                     logger.info(
-                        "[{}}] No valid segments downloaded({}/{}) since start. clean empty file",
+                        "[{}] No valid segments downloaded({}/{}) since start. clean empty file",
                         room.name,
                         success.get(),
                         total.get()
                     )
-                    // some model start and stop their frequently
-                    // this cause the stream url become invalid immediately
-                    // so we need to reset writer to avoid empty files
                     writer.dispose()
                     writerReference.set(null)
                 }
