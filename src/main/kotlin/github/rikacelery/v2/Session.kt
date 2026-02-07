@@ -13,14 +13,10 @@ import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
-import io.ktor.utils.io.jvm.javaio.copyTo
 
 import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
@@ -67,15 +63,6 @@ class Session(
         )
 
         private val logger = LoggerFactory.getLogger(Session::class.java)
-    }
-
-    /**
-     * 分片下载结果，使用临时文件存储数据避免内存堆积
-     */
-    private data class SegmentData(val tempFile: File, val size: Long) {
-        fun deleteFile() {
-            tempFile.delete()
-        }
     }
 
     private val scope =
@@ -319,145 +306,14 @@ class Session(
 
         try {
             generatorJob = scope.launch {
-                // 使用 SegmentData 存储临时文件路径，避免 ByteArray 堆积导致 OOM
-                val pending = mutableMapOf<Int, Deferred<Result<SegmentData>>>()
-                val readyToEmit = PriorityQueue<Int>()
-                var nextIndex = 0
-                var emittedIndex = 0
-
-                // 用于标记切分事件的特殊索引
-                val SPLIT_MARKER = -1
-
-                segmentGenerator().map { event ->
-                    // FileSplit 事件不需要下载，直接返回特殊标记
-                    if (event is Event.FileSplit) {
-                        return@map SPLIT_MARKER to scope.async { Result.success(SegmentData(File(""), 0)) }
-                    }
-
-                    segmentIDFromUrl(event.url())?.let { segmentID ->
-                        metric.segmentID(segmentID)
-                        metric.segmentMissing(counter(listOf(segmentID)))
-                        metric.quality(currentQuality)
-                    }
-                    val index = nextIndex++
-                    index to scope.async {
-                        metric.downloadingIncrement()
-                        metric.totalIncrement()
-                        running.incrementAndGet()
-                        total.incrementAndGet()
-                        val ms = System.currentTimeMillis()
-                        val result = runCatching {
-                            synchronized(runningUrl) {
-                                runningUrl[event.url()] = UrlInfo(ClientType.DIRECT, System.currentTimeMillis())
-                            }
-                            tryDownload(event).await()?.also {
-                                metric.successDirectIncrement()
-                                successDirect.incrementAndGet()
-                            } ?: run {
-//                                    println("Falling back to proxy download for ${room.name}")
-                                synchronized(runningUrl) {
-                                    runningUrl[event.url()] = UrlInfo(ClientType.PROXY, System.currentTimeMillis())
-                                }
-                                withRetry(2) {
-                                    val tempFile = File.createTempFile("seg_proxy_", ".tmp", File(tmp))
-                                    try {
-                                        val response = ClientManager.getProxiedClient(room.name).get(event.url())
-                                        val channel = response.bodyAsChannel()
-                                        tempFile.outputStream().use { output ->
-                                            channel.copyTo(output)
-                                        }
-                                        SegmentData(tempFile, tempFile.length()).also {
-                                            metric.successProxiedIncrement()
-                                            successProxied.incrementAndGet()
-                                        }
-                                    } catch (e: Exception) {
-                                        tempFile.delete()
-                                        throw e
-                                    }
-                                }
-                            }
-                        }
-                        metric.updateLatency(System.currentTimeMillis() - ms)
-                        synchronized(runningUrl) {
-                            runningUrl.remove(event.url())
-                        }
-                        result.onFailure {
-                            if (event is Event.LiveSegmentInit) {
-                                logger.error("failed to download init segment {}, download stopped", event.url())
-                                throw InitSegmentDownloadFiledException(it)
-                            } else {
-                                val createdSeconds = segmentCreatedSeconds(event.url())
-                                val diffSeconds = System.currentTimeMillis() / 1000 - createdSeconds
-                                logger.warn(
-                                    "Download segment:{} failed({}), delayed: {}s",
-                                    index,
-                                    (it as? ClientRequestException)?.response?.status?.value ?: it.message,
-                                    diffSeconds
-                                )
-                            }
-                        }
-                        // 调试日志：下载完成时记录数据大小
-                        result.onSuccess { data ->
-                            logger.debug("[{}] Segment {} downloaded, size={}KB", room.name, index, data.size / 1024)
-                        }
-                    }
-                }.buffer(Channel.UNLIMITED).collect { (index, deferred) ->
-                    // 调试日志：监控内存和pending状态
-                    if (index % 10 == 0 || pending.size > 20) {
-                        val runtime = Runtime.getRuntime()
-                        val usedMB = (runtime.totalMemory() - runtime.freeMemory()) / 1024 / 1024
-                        val maxMB = runtime.maxMemory() / 1024 / 1024
-                        logger.debug(
-                            "[{}] Memory: {}MB/{}MB, pending.size={}, readyToEmit.size={}, nextIndex={}, emittedIndex={}, index={}",
-                            room.name, usedMB, maxMB, pending.size, readyToEmit.size, nextIndex, emittedIndex, index
-                        )
-                        if (pending.size > 20) {
-                            val waitingIndices = pending.keys.sorted().take(10)
-                            logger.warn(
-                                "[{}] Large pending detected! Waiting for indices: {}, emittedIndex={}",
-                                room.name, waitingIndices, emittedIndex
-                            )
-                        }
-                    }
-
-                    // 处理 FileSplit 事件
-                    if (index == SPLIT_MARKER) {
-                        logger.info("[{}] FileSplit event received, waiting for pending downloads...", room.name)
-                        // 等待所有 pending 下载完成并写入当前文件
-                        while (readyToEmit.isNotEmpty() || pending.isNotEmpty()) {
-                            if (readyToEmit.peek() == emittedIndex) {
-                                val current = readyToEmit.poll()
-                                val result = pending.remove(current)?.await()
-                                metric.downloadingDecrement()
-                                metric.doneIncrement()
-                                running.decrementAndGet()
-                                if (result != null && result.isSuccess) {
-                                    success.incrementAndGet()
-                                    val segmentData = result.getOrThrow()
-                                    if (segmentData.size > 0) {
-                                        metric.bytesWriteIncrement(segmentData.size)
-                                        bytesWrite.addAndGet(segmentData.size)
-                                        writer.appendFromFile(segmentData.tempFile)
-                                        segmentData.deleteFile()
-                                    }
-                                } else {
-                                    metric.failedIncrement()
-                                    failed.incrementAndGet()
-                                }
-                                emittedIndex++
-                            } else if (pending.isNotEmpty()) {
-                                // 等待下一个 pending 完成
-                                delay(10)
-                            } else {
-                                break
-                            }
-                        }
-                        logger.info("[{}] All pending downloads completed, splitting file...", room.name)
-                        // 关闭当前文件并启动后处理
-                        try {
-                            val file = writer.done()
-                            if (file != null) {
-                                if (shouldPostProcess(file.first)) {
+                var index = 0
+                segmentGenerator().collect { event ->
+                    when (event) {
+                        is Event.FileSplit -> {
+                            logger.info("[{}] FileSplit event received, splitting file...", room.name)
+                            runCatching {
+                                val file = writer.done()
+                                if (file != null && shouldPostProcess(file.first)) {
                                     scope.launch(NonCancellable) {
                                         runCatching {
                                             PostProcessor.process(
@@ -469,50 +325,90 @@ class Session(
                                         }
                                     }
                                 }
+                            }.onFailure { e ->
+                                logger.error("[${room.name}] Failed to close file for split", e)
                             }
-                        } catch (e: Exception) {
-                            logger.error("[${room.name}] Failed to close file for split", e)
-                        }
-                        // 创建新文件并重置状态
-                        writer.init()
-                        metric.reset()
-                        total.set(0)
-                        success.set(0)
-                        failed.set(0)
-                        bytesWrite.set(0)
-                        nextIndex = 0
-                        emittedIndex = 0
-                        pending.clear()
-                        readyToEmit.clear()
-                        logger.info("[{}] New file started after split", room.name)
-                        return@collect
-                    }
 
-                    // 正常处理 segment
-                    pending[index] = deferred
-                    readyToEmit.add(index)
-
-                    while (readyToEmit.peek() == emittedIndex) {
-                        val current = readyToEmit.poll()
-                        val result = pending.remove(current)?.await()
-                        metric.downloadingDecrement()
-                        metric.doneIncrement()
-                        running.decrementAndGet()
-                        if (result != null && result.isSuccess) {
-                            success.incrementAndGet()
-                            val segmentData = result.getOrThrow()
-                            metric.bytesWriteIncrement(segmentData.size)
-                            bytesWrite.addAndGet(segmentData.size)
-                            writer.appendFromFile(segmentData.tempFile)
-                            segmentData.deleteFile()
-                            // 调试日志：写入完成
-                            logger.trace("[{}] Segment {} written, size={}KB, pending.size={}", room.name, current, segmentData.size / 1024, pending.size)
-                        } else {
-                            metric.failedIncrement()
-                            failed.incrementAndGet()
-                            logger.debug("[{}] Segment {} failed, skipping. pending.size={}", room.name, current, pending.size)
+                            writer.init()
+                            metric.reset()
+                            total.set(0)
+                            success.set(0)
+                            failed.set(0)
+                            bytesWrite.set(0)
+                            index = 0
+                            logger.info("[{}] New file started after split", room.name)
+                            return@collect
                         }
-                        emittedIndex++
+
+                        is Event.LiveSegmentInit,
+                        is Event.LiveSegmentData -> {
+                            val currentIndex = index++
+                            segmentIDFromUrl(event.url())?.let { segmentID ->
+                                metric.segmentID(segmentID)
+                                metric.segmentMissing(counter(listOf(segmentID)))
+                                metric.quality(currentQuality)
+                            }
+
+                            metric.downloadingIncrement()
+                            metric.totalIncrement()
+                            running.incrementAndGet()
+                            total.incrementAndGet()
+
+                            val ms = System.currentTimeMillis()
+                            val result = runCatching {
+                                synchronized(runningUrl) {
+                                    runningUrl[event.url()] = UrlInfo(ClientType.DIRECT, System.currentTimeMillis())
+                                }
+                                val directBytes = tryDownload(event, writer, 25, false)
+                                if (directBytes != null) {
+                                    metric.successDirectIncrement()
+                                    successDirect.incrementAndGet()
+                                    directBytes
+                                } else {
+                                    synchronized(runningUrl) {
+                                        runningUrl[event.url()] = UrlInfo(ClientType.PROXY, System.currentTimeMillis())
+                                    }
+                                    val proxyBytes = tryDownload(event, writer, 2, true)
+                                        ?: throw TimeoutException("Proxy download timeout")
+                                    metric.successProxiedIncrement()
+                                    successProxied.incrementAndGet()
+                                    proxyBytes
+                                }
+                            }
+
+                            metric.updateLatency(System.currentTimeMillis() - ms)
+                            synchronized(runningUrl) {
+                                runningUrl.remove(event.url())
+                            }
+
+                            metric.downloadingDecrement()
+                            metric.doneIncrement()
+                            running.decrementAndGet()
+
+                            result.onSuccess { bytes ->
+                                success.incrementAndGet()
+                                metric.bytesWriteIncrement(bytes)
+                                bytesWrite.addAndGet(bytes)
+                                logger.trace("[{}] Segment {} written, size={}KB", room.name, currentIndex, bytes / 1024)
+                            }.onFailure { t ->
+                                metric.failedIncrement()
+                                failed.incrementAndGet()
+
+                                if (event is Event.LiveSegmentInit) {
+                                    logger.error("failed to download init segment {}, download stopped", event.url())
+                                    throw InitSegmentDownloadFiledException(t)
+                                } else {
+                                    val createdSeconds = segmentCreatedSeconds(event.url())
+                                    val diffSeconds = System.currentTimeMillis() / 1000 - createdSeconds
+                                    logger.warn(
+                                        "Download segment:{} failed({}), delayed: {}s",
+                                        currentIndex,
+                                        (t as? ClientRequestException)?.response?.status?.value ?: t.message,
+                                        diffSeconds
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
                 if (success.get() <= 1) {
@@ -870,36 +766,33 @@ class Session(
         return if (created > 1_000_000_000_000L) created / 1000 else created
     }
 
-    private fun tryDownload(event: Event): Deferred<SegmentData?> = scope.async {
-        val c = when (event) {
-            is Event.LiveSegmentData -> ClientManager.getClient(room.name)
-            is Event.LiveSegmentInit -> ClientManager.getProxiedClient(room.name)
-            is Event.FileSplit -> throw IllegalArgumentException("FileSplit event should not be downloaded")
+    private suspend fun tryDownload(
+        event: Event,
+        writer: Writer,
+        retryCount: Int,
+        useProxy: Boolean
+    ): Long? {
+        val client = if (useProxy) {
+            ClientManager.getProxiedClient(room.name)
+        } else {
+            ClientManager.getClient(room.name)
         }
+
         val createdSeconds = segmentCreatedSeconds(event.url())
         val diffSeconds = System.currentTimeMillis() / 1000 - createdSeconds
         val wait = (20L - diffSeconds) * 1000
-        withTimeoutOrNull(if (wait > 0) wait else 0) {
-            withRetry(25) { attempt ->
+
+        return withTimeoutOrNull(if (wait > 0) wait else 0) {
+            withRetry(retryCount) { _ ->
                 try {
-                    val tempFile = File.createTempFile("seg_", ".tmp", File(tmp))
-                    try {
-                        val response = c.get(event.url())
-                        val channel = response.bodyAsChannel()
-                        tempFile.outputStream().use { output ->
-                            channel.copyTo(output)
-                        }
-                        SegmentData(tempFile, tempFile.length())
-                    } catch (e: Exception) {
-                        tempFile.delete()
-                        throw e
-                    }
+                    val response = client.get(event.url())
+                    val channel = response.bodyAsChannel()
+                    writer.appendFromChannel(channel)
                 } catch (_: TimeoutCancellationException) {
                     null
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-//                    println("Download attempt $attempt failed: ${e.message}")
                     throw e
                 }
             }

@@ -1,5 +1,7 @@
 package github.rikacelery.utils
 
+import io.ktor.utils.io.ByteReadChannel
+import io.ktor.utils.io.jvm.javaio.copyTo
 import java.io.BufferedOutputStream
 import java.io.File
 import java.time.format.DateTimeFormatter
@@ -48,6 +50,11 @@ class Writer(private val name: String, private val destFolder:String, private va
             input.copyTo(bufferedWriter)
         }
     }
+
+    suspend fun appendFromChannel(channel: ByteReadChannel): Long {
+        return channel.copyTo(bufferedWriter)
+    }
+
 
     private fun formatedStartTime(): String =
         timeStarted.toLocalDateTime().format(DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm_ss"))
