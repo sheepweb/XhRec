@@ -350,6 +350,12 @@ class Session(
         if (file == null) {
             return
         }
+        // 检查文件是否为空（0字节），如果是则删除并跳过后处理
+        if (file.first.length() == 0L) {
+            logger.info("[{}] Empty file detected (0 bytes), deleting: {}", room.name, file.first.name)
+            file.first.delete()
+            return
+        }
         runCatching {
             PostProcessor.process(
                 file.first,

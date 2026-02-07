@@ -76,6 +76,13 @@ object PostProcessor {
     }
 
     suspend fun process(input: File, context: ProcessorCtx): List<File> = concurrency.withPermit {
+        // 检查输入文件是否为空
+        if (!input.exists() || input.length() == 0L) {
+            println("[${context.room.name}] Skipping empty or non-existent file: $input")
+            if (input.exists()) input.delete()
+            return@withPermit emptyList()
+        }
+
         val processors = buildProcessors(context)
         var files = listOf(input)
         for (processor in processors) {
