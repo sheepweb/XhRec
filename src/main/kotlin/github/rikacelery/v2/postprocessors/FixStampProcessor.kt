@@ -46,7 +46,16 @@ class FixStampProcessor(room: ProcessorCtx, val destinationFolder: String) : Pro
                 throw e
             }
         } else {
-            log("转码失败，请查看命令输出")
+            log("转码失败，清理文件...")
+            // 清理输入文件和可能生成的输出文件
+            if (input.exists()) {
+                input.delete()
+                log("已删除输入文件: ${input.name}")
+            }
+            if (output.exists()) {
+                output.delete()
+                log("已删除输出文件: ${output.name}")
+            }
             throw Exception("转码失败")
         }
     }
