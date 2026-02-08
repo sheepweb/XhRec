@@ -1,11 +1,13 @@
 package github.rikacelery.utils
 
+import org.slf4j.LoggerFactory
 import java.io.BufferedOutputStream
 import java.io.File
 import java.time.format.DateTimeFormatter
 import java.util.*
 
 class Writer(private val name: String, private val destFolder:String, private val tmpfolder:String) {
+    private val logger = LoggerFactory.getLogger(Writer::class.java)
     private lateinit var file: File
     private lateinit var bufferedWriter: BufferedOutputStream
     private lateinit var timeStarted: Date
@@ -24,6 +26,7 @@ class Writer(private val name: String, private val destFolder:String, private va
         if (File(destFolder).exists().not()) {
             File(destFolder).mkdirs()
         }
+        logger.debug("[{}] Writer initialized: {}", name, file.absolutePath)
     }
 
     private fun format(time: Long): String {
@@ -54,6 +57,7 @@ class Writer(private val name: String, private val destFolder:String, private va
         if (!file.renameTo(formatted)) {
             throw Exception("Failed to rename $formatted")
         }
+        logger.debug("[{}] Writer done: {}, size: {}KB, duration: {}ms", name, formatted.name, formatted.length() / 1024, duration)
         return Triple(formatted,timeStarted,duration)
     }
 

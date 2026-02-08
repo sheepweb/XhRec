@@ -6,6 +6,7 @@ import java.nio.file.StandardCopyOption
 
 class FixStampProcessor(room: ProcessorCtx, val destinationFolder: String) : Processor(room) {
     override fun process(input: File): List<File> {
+        log("开始处理: ${input.name}, 大小: ${input.length() / 1024}KB")
         val output = input.parentFile.resolve("${input.nameWithoutExtension}.fixed.${input.extension}")
         val builder = ProcessBuilder(
             "ffmpeg",
@@ -30,7 +31,9 @@ class FixStampProcessor(room: ProcessorCtx, val destinationFolder: String) : Pro
                 log(char.replace("\r", ""))
             }
         }
-        if (p.waitFor() == 0) {
+        val exitCode = p.waitFor()
+        if (exitCode == 0) {
+            log("转码成功, 输出文件大小: ${output.length() / 1024}KB")
             input.delete()
             log("moving...")
             try {
@@ -46,7 +49,7 @@ class FixStampProcessor(room: ProcessorCtx, val destinationFolder: String) : Pro
                 throw e
             }
         } else {
-            log("转码失败，清理文件...")
+            log("转码失败, ffmpeg退出码: $exitCode, 清理文件...")
             // 清理输入文件和可能生成的输出文件
             if (input.exists()) {
                 input.delete()
@@ -56,7 +59,7 @@ class FixStampProcessor(room: ProcessorCtx, val destinationFolder: String) : Pro
                 output.delete()
                 log("已删除输出文件: ${output.name}")
             }
-            throw Exception("转码失败")
+            throw Exception("转码失败, 退出码: $exitCode")
         }
     }
 }

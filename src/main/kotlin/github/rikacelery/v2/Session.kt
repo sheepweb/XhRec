@@ -171,11 +171,11 @@ class Session(
             _isOpen.set(true)
             return true
         } catch (e: ClientRequestException) {
-            logger.debug("[{}] ClientRequestException: {}", room.name, e.message)
+            logger.debug("[{}] ClientRequestException", room.name, e)
         } catch (e: TimeoutException) {
-            logger.debug("[{}] TimeoutException: {}", room.name, e.message)
+            logger.debug("[{}] TimeoutException", room.name, e)
         } catch (e: Exception) {
-            logger.debug("[{}] Exception: {}", room.name, e.message)
+            logger.warn("[{}] Exception during testAndConfigure", room.name, e)
         }
         logger.warn("[{}] Failed to check room state", room.name)
         logger.trace("[{}] -> true", room.name)
@@ -300,7 +300,7 @@ class Session(
                                     "Download segment:{} failed({}), delayed: {}s",
                                     index,
                                     (it as? ClientRequestException)?.response?.status?.value ?: it.message,
-                                    diff / 1000
+                                    diff
                                 )
                             }
                         }
@@ -349,6 +349,8 @@ class Session(
                                     // 完成当前文件
                                     val file = writer.done()
                                     if (file != null && file.first.length() > 0) {
+                                        logger.info("[{}] Split file completed: {}, size: {}KB, duration: {}ms",
+                                            room.name, file.first.name, file.first.length() / 1024, file.third)
                                         scope.launch(NonCancellable) {
                                             runCatching {
                                                 PostProcessor.process(
@@ -360,6 +362,7 @@ class Session(
                                             }
                                         }
                                     } else {
+                                        logger.warn("[{}] Split file is empty, deleting", room.name)
                                         file?.first?.delete()
                                     }
 
@@ -374,6 +377,7 @@ class Session(
                                     startTime = System.currentTimeMillis()
                                     bytesWrite.set(cachedInitData!!.size.toLong())
                                     metric.reset()
+                                    logger.info("[{}] New file started after split", room.name)
                                 }
                             }
                         } else {
@@ -416,6 +420,8 @@ class Session(
             file.first.delete()
             return
         }
+        logger.info("[{}] Processing file after normal exit: {}, size: {}KB, duration: {}ms",
+            room.name, file.first.name, file.first.length() / 1024, file.third)
         runCatching {
             PostProcessor.process(
                 file.first,
