@@ -496,7 +496,6 @@ class Session(
         val cache = CircleCache(100)
         var retry = 0
         var ms = System.currentTimeMillis()
-        var startTime = ms
         if (isOpen) {
             logger.info("[{}] Broadcast is online, wait 3 seconds for CDN ready", room.name)
             delay(3_000)
@@ -588,35 +587,6 @@ class Session(
                     logger.warn("[{}] Got 0 videos from playlist, maybe decode failed!", room.name)
                 }
                 for (url in videos) {
-                    // record time limit or size limit
-                    val timeLimitReached = System.currentTimeMillis() - startTime > room.limit.inWholeMilliseconds
-                    val sizeLimitReached = room.sizeLimit > 0 && bytesWrite.get() > room.sizeLimit * 1024 * 1024
-                    if ((timeLimitReached || sizeLimitReached) && !cache.contains(url)) {
-                        try {
-                            val file = writerReference.get()!!.done()
-                            requireNotNull(file)
-                            scope.launch(NonCancellable) {
-                                runCatching {
-                                    PostProcessor.process(
-                                        file.first,
-                                        ProcessorCtx(room, file.second, Date(), file.third, currentQuality)
-                                    )
-                                }.onFailure {
-                                    logger.error("[{}] Postprocess failed", room.name, it)
-                                }
-                            }
-                        } catch (e: Exception) {
-                            logger.error("[${room.name}] Failed to postprocess", e)
-                        } finally {
-                            // reset state
-                            initSent = false
-                            initUrl = ""
-                            startTime = System.currentTimeMillis()
-                            writerReference.get()?.init()
-                            metric?.reset()
-                            break
-                        }
-                    }
                     // normal segments
                     if (currentCoroutineContext().isActive && !cache.contains(url)) {
                         cache.add(url)
