@@ -171,11 +171,11 @@ class Session(
             _isOpen.set(true)
             return true
         } catch (e: ClientRequestException) {
-            println(e.stackTraceToString())
+            logger.debug("[{}] ClientRequestException: {}", room.name, e.message)
         } catch (e: TimeoutException) {
-            println(e.stackTraceToString())
+            logger.debug("[{}] TimeoutException: {}", room.name, e.message)
         } catch (e: Exception) {
-            println(e.stackTraceToString())
+            logger.debug("[{}] Exception: {}", room.name, e.message)
         }
         logger.warn("[{}] Failed to check room state", room.name)
         logger.trace("[{}] -> true", room.name)
@@ -544,7 +544,7 @@ class Session(
                                 result.getOrThrow()
                             } catch (e: Exception) {
                                 logger.error("[ERROR] failed to decrypt $mouflon(${encrypted.reversed()})", e)
-                                println(rawList.joinToString("\n"))
+                                logger.debug("rawList: {}", rawList.joinToString("\n"))
                                 throw e
                             }
                             val dec = rawList[idx + 1].replace(
@@ -672,7 +672,7 @@ class Session(
             try {
                 line.substringAfter("URI=\"").substringBefore("\"")
             } catch (e: Exception) {
-                println("Failed to parse segment URL from line: $line, $e")
+                logger.warn("Failed to parse segment URL from line: {}, {}", line, e.message)
                 null
             }
         }

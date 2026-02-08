@@ -82,7 +82,7 @@ class ShellProcessor(
 
         }
         val cmd = script.map(replace)
-        println(cmd.joinToString(" "))
+        log(cmd.joinToString(" "))
         val builder = ProcessBuilder(
             cmd
         )
@@ -103,7 +103,7 @@ class ShellProcessor(
             return listOf(outputFile)
         } else {
             if (noreturn) return listOf(input)
-            println("[warning] $input shell process failed.")
+            log("[warning] $input shell process failed.")
             throw Exception("运行失败")
         }
     }

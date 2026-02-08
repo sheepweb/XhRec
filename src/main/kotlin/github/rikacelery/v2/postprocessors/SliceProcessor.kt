@@ -27,8 +27,8 @@ class SliceProcessor(room: ProcessorCtx, val duration: Duration) : Processor(roo
         val sliceDuration = total / sliceCount
         val outputFiles = (0 until sliceCount).mapNotNull { i ->
             val output = input.parentFile.resolve("${input.nameWithoutExtension}_${i}.${input.extension}")
-            println(
-                "[${context.room.name}] piece$i/${sliceCount} start:${formatDuration((i * sliceDuration).inWholeSeconds)} duration:${
+            log(
+                "piece$i/${sliceCount} start:${formatDuration((i * sliceDuration).inWholeSeconds)} duration:${
                     formatDuration(
                         sliceDuration.inWholeSeconds
                     )

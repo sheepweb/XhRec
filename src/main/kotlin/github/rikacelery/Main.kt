@@ -121,7 +121,7 @@ fun main(vararg args: String): Unit = runBlocking {
             if (sizeLimit.toLong() > 0) {
                 room.sizeLimit = sizeLimit.toLong()
             }
-            println(room)
+            rootLogger.debug("{}", room)
             room to active
         }
     }.toList().filterNotNull().awaitAll().filterNotNull().toMutableList()
@@ -146,7 +146,7 @@ fun main(vararg args: String): Unit = runBlocking {
         File("screenshot/${it.first.name}").mkdir()
         scheduler.add(it.first, it.second)
     }
-    println("-".repeat(10) + "DONE" + "-".repeat(10))
+    rootLogger.info("-".repeat(10) + "DONE" + "-".repeat(10))
     rootLogger.info("start scheduler")
     scheduler.start(false)
 
@@ -239,7 +239,7 @@ fun main(vararg args: String): Unit = runBlocking {
                 val url = "https://zh.xhamsterlive.com/${slug.substringAfterLast("/").substringBefore("#")}"
                 val q = call.request.queryParameters["quality"] ?: "720p"
                 val limit = call.request.queryParameters["limit"]?.toLongOrNull() ?: 0
-                println("${if (active) "[+]" else "[X]"} $q limit:${limit}s $slug")
+                rootLogger.info("{} {} limit:{}s {}", if (active) "[+]" else "[X]", q, limit, slug)
                 val room = withRetryOrNull(5, { it.message?.contains("404") == true }) {
                     ClientManager.getProxiedClient("main").fetchRoomFromUrl(url, q)
                 }
@@ -251,11 +251,11 @@ fun main(vararg args: String): Unit = runBlocking {
                     room.limit = limit.seconds
                 }
                 if (scheduler.sessions.keys.any { it.room.name == room.name }) {
-                    println("Exist ${room.name}")
+                    rootLogger.info("Exist {}", room.name)
                     call.respond(HttpStatusCode.InternalServerError, "Exist ${room.name}.")
                     return@get
                 }
-                println(room)
+                rootLogger.debug("{}", room)
                 scheduler.add(room, active)
                 saveJobFile(jobFile, scheduler)
                 call.respond(HttpStatusCode.OK)
@@ -406,14 +406,14 @@ fun main(vararg args: String): Unit = runBlocking {
             }
         }
     }
-    println("Starting server ...")
+    rootLogger.info("Starting server ...")
     engine.start(true)
-    println("Server Stopped, waiting post processors exit...")
+    rootLogger.info("Server Stopped, waiting post processors exit...")
     withContext(NonCancellable) {
         scheduler.stop()
     }
     // Suppress waring
-    println("all done")
+    rootLogger.info("all done")
     ClientManager.close()
     return@runBlocking
 }

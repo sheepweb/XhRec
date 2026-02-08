@@ -1,16 +1,19 @@
 package github.rikacelery.utils
 
 import kotlinx.coroutines.delay
+import org.slf4j.LoggerFactory
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.util.*
+
+private val logger = LoggerFactory.getLogger("github.rikacelery.utils.Utils")
 
 suspend fun <R, T> R.withMeasureTime(block: suspend R.() -> T): T {
     val start = System.currentTimeMillis()
     val res = block()
     val delta = System.currentTimeMillis() - start
     if (delta > 3000) {
-        println("time: ${delta}ms")
+        logger.warn("time: {}ms", delta)
     }
     return res
 }

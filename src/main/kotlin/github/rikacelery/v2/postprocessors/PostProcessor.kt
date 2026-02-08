@@ -7,10 +7,12 @@ import github.rikacelery.utils.String
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.json.*
+import org.slf4j.LoggerFactory
 import java.io.File
 import kotlin.time.Duration
 
 object PostProcessor {
+    private val logger = LoggerFactory.getLogger(PostProcessor::class.java)
     val concurrency = Semaphore(4)
     lateinit var config: JsonArray
 
@@ -19,7 +21,7 @@ object PostProcessor {
             JsonObject.Companion.serializer(),
             file.readText()
         ).jsonObject["default"]?.jsonArray ?: JsonArray(listOf())
-        println("Post processors loads: ${config.map { it.String("type") }}")
+        logger.info("Post processors loads: {}", config.map { it.String("type") })
     }
 
 
@@ -71,14 +73,14 @@ object PostProcessor {
                 }
             }
         }
-        println("Post processors build(${context.room}): ${processors.map { it }}")
+        logger.debug("Post processors build({}): {}", context.room, processors.map { it })
         return processors
     }
 
     suspend fun process(input: File, context: ProcessorCtx): List<File> = concurrency.withPermit {
         // 检查输入文件是否为空
         if (!input.exists() || input.length() == 0L) {
-            println("[${context.room.name}] Skipping empty or non-existent file: $input")
+            logger.info("[{}] Skipping empty or non-existent file: {}", context.room.name, input)
             if (input.exists()) input.delete()
             return@withPermit emptyList()
         }
@@ -88,13 +90,13 @@ object PostProcessor {
         for (processor in processors) {
 
             val tmp = files.flatMapIndexed { idx, file ->
-                println("[${context.room.name}] $idx/${files.size} ${processor.javaClass.simpleName} $file")
+                logger.info("[{}] {}/{} {} {}", context.room.name, idx, files.size, processor.javaClass.simpleName, file)
                 val outs = try {
                     processor.process(file)
                 } catch (e: Exception) {
                     throw e
                 }
-                println("[${context.room.name}] $idx/${outs.size} ${processor.javaClass.simpleName} -> $outs")
+                logger.info("[{}] {}/{} {} -> {}", context.room.name, idx, outs.size, processor.javaClass.simpleName, outs)
                 outs
             }
             files = tmp
