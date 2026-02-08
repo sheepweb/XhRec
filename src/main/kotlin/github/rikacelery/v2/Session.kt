@@ -138,28 +138,23 @@ class Session(
                 val reason =
                     runCatching { Json.Default.parseToJsonElement(get.bodyAsText()).String("description") }.getOrNull()
                 logger.trace("[{}] request api reason={}", room.name, reason)
-                if (reason == null) {
-                    logger.trace("[{}] -> false", room.name)
-                    _isOpen.set(false)
-                    return false
-                }
-                when {
-                    reason.matches("Model has new name: newName=(.*)".toRegex()) -> {
-                        val newName = "Model has new name: newName=(.*)".toRegex().find(reason)!!.groupValues[1]
-                        logger.debug("[{}] model renamed to {}", room.name, newName)
-                        throw RenameException(
-                            newName
-                        )
-                    }
-
-                    reason == "model already deleted" -> {
-                        logger.debug("[{}] model deleted", room.name)
-                        throw DeletedException(room.name)
-                    }
-                }
+                handleBroadcastApiError(room.name, reason)
+                // 如果 handleBroadcastApiError 没有抛出异常，返回 false
+                logger.trace("[{}] -> false", room.name)
+                _isOpen.set(false)
+                return false
             }
 
             val element = Json.Default.parseToJsonElement(get.bodyAsText())
+
+            // 检查是否是错误响应（主播被删除或不存在）
+            val errorDesc = checkBroadcastApiErrorResponse(element, room.name)
+            if (errorDesc != null) {
+                logger.debug("[{}] API error response: {}", room.name, errorDesc)
+                _isOpen.set(false)
+                return false
+            }
+
             val status = element.PathSingle("item.status").asString()
             if (status != "public") {
                 logger.trace("[{}] -> false, status={}", room.name, status)
