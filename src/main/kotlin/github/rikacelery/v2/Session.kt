@@ -29,6 +29,7 @@ import okhttp3.internal.toLongOrDefault
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.*
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
@@ -325,6 +326,7 @@ class Session(
                             logger.error("channel result is null")
                             continue
                         }
+                        logger.trace("Collected: {}: {}",result.first::class.simpleName,result.first.url())
 
                         when (result.first) {
                             is Event.CmdFinish -> {
@@ -418,6 +420,10 @@ class Session(
             )
         }
 
+    private val eventFinish = LinkedBlockingQueue<Event>()
+    fun cmdFinish() {
+        eventFinish.add(Event.CmdFinish())
+    }
     private fun segmentGenerator(): Flow<Event> = flow {
         var initSent = false
         var initUrl = ""
@@ -512,6 +518,17 @@ class Session(
                         initSent = false
                         initUrl = ""
                         startTime = System.currentTimeMillis()
+                        break
+                    }
+                    // external finish cmd
+                    val poll = eventFinish.poll()
+                    if (poll!=null){
+                        emit(poll)
+                        // reset state
+                        initSent = false
+                        initUrl = ""
+                        startTime = System.currentTimeMillis()
+                        break
                     }
                     // normal segments
                     if (currentCoroutineContext().isActive && !cache.contains(url)) {
