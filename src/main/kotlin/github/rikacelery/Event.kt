@@ -12,4 +12,9 @@ sealed interface Event {
             return url
         }
     }
+    class CmdFinish(): Event{
+        override fun url(): String {
+            return ""
+        }
+    }
 }
