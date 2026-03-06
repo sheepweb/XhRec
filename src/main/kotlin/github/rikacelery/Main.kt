@@ -261,7 +261,7 @@ fun main(vararg args: String): Unit = runBlocking {
                     call.respond(HttpStatusCode.NotAcceptable, "Room slug not provided.")
                     return@get
                 }
-                scheduler.stopRecorder(slug)
+                scheduler.cmdFinish(slug,Event.CmdFinish())
                 call.respond("OK.")
             }
             get("/stop") {
