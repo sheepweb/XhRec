@@ -6,6 +6,7 @@ import github.rikacelery.utils.*
 import github.rikacelery.v2.exceptions.DeletedException
 import github.rikacelery.v2.exceptions.RenameException
 import github.rikacelery.v2.metric.Metric
+import github.rikacelery.v2.metric.MetricItem
 import github.rikacelery.v2.metric.MetricUpdater
 import github.rikacelery.v2.postprocessors.PostProcessor
 import github.rikacelery.v2.postprocessors.ProcessorCtx
@@ -30,8 +31,6 @@ import java.io.File
 import java.util.*
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.abs
 
@@ -81,15 +80,6 @@ class Session(
     private val writerReference = AtomicReference<Writer?>(null)
     private var generatorJob: Job? = null
 
-    //metrics
-    private val total = AtomicInteger(0)
-    private val success = AtomicInteger(0)
-    private val successProxied = AtomicInteger(0)
-    private val successDirect = AtomicInteger(0)
-    private val failed = AtomicInteger(0)
-    private val running = AtomicInteger(0)
-    private val bytesWrite = AtomicLong(0)
-
     private val runningUrl = Hashtable<String, UrlInfo>()
     private val replacedUrl = Hashtable<String, Boolean>()
 
@@ -108,15 +98,21 @@ class Session(
 
     fun status(): Status {
         synchronized(runningUrl) {
-            return Status(total.get(), success.get(), failed.get(), bytesWrite.get(), runningUrl.toMap().mapKeys {
-                if (replacedUrl[it.key] == true) {
-                    it.key.replace(regexCache) { result ->
-                        "${result.groupValues[1]}.doppiocdn.live"
+            val data = metric.data ?: MetricItem()
+            return Status(
+                data.total,
+                data.successDirect + data.successProxied,
+                data.failed,
+                data.bytesWrite,
+                runningUrl.toMap().mapKeys {
+                    if (replacedUrl[it.key] == true) {
+                        it.key.replace(regexCache) { result ->
+                            "${result.groupValues[1]}.doppiocdn.live"
+                        }
+                    } else {
+                        it.key
                     }
-                } else {
-                    it.key
-                }
-            })
+                })
         }
     }
 
@@ -236,7 +232,7 @@ class Session(
         return parts[(parts.size - 3).coerceAtLeast(0)].toIntOrNull()
     }
 
-    var metric: MetricUpdater? = null
+    val metric: MetricUpdater = Metric.newMetric(room.id, room.name)
     suspend fun start() {
         if (!_isActive.compareAndSet(false, true)) {
             throw IllegalStateException("Session is already active")
@@ -252,34 +248,29 @@ class Session(
 
         val writer = Writer(room.name, dest, tmp).apply { init() }
         writerReference.set(writer)
-        metric = Metric.newMetric(room.id, room.name)
-        val metric = metric!!
         val counter = createDiscontinuityCounter()
-        total.set(0)
-        success.set(0)
-        failed.set(0)
-        running.set(0)
-        bytesWrite.set(0)
+        metric.reset()
 
         try {
             generatorJob = scope.launch {
-                val pending = mutableMapOf<Int, Deferred<Result<ByteArray>>>()
+                val pending = mutableMapOf<Int, Pair<Event, Deferred<Result<ByteArray>>>>()
                 val readyToEmit = PriorityQueue<Int>()
                 var nextIndex = 0
                 var emittedIndex = 0
 
                 segmentGenerator().map { event ->
+                    val index = nextIndex++
+                    if (event is Event.CmdFinish) {
+                        return@map index to (event to async { Result.success(byteArrayOf()) })
+                    }
                     segmentIDFromUrl(event.url())?.let { segmentID ->
                         metric.segmentID(segmentID)
                         metric.segmentMissing(counter(listOf(segmentID)))
                         metric.quality(currentQuality)
                     }
-                    val index = nextIndex++
-                    index to scope.async {
+                    index to (event to scope.async {
                         metric.downloadingIncrement()
                         metric.totalIncrement()
-                        running.incrementAndGet()
-                        total.incrementAndGet()
                         val ms = System.currentTimeMillis()
                         val result = runCatching {
                             synchronized(runningUrl) {
@@ -287,7 +278,6 @@ class Session(
                             }
                             tryDownload(event).await()?.also {
                                 metric.successDirectIncrement()
-                                successDirect.incrementAndGet()
                             } ?: run {
 //                                    println("Falling back to proxy download for ${room.name}")
                                 synchronized(runningUrl) {
@@ -298,7 +288,6 @@ class Session(
                                         event.url()
                                     ).readBytes().also {
                                         metric.successProxiedIncrement()
-                                        successProxied.incrementAndGet()
                                     }
                                 }
                             }
@@ -323,36 +312,65 @@ class Session(
                                 )
                             }
                         }
-                    }
-                }.buffer(Channel.UNLIMITED).collect { (index, deferred) ->
-                    pending[index] = deferred
+                    })
+                }.buffer(Channel.UNLIMITED).collect { (index, pair) ->
+                    pending[index] = pair
                     readyToEmit.add(index)
 
                     while (readyToEmit.peek() == emittedIndex) {
                         val current = readyToEmit.poll()
-                        val result = pending.remove(current)?.await()
-                        metric.downloadingDecrement()
-                        metric.doneIncrement()
-                        running.decrementAndGet()
-                        if (result != null && result.isSuccess) {
-                            success.incrementAndGet()
-                            val data = result.getOrThrow()
-                            metric.bytesWriteIncrement(data.size.toLong())
-                            bytesWrite.addAndGet(data.size.toLong())
-                            writer.append(data)
-                        } else {
-                            metric.failedIncrement()
-                            failed.incrementAndGet()
+                        val result = pending.remove(current)
+                        if (result == null) {
+                            emittedIndex++
+                            logger.error("channel result is null")
+                            continue
+                        }
+
+                        when (result.first) {
+                            is Event.CmdFinish -> {
+                                try {
+                                    val file = writerReference.get()!!.done()
+                                    requireNotNull(file)
+                                    scope.launch(NonCancellable) {
+                                        runCatching {
+                                            PostProcessor.process(
+                                                file.first,
+                                                ProcessorCtx(room, file.second, Date(), file.third, currentQuality)
+                                            )
+                                        }.onFailure {
+                                            logger.error("[{}] Postprocess failed", room.name, it)
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    logger.error("[${room.name}] Failed to postprocess", e)
+                                } finally {
+                                    writerReference.get()?.init()
+                                    metric.reset()
+                                }
+                            }
+
+                            else -> {
+                                val bytes = result.second.await()
+                                metric.downloadingDecrement()
+                                metric.doneIncrement()
+                                if (bytes.isSuccess) {
+                                    val data = bytes.getOrThrow()
+                                    metric.bytesWriteIncrement(data.size.toLong())
+                                    writer.append(data)
+                                } else {
+                                    metric.failedIncrement()
+                                }
+                            }
                         }
                         emittedIndex++
                     }
                 }
-                if (success.get() <= 1) {
+                if (metric.data!!.successDirect + metric.data!!.successProxied <= 1) {
                     logger.info(
                         "[{}}] No valid segments downloaded({}/{}) since start. clean empty file",
                         room.name,
-                        success.get(),
-                        total.get()
+                        metric.data!!.successDirect + metric.data!!.successProxied,
+                        metric.data?.total
                     )
                     // some model start and stop their frequently
                     // this cause the stream url become invalid immediately
@@ -468,7 +486,7 @@ class Session(
                 if (logger.isTraceEnabled) {
                     File("${room.name}.decoded.m3u8").writeText(lines.joinToString("\n"))
                 }
-                metric?.updateRefreshLatency(System.currentTimeMillis() - ms)
+                metric.updateRefreshLatency(System.currentTimeMillis() - ms)
                 ms = System.currentTimeMillis()
                 val initUrlCur = parseInitUrl(lines)
                 if (initUrl.isEmpty()) initUrl = initUrlCur
@@ -489,30 +507,11 @@ class Session(
                 for (url in videos) {
                     // record time limit
                     if (System.currentTimeMillis() - startTime > room.limit.inWholeMilliseconds && !cache.contains(url)) {
-                        try {
-                            val file = writerReference.get()!!.done()
-                            requireNotNull(file)
-                            scope.launch(NonCancellable) {
-                                runCatching {
-                                    PostProcessor.process(
-                                        file.first,
-                                        ProcessorCtx(room, file.second, Date(), file.third, currentQuality)
-                                    )
-                                }.onFailure {
-                                    logger.error("[{}] Postprocess failed", room.name, it)
-                                }
-                            }
-                        } catch (e: Exception) {
-                            logger.error("[${room.name}] Failed to postprocess", e)
-                        } finally {
-                            // reset state
-                            initSent = false
-                            initUrl = ""
-                            startTime = System.currentTimeMillis()
-                            writerReference.get()?.init()
-                            metric?.reset()
-                            break
-                        }
+                        emit(Event.CmdFinish())
+                        // reset state
+                        initSent = false
+                        initUrl = ""
+                        startTime = System.currentTimeMillis()
                     }
                     // normal segments
                     if (currentCoroutineContext().isActive && !cache.contains(url)) {
@@ -610,6 +609,7 @@ class Session(
         val c = when (event) {
             is Event.LiveSegmentData -> ClientManager.getClient(room.name)
             is Event.LiveSegmentInit -> ClientManager.getProxiedClient(room.name)
+            else -> throw IllegalStateException("unknown Event type $event")
         }
         val created =
             (event.url().replace("(_part\\d)?.mp4".toRegex(), "").substringAfterLast("_").substringAfterLast("_")

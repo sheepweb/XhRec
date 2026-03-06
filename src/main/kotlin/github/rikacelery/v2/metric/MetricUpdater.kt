@@ -107,6 +107,13 @@ class MetricUpdater(
         }
     }
 
+    val data
+        get() =
+            metrics?.let {
+                it[id]
+            }
+
+
     fun reset() {
         metrics?.let {
             it[id] = MetricItem()
