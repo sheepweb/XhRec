@@ -233,7 +233,7 @@ class Session(
         return parts[(parts.size - 3).coerceAtLeast(0)].toIntOrNull()
     }
 
-    val metric: MetricUpdater = Metric.newMetric(room.id, room.name)
+    var metric: MetricUpdater = Metric.newMetric(room.id, room.name)
     suspend fun start() {
         if (!_isActive.compareAndSet(false, true)) {
             throw IllegalStateException("Session is already active")
@@ -250,7 +250,7 @@ class Session(
         val writer = Writer(room.name, dest, tmp).apply { init() }
         writerReference.set(writer)
         val counter = createDiscontinuityCounter()
-        metric.reset()
+        metric = Metric.newMetric(room.id, room.name)
 
         try {
             generatorJob = scope.launch {
