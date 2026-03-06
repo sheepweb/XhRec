@@ -1,6 +1,6 @@
 plugins {
     application
-    kotlin("jvm") version "1.9.21"
+    kotlin("jvm") version "2.3.0"
     kotlin("plugin.serialization") version "2.3.0"
     id("io.ktor.plugin") version "3.3.3"
 //    id("org.graalvm.buildtools.native") version "0.9.19"
