@@ -11,6 +11,7 @@ import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
+import io.ktor.server.cio.*
 import io.ktor.server.engine.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.plugins.cors.routing.*
@@ -196,9 +197,9 @@ fun main(vararg args: String): Unit = runBlocking {
 //        }
 //    }
     // web server
-    var engine: ApplicationEngine? = null
-    engine = embeddedServer(
-        io.ktor.server.cio.CIO,
+    var engine: EmbeddedServer<CIOApplicationEngine, CIOApplicationEngine.Configuration>? = null
+    engine  = embeddedServer(
+        CIO,
         port = commandLine.getOptionValue("p", "8090").toInt(),
         host = "0.0.0.0"
     ) {
