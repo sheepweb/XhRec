@@ -15,9 +15,6 @@ application {
     mainClass.set("github.rikacelery.MainKt")
 
 }
-repositories {
-    mavenCentral()
-}
 
 dependencies {
     implementation("ch.qos.logback:logback-classic:1.4.12")
