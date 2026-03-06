@@ -420,7 +420,7 @@ class Session(
                         parameter("pkey", AUTH_KEY_V2)
                         parameter("preferredVideoCodec", "H265")
                     }.bodyAsText().lines()
-                    if (logger.isTraceEnabled){
+                    if (logger.isTraceEnabled) {
                         File("${room.name}.m3u8").writeText(rawList.joinToString("\n"))
                     }
                     val newList = mutableListOf<String>()
@@ -465,7 +465,7 @@ class Session(
                     newList.filterNot { it.contains("media.mp4") }
                 }
 
-                if (logger.isTraceEnabled){
+                if (logger.isTraceEnabled) {
                     File("${room.name}.decoded.m3u8").writeText(lines.joinToString("\n"))
                 }
                 metric?.updateRefreshLatency(System.currentTimeMillis() - ms)
@@ -488,10 +488,7 @@ class Session(
                 }
                 for (url in videos) {
                     // record time limit
-                    if (System.currentTimeMillis() - startTime > room.limit.inWholeMilliseconds && !cache.contains(url) && url.endsWith(
-                            "_part0.mp4"
-                        )
-                    ) {
+                    if (System.currentTimeMillis() - startTime > room.limit.inWholeMilliseconds && !cache.contains(url)) {
                         try {
                             val file = writerReference.get()!!.done()
                             requireNotNull(file)
@@ -509,11 +506,11 @@ class Session(
                             logger.error("[${room.name}] Failed to postprocess", e)
                         } finally {
                             // reset state
-                            cache.clear()
                             initSent = false
                             initUrl = ""
                             startTime = System.currentTimeMillis()
                             writerReference.get()?.init()
+                            metric?.reset()
                             break
                         }
                     }
@@ -614,7 +611,9 @@ class Session(
             is Event.LiveSegmentData -> ClientManager.getClient(room.name)
             is Event.LiveSegmentInit -> ClientManager.getProxiedClient(room.name)
         }
-        val created = (event.url().replace("(_part\\d)?.mp4".toRegex(),"").substringAfterLast("_").substringAfterLast("_").toLongOrDefault(0))
+        val created =
+            (event.url().replace("(_part\\d)?.mp4".toRegex(), "").substringAfterLast("_").substringAfterLast("_")
+                .toLongOrDefault(0))
         val diff = System.currentTimeMillis() / 1000 - created
         val wait = (20L - diff) * 1000
         withTimeoutOrNull(if (wait > 0) wait else 0) {

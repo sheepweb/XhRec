@@ -107,5 +107,11 @@ class MetricUpdater(
         }
     }
 
+    fun reset() {
+        metrics?.let {
+            it[id] = MetricItem()
+        }
+    }
+
 
 }
