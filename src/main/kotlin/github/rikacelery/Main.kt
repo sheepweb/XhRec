@@ -29,6 +29,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 
@@ -80,15 +81,17 @@ fun main(vararg args: String): Unit = runBlocking {
         formatter.printHelp("CommandLineParameters", options)
     }
     val file = File(commandLine.getOptionValue("post", "postprocessor.json"))
-    if (file.exists().not()){
-        file.writeText("""{
+    if (file.exists().not()) {
+        file.writeText(
+            """{
   "default": [
     {
       "type": "fix_stamp",
       "output": "/out"
     }
   ]
-}""")
+}"""
+        )
     }
     PostProcessor.loadConfig(file)
     val jobFile = File(commandLine.getOptionValue("f", "list.conf"))
@@ -111,7 +114,7 @@ fun main(vararg args: String): Unit = runBlocking {
             val room = withRetryOrNull(5, { it.message?.contains("404") == true }) {
                 ClientManager.getProxiedClient("main").fetchRoomFromUrl(url, q)
             } ?: run {
-                rootLogger.warn("failed: {}" , url)
+                rootLogger.warn("failed: {}", url)
                 return@async null
             }
             if (limit.toLong() > 0) {
@@ -198,7 +201,7 @@ fun main(vararg args: String): Unit = runBlocking {
 //    }
     // web server
     var engine: EmbeddedServer<CIOApplicationEngine, CIOApplicationEngine.Configuration>? = null
-    engine  = embeddedServer(
+    engine = embeddedServer(
         CIO,
         port = commandLine.getOptionValue("p", "8090").toInt(),
         host = "0.0.0.0"
@@ -216,6 +219,7 @@ fun main(vararg args: String): Unit = runBlocking {
             get("/add") {
                 val active = call.request.queryParameters["active"].toBoolean()
                 val slug = call.request.queryParameters["slug"]
+                val limit = call.request.queryParameters["limit"]?.toLongOrNull() ?: 0L
                 if (slug == null) {
                     call.respond(HttpStatusCode.NotAcceptable, "Room slug not provided.")
                     return@get
@@ -234,6 +238,9 @@ fun main(vararg args: String): Unit = runBlocking {
                     println("Exist ${room.name}")
                     call.respond(HttpStatusCode.InternalServerError, "Exist ${room.name}.")
                     return@get
+                }
+                if (limit > 0) {
+                    room.limit = limit.seconds
                 }
                 println(room)
                 scheduler.add(room, active)
@@ -261,7 +268,7 @@ fun main(vararg args: String): Unit = runBlocking {
                     call.respond(HttpStatusCode.NotAcceptable, "Room slug not provided.")
                     return@get
                 }
-                scheduler.cmdFinish(slug,Event.CmdFinish())
+                scheduler.cmdFinish(slug, Event.CmdFinish())
                 call.respond("OK.")
             }
             get("/stop") {
@@ -299,6 +306,26 @@ fun main(vararg args: String): Unit = runBlocking {
                 saveJobFile(jobFile, scheduler)
                 call.respond(room)
             }
+            get("/limit") {
+                val slug = call.request.queryParameters["slug"]
+                if (slug == null) {
+                    call.respond(HttpStatusCode.NotAcceptable, "Room slug not provided.")
+                    return@get
+                }
+                val limit = call.request.queryParameters["limit"]?.toLongOrNull()
+                if (limit == null) {
+                    call.respond(HttpStatusCode.NotAcceptable, "Limit not provided or invalid.")
+                    return@get
+                }
+                val room = scheduler.sessions.keys.find { it.room.name.equals(slug, true) }?.room
+                if (room == null) {
+                    call.respond(HttpStatusCode.NotAcceptable, "Room $slug not found.")
+                    return@get
+                }
+                room.limit = if (limit == 0L) Duration.INFINITE else limit.seconds
+                saveJobFile(jobFile, scheduler)
+                call.respond(room)
+            }
             get("/deactivate") {
 
                 val slug = call.request.queryParameters["slug"]
@@ -320,6 +347,7 @@ fun main(vararg args: String): Unit = runBlocking {
                             state.room.name,
                             state.room.id.toString(),
                             state.room.quality,
+                            if (state.room.limit.isFinite()) state.room.limit.inWholeSeconds.toString() else "0",
                         )
                     }
                 }.awaitAll()
