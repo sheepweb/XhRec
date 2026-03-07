@@ -367,7 +367,7 @@ class Session(
                         emittedIndex++
                     }
                 }
-                if (metric.data!!.successDirect + metric.data!!.successProxied <= 1) {
+                if (metric.data!=null &&metric.data!!.successDirect + metric.data!!.successProxied <= 1) {
                     logger.info(
                         "[{}}] No valid segments downloaded({}/{}) since start. clean empty file",
                         room.name,
