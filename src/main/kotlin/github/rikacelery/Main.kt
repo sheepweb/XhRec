@@ -1,8 +1,8 @@
 package github.rikacelery
 
 import github.rikacelery.utils.ClientManager
-import github.rikacelery.utils.fetchRoomFromUrl
 import github.rikacelery.utils.withRetryOrNull
+import github.rikacelery.v2.API
 import github.rikacelery.v2.Scheduler
 import github.rikacelery.v2.metric.Metric
 import github.rikacelery.v2.postprocessors.PostProcessor
@@ -24,6 +24,9 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.internal.synchronized
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import org.apache.commons.cli.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -33,9 +36,12 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 
-val BUILTIN = setOf(
-    "# https://zh.xhamsterlive.com/ChangeToYourModel q:1080p limit:120",
-)
+var HOST = "stripchat.com"
+val BUILTIN by lazy {
+    setOf(
+        "# https://$HOST/ChangeToYourModel q:1080p limit:120",
+    )
+}
 
 private fun extract(text: String, regex: Regex, default: String): String {
     return regex.find(text)?.groupValues?.get(1)?.ifBlank { default } ?: default
@@ -53,10 +59,10 @@ fun main(vararg args: String): Unit = runBlocking {
                 expectSuccess = false
             }
             rootLogger.info("Proxy connect success.")
-            ClientManager.getProxiedClient("test").get("https://xhamsterlive.com") {
+            ClientManager.getProxiedClient("test").get("https://$HOST") {
                 expectSuccess = false
             }
-            rootLogger.info("Proxy test (https://xhamsterlive.com) success.")
+            rootLogger.info("Proxy test (https://$HOST) success.")
         }.onFailure {
             rootLogger.info("Proxy test failed. $it")
         }
@@ -68,6 +74,7 @@ fun main(vararg args: String): Unit = runBlocking {
     options.addOption("o", "output", true, "Output Dir [default: out]")
     options.addOption("t", "tmp", true, "Temp Dir [default: tmp]")
     options.addOption("p", "port", true, "Server Port [default: 8090]")
+    options.addOption("u", "users", true, "Configuration File, one cookie per line [default: users.txt]")
 
     val commandLine: CommandLine = try {
         parser.parse(options, args)
@@ -80,6 +87,9 @@ fun main(vararg args: String): Unit = runBlocking {
         val formatter = HelpFormatter()
         formatter.printHelp("CommandLineParameters", options)
     }
+
+
+
     val file = File(commandLine.getOptionValue("post", "postprocessor.json"))
     if (file.exists().not()) {
         file.writeText(
@@ -96,7 +106,7 @@ fun main(vararg args: String): Unit = runBlocking {
     PostProcessor.loadConfig(file)
     val jobFile = File(commandLine.getOptionValue("f", "list.conf"))
     rootLogger.info("jobfile: {}, postprocessor:{}", jobFile, commandLine.getOptionValue("post", "postprocessor.json"))
-    val regex = "([#;])? *(https://(?:zh.)?xhamsterlive.com/\\S+)(?: (.+))?".toRegex()
+    val regex = "([#;])? *(https://(?:zh.)?(?:xhamsterlive|stripchat).com/\\S+)(?: (.+))?".toRegex()
     val rooms = channelFlow {
         if (!jobFile.exists())
             jobFile.writeText(BUILTIN.joinToString("\n"))
@@ -107,32 +117,60 @@ fun main(vararg args: String): Unit = runBlocking {
         val match = regex.find(it) ?: return@map null
         val active = match.groupValues[1].isBlank()
         val url = match.groupValues[2]
-        val q = extract(match.groupValues[3], "q:(\\S+)".toRegex(), "720p")
-        val limit = extract(match.groupValues[3], "limit:(\\d+)".toRegex(), "0")
-        rootLogger.info("loads: ${if (active) "[active]" else "[      ]"} quality:$q limit:$limit url:$url")
+        val quality = extract(match.groupValues[3], "q:(\\S+)".toRegex(), "720p")
+        val timeLimit = extract(match.groupValues[3], "limit:(\\d+)".toRegex(), "0")
+        val autopay = extract(match.groupValues[3], "(autopay)".toRegex(), "") == "autopay"
+        rootLogger.info("loads: ${if (active) "[active]" else "[      ]"} quality:$quality limit:$timeLimit${if (autopay) " autopay " else " "}url:$url")
         async {
-            val room = withRetryOrNull(5, { it.message?.contains("404") == true }) {
-                ClientManager.getProxiedClient("main").fetchRoomFromUrl(url, q)
+            val room = withRetryOrNull(3, { it.message?.contains("404") == true }) {
+                API.getRoomFromUrlOrSlug(url, quality)
             } ?: run {
                 rootLogger.warn("failed: {}", url)
                 return@async null
             }
-            if (limit.toLong() > 0) {
-                room.limit = limit.toLong().seconds
+            if (timeLimit.toLong() > 0) {
+                room.limit = timeLimit.toLong().seconds
             }
-            println(room)
+            room.autoPay = autopay
+            rootLogger.info("Got new room {}.",room)
             room to active
         }
     }.toList().filterNotNull().awaitAll().filterNotNull().toMutableList()
 
+    File(commandLine.getOptionValue("o", "out")).mkdirs()
+    File(commandLine.getOptionValue("t", "tmp")).mkdirs()
     val scheduler =
-        Scheduler(commandLine.getOptionValue("o", "out"), commandLine.getOptionValue("t", "tmp")) { scheduler ->
+        Scheduler(
+            commandLine.getOptionValue("o", "out"),
+            commandLine.getOptionValue("t", "tmp"),
+
+            ) { scheduler ->
             saveJobFile(jobFile, scheduler)
         }
     rooms.forEach {
         File("screenshot/${it.first.name}").mkdir()
         scheduler.add(it.first, it.second)
     }
+
+    val userfile = File(commandLine.getOptionValue("u", "users.txt"))
+    if (userfile.exists().not()) {
+        userfile.createNewFile()
+    }
+    for (line in userfile.readLines()) {
+        if (line.trim().startsWith(";") || line.trim().startsWith("#"))
+            continue
+        try {
+            val u = API.getUserFromCookie(line.trim())
+            rootLogger.info("New user: {}",u)
+            UserManager.update(u)
+        } catch (e: Exception) {
+            rootLogger.warn(
+                "Failed to get user from cookie ***${line.subSequence((line.lastIndex - 10).coerceAtLeast(0)..line.lastIndex)}",
+                e
+            )
+        }
+    }
+
     println("-".repeat(10) + "DONE" + "-".repeat(10))
     rootLogger.info("start scheduler")
     scheduler.start(false)
@@ -221,14 +259,14 @@ fun main(vararg args: String): Unit = runBlocking {
                 val slug = call.request.queryParameters["slug"]
                 val limit = call.request.queryParameters["limit"]?.toLongOrNull() ?: 0L
                 if (slug == null) {
-                    call.respond(HttpStatusCode.NotAcceptable, "Room slug not provided.")
+                    call.respond(HttpStatusCode.NotAcceptable, "slug not provided.")
                     return@get
                 }
-                val url = "https://zh.xhamsterlive.com/${slug.substringAfterLast("/").substringBefore("#")}"
+                val url = "https://$HOST/${slug.substringAfterLast("/").substringBefore("#")}"
                 val q = call.request.queryParameters["quality"] ?: "720p"
                 println("${if (active) "[+]" else "[X]"} $q $slug")
                 val room = withRetryOrNull(5, { it.message?.contains("404") == true }) {
-                    ClientManager.getProxiedClient("main").fetchRoomFromUrl(url, q)
+                    API.getRoomFromUrlOrSlug(url, q)
                 }
                 if (room == null) {
                     call.respond(HttpStatusCode.InternalServerError, "Failed to get room info.")
@@ -250,7 +288,7 @@ fun main(vararg args: String): Unit = runBlocking {
             get("/remove") {
                 val slug = call.request.queryParameters["slug"]
                 if (slug == null) {
-                    call.respond(HttpStatusCode.NotAcceptable, "Room slug not provided.")
+                    call.respond(HttpStatusCode.NotAcceptable, "slug not provided.")
                     return@get
                 }
                 scheduler.remove(slug)
@@ -265,7 +303,7 @@ fun main(vararg args: String): Unit = runBlocking {
             get("/break") {
                 val slug = call.request.queryParameters["slug"]
                 if (slug == null) {
-                    call.respond(HttpStatusCode.NotAcceptable, "Room slug not provided.")
+                    call.respond(HttpStatusCode.NotAcceptable, "slug not provided.")
                     return@get
                 }
                 scheduler.cmdFinish(slug, Event.CmdFinish())
@@ -279,7 +317,7 @@ fun main(vararg args: String): Unit = runBlocking {
             get("/activate") {
                 val slug = call.request.queryParameters["slug"]
                 if (slug == null) {
-                    call.respond(HttpStatusCode.NotAcceptable, "Room slug not provided.")
+                    call.respond(HttpStatusCode.NotAcceptable, "slug not provided.")
                     return@get
                 }
                 scheduler.active(slug)
@@ -289,12 +327,12 @@ fun main(vararg args: String): Unit = runBlocking {
             get("/quality") {
                 val slug = call.request.queryParameters["slug"]
                 if (slug == null) {
-                    call.respond(HttpStatusCode.NotAcceptable, "Room slug not provided.")
+                    call.respond(HttpStatusCode.NotAcceptable, "slug not provided.")
                     return@get
                 }
                 val q = call.request.queryParameters["quality"]
                 if (q == null) {
-                    call.respond(HttpStatusCode.NotAcceptable, "Quality not provided.")
+                    call.respond(HttpStatusCode.NotAcceptable, "quality not provided.")
                     return@get
                 }
                 val room = scheduler.sessions.keys.find { it.room.name.equals(slug, true) }?.room
@@ -306,15 +344,35 @@ fun main(vararg args: String): Unit = runBlocking {
                 saveJobFile(jobFile, scheduler)
                 call.respond(room)
             }
+            get("/autopay") {
+                val slug = call.request.queryParameters["slug"]
+                if (slug == null) {
+                    call.respond(HttpStatusCode.NotAcceptable, "slug not provided.")
+                    return@get
+                }
+                val autopay = call.request.queryParameters["value"]?.toBoolean()
+                if (autopay == null) {
+                    call.respond(HttpStatusCode.NotAcceptable, "value not provided.")
+                    return@get
+                }
+                val room = scheduler.sessions.keys.find { it.room.name.equals(slug, true) }?.room
+                if (room == null) {
+                    call.respond(HttpStatusCode.NotAcceptable, "Room $slug not found.")
+                    return@get
+                }
+                room.autoPay = autopay
+                saveJobFile(jobFile, scheduler)
+                call.respond(room)
+            }
             get("/limit") {
                 val slug = call.request.queryParameters["slug"]
                 if (slug == null) {
-                    call.respond(HttpStatusCode.NotAcceptable, "Room slug not provided.")
+                    call.respond(HttpStatusCode.NotAcceptable, "slug not provided.")
                     return@get
                 }
                 val limit = call.request.queryParameters["limit"]?.toLongOrNull()
                 if (limit == null) {
-                    call.respond(HttpStatusCode.NotAcceptable, "Limit not provided or invalid.")
+                    call.respond(HttpStatusCode.NotAcceptable, "limit not provided or invalid.")
                     return@get
                 }
                 val room = scheduler.sessions.keys.find { it.room.name.equals(slug, true) }?.room
@@ -330,7 +388,7 @@ fun main(vararg args: String): Unit = runBlocking {
 
                 val slug = call.request.queryParameters["slug"]
                 if (slug == null) {
-                    call.respond(HttpStatusCode.NotAcceptable, "Room slug not provided.")
+                    call.respond(HttpStatusCode.NotAcceptable, "slug not provided.")
                     return@get
                 }
                 scheduler.deactivate(slug)
@@ -349,6 +407,21 @@ fun main(vararg args: String): Unit = runBlocking {
                             state.room.quality,
                             if (state.room.limit.isFinite()) state.room.limit.inWholeSeconds.toString() else "0",
                         )
+                    }
+                }.awaitAll()
+                call.respond(list)
+            }
+            get("/listv2") {
+                val list = scheduler.sessions.map { (state, session) ->
+                    async {
+                        buildJsonObject {
+                            put("session", buildJsonObject {
+                                put("open", session.isOpen)
+                                put("active", session.isActive)
+                            })
+                            put("listening", state.listen)
+                            put("room", Json.Default.encodeToJsonElement(Room.serializer(), state.room))
+                        }
                     }
                 }.awaitAll()
                 call.respond(list)
@@ -414,7 +487,9 @@ fun main(vararg args: String): Unit = runBlocking {
 private fun saveJobFile(jobFile: File, scheduler: Scheduler) {
     synchronized(jobFile) {
         jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
-            "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}" + (if (it.room.limit.isFinite()) " limit:${it.room.limit.inWholeSeconds}" else "")
+            "${if (it.listen) "" else "#"}https://$HOST/${it.room.name} q:${it.room.quality} " +
+                    (if (it.room.limit.isFinite()) " limit:${it.room.limit.inWholeSeconds} " else " ") +
+                    (if (it.room.autoPay) " autopay " else " ")
         })
     }
 }
