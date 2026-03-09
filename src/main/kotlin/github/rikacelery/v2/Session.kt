@@ -1,6 +1,7 @@
 package github.rikacelery.v2
 
 import github.rikacelery.Event
+import github.rikacelery.HOST
 import github.rikacelery.Room
 import github.rikacelery.utils.*
 import github.rikacelery.v2.exceptions.DeletedException
@@ -124,7 +125,7 @@ class Session(
     suspend fun testAndConfigure(): Boolean {
         try {
             val get = ClientManager.getProxiedClient("room-test")
-                .get("https://zh.xhamsterlive.com/api/front/v1/broadcasts/${room.name}") {
+                .get("https://$HOST/api/front/v1/broadcasts/${room.name}") {
                     this.expectSuccess = false
                 }
             logger.trace("[{}] request api code={}", room.name, get.status.value)

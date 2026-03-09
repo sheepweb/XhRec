@@ -1,5 +1,6 @@
 package github.rikacelery.utils
 
+import github.rikacelery.HOST
 import github.rikacelery.Room
 import github.rikacelery.rootLogger
 import io.ktor.client.*
@@ -17,7 +18,7 @@ suspend fun HttpClient.fetchContentLength(segmentUrl: String): Long {
 suspend fun HttpClient.fetchRoomFromUrl(url: String, quality: String): Room {
     try {
         val roomHash = url.substringBefore("#").substringAfterLast("/").substringBefore("?")
-        val str = get("https://xhamsterlive.com/api/front/v1/broadcasts/$roomHash").bodyAsText()
+        val str = get("https://$HOST/api/front/v1/broadcasts/$roomHash").bodyAsText()
         val j = Json.Default.parseToJsonElement(str)
         return Room(j.PathSingle("item.username").asString(), j.PathSingle("item.modelId").asLong(), quality)
     } catch (e: Exception) {

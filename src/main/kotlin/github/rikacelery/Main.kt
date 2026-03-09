@@ -33,9 +33,12 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 
-val BUILTIN = setOf(
-    "# https://zh.xhamsterlive.com/ChangeToYourModel q:1080p limit:120",
-)
+var HOST = "stripchat.com"
+val BUILTIN by lazy {
+    setOf(
+        "# https://$HOST/ChangeToYourModel q:1080p limit:120",
+    )
+}
 
 private fun extract(text: String, regex: Regex, default: String): String {
     return regex.find(text)?.groupValues?.get(1)?.ifBlank { default } ?: default
@@ -53,10 +56,10 @@ fun main(vararg args: String): Unit = runBlocking {
                 expectSuccess = false
             }
             rootLogger.info("Proxy connect success.")
-            ClientManager.getProxiedClient("test").get("https://xhamsterlive.com") {
+            ClientManager.getProxiedClient("test").get("https://$HOST") {
                 expectSuccess = false
             }
-            rootLogger.info("Proxy test (https://xhamsterlive.com) success.")
+            rootLogger.info("Proxy test (https://$HOST) success.")
         }.onFailure {
             rootLogger.info("Proxy test failed. $it")
         }
@@ -96,7 +99,7 @@ fun main(vararg args: String): Unit = runBlocking {
     PostProcessor.loadConfig(file)
     val jobFile = File(commandLine.getOptionValue("f", "list.conf"))
     rootLogger.info("jobfile: {}, postprocessor:{}", jobFile, commandLine.getOptionValue("post", "postprocessor.json"))
-    val regex = "([#;])? *(https://(?:zh.)?xhamsterlive.com/\\S+)(?: (.+))?".toRegex()
+    val regex = "([#;])? *(https://(?:zh.)?(xhamsterlive|stripchat).com/\\S+)(?: (.+))?".toRegex()
     val rooms = channelFlow {
         if (!jobFile.exists())
             jobFile.writeText(BUILTIN.joinToString("\n"))
@@ -224,7 +227,7 @@ fun main(vararg args: String): Unit = runBlocking {
                     call.respond(HttpStatusCode.NotAcceptable, "Room slug not provided.")
                     return@get
                 }
-                val url = "https://zh.xhamsterlive.com/${slug.substringAfterLast("/").substringBefore("#")}"
+                val url = "https://$HOST/${slug.substringAfterLast("/").substringBefore("#")}"
                 val q = call.request.queryParameters["quality"] ?: "720p"
                 println("${if (active) "[+]" else "[X]"} $q $slug")
                 val room = withRetryOrNull(5, { it.message?.contains("404") == true }) {
@@ -414,7 +417,7 @@ fun main(vararg args: String): Unit = runBlocking {
 private fun saveJobFile(jobFile: File, scheduler: Scheduler) {
     synchronized(jobFile) {
         jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
-            "${if (it.listen) "" else "#"}https://zh.xhamsterlive.com/${it.room.name} q:${it.room.quality}" + (if (it.room.limit.isFinite()) " limit:${it.room.limit.inWholeSeconds}" else "")
+            "${if (it.listen) "" else "#"}https://$HOST/${it.room.name} q:${it.room.quality}" + (if (it.room.limit.isFinite()) " limit:${it.room.limit.inWholeSeconds}" else "")
         })
     }
 }
