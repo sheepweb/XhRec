@@ -16,7 +16,7 @@ class Writer(private val name: String, private val destFolder:String, private va
     fun init() {
         timeStarted = Date()
         file = File(tmpfolder, "${name}-${formatedStartTime()}-init.${ext}")
-        bufferedWriter = file.outputStream().buffered(bufferSize = 1024 * 1024 * 1)
+        bufferedWriter = file.outputStream().buffered()
         isInit = true
         if (File(tmpfolder).exists().not()) {
             File(tmpfolder).mkdirs()
@@ -39,6 +39,7 @@ class Writer(private val name: String, private val destFolder:String, private va
     }
 
     fun append(data: ByteArray) {
+        if (!isInit) throw Exception("Writer not initialized yet.")
         bufferedWriter.write(data)
     }
 

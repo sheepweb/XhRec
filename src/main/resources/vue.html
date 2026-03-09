@@ -418,6 +418,10 @@
                     <input v-model="addInput" class="outline-none w-full" type="text" name="" id="new_room">
                     <i class="fa fa-times text-gray-600" aria-hidden="true"></i>
                 </div>
+                <div class="w-fit flex justify-center items-center text-gray-600 bg-slate-300 rounded-md px-2">
+                    <input v-model="timeLimit" class="outline-none w-full" type="number" name="" id="time_limit">
+                    <i class="fa fa-times text-gray-600" aria-hidden="true"></i>
+                </div>
                 <select v-model="addQuality" name="quality" id="quality">
                     <option>160p</option>
                     <option>240p</option>
@@ -427,13 +431,14 @@
                     <option>1080p</option>
                     <option>1080p60</option>
                     <option>2560p60</option>
+                    <option>raw</option>
                 </select>
-                <button @click="addRoom(true)" class="btn-green size-7 tooltip"><i class="fa fa-paper-plane "
-                                                                                   aria-hidden="true"></i><span
+                <button @click="addRoom(true)" class="btn-green size-7 tooltip"><i class="fa fa-paper-plane"></i><span
                         class="tooltiptext">Add and active</span></button>
-                <button @click="addRoom(false)" class="btn-green size-7 tooltip"><i class="fa fa-plus"
-                                                                                    aria-hidden="true"></i><span
+                <button @click="addRoom(false)" class="btn-green size-7 tooltip"><i class="fa fa-plus"></i><span
                         class="tooltiptext">Add</span></button>
+                <button @click="poweroff()" class="btn-red size-7 tooltip"><i class="fa-solid fa-power-off"></i><span
+                        class="tooltiptext">PowerOff</span></button>
 
             </div>
         </div>
@@ -453,6 +458,10 @@
                     <td class="hover:cursor-pointer" @click="sortToggle('Quality')">Quality
                         <span class="select-none" v-if="sort['Quality']==1">↓</span>
                         <span class="select-none" v-if="sort['Quality']==2">↑</span>
+                    </td>
+                    <td class="hover:cursor-pointer" @click="sortToggle('Limit')">Limit
+                        <span class="select-none" v-if="sort['Limit']==1">↓</span>
+                        <span class="select-none" v-if="sort['Limit']==2">↑</span>
                     </td>
                     <td class="hover:cursor-pointer" @click="sortToggle('Status')">Status
                         <span class="select-none" v-if="sort['Status']==1">↓</span>
@@ -488,6 +497,20 @@
                                 {{quality}}
                             </option>
                         </select>
+                    </td>
+                    <td>
+                        <div class="flex">
+                            <span class="items-center text-nowrap">{{room.limit}} => </span>
+                            <input
+                                    class="outline-none"
+                                    type="number"
+                                    :id="`limit-${room.name}`"
+                                    min="0"
+                            >
+                            <button class="btn-green size-7 tooltip" @click="setLimit(room.name)"><i class="fa fa-play"
+                                                                                                     aria-hidden="true"></i><span
+                                    class="tooltiptext">Set Time Limit</span></button>
+                        </div>
                     </td>
                     <td v-if="room.status=='Recording'"><i class="fa-regular fa-circle-dot"
                                                            style="color: rgb(238, 18, 18);"></i></td>
@@ -543,7 +566,7 @@
     </div>
 </div>
 <script type="module">
-    const HOST = "http://docker.lan:8090"
+    const HOST = ""
     import {createApp} from 'vue'
 
     async function getSchedule(id) {
@@ -556,6 +579,7 @@
     createApp({
         data() {
             return {
+                timeLimit: 0,
                 addInput: "",
                 addQuality: "720p",
                 sort: {"Room": 1, "Status": 1},
@@ -587,6 +611,9 @@
             }
         },
         methods: {
+            poweroff() {
+                window.open("/stop-server", "_blank")
+            },
             sortToggle(by) {
                 if (this.sort[by]) {
                     this.sort[by] = this.sort[by] == 1 ? 2 : undefined
@@ -611,6 +638,24 @@
                 const data1 = await r1.text()
                 showToast(data1)
             },
+            async setLimit(roomName) {
+                const inputId = `limit-${roomName}`;
+                const inputElement = document.getElementById(inputId);
+
+                if (!inputElement) {
+                    alert(`Room not found${roomName}`);
+                    return;
+                }
+                const newLimit = Number(inputElement.value);
+                if (isNaN(newLimit) || newLimit < 0 || inputElement.value.trim() === '') {
+                    showToast(`Invalid limit.`);
+                    inputElement.value = this.roomList.find(room => room.name === roomName).limit;
+                    return;
+                }
+                const r1 = await fetch(`${HOST}/limit?slug=${roomName}&limit=${newLimit}`)
+                const data1 = await r1.text()
+                showToast(data1)
+            },
             async action(action, roomName) {
                 const r1 = await fetch(`${HOST}/${action}?slug=${roomName}`)
                 const data1 = await r1.text()
@@ -618,7 +663,7 @@
             },
             async addRoom(active) {
                 const name = this.addInput.split("/").slice(-1)[0].split("?")[0]
-                const r1 = await fetch(`${HOST}/add?slug=${name}&active=${active}&quality=${this.addQuality}`)
+                const r1 = await fetch(`${HOST}/add?slug=${name}&active=${active}&quality=${this.addQuality}&limit=${this.timeLimit}`)
                 const data1 = await r1.text()
                 if (r1.status == 404 || r1.status == 200) {
                     showToast("OK")
@@ -698,7 +743,8 @@
                 for (const room of data3) {
                     this.roomInfo[(room[3])] = {
                         ...this.roomInfo[(room[3])],
-                        status: room[0] == "[*]" ? "Recording" : room[1].trim(),
+                        status: room[2] === "recording" ? "Recording" : room[1].trim(),
+                        limit: room[6]
                     }
                 }
             },
@@ -825,7 +871,10 @@
                     this.fetchdata()
                 }, 500);
                 await this.fetchdata()
-                this.snapshotcache = JSON.parse(localStorage.getItem("xhrec-thumb"))
+                try {
+                    this.snapshotcache = JSON.parse(localStorage.getItem("xhrec-thumb")) || {}
+                } catch (_) {
+                }
                 for (let model of this.roomDisplay) {
                     await this.fetchThumb(model.name)
                 }

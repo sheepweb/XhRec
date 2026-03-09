@@ -1,10 +1,10 @@
 package github.rikacelery.v2.metric
 
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.util.Hashtable
-import kotlin.collections.iterator
+import java.util.*
 
 object Metric {
     val metrics = Hashtable<Long, MetricItem>()
@@ -12,16 +12,18 @@ object Metric {
     val names = Hashtable<Long, String>()
     val lock = Mutex()
 
-    suspend fun newMetric(id: Long, name: String): MetricUpdater = lock.withLock {
-        names[id] = name
-        if (updaters.containsKey(id)) {
-            updaters[id]!!.dispose()
-        }
-        MetricUpdater(metrics, id).also {
-            updaters[id] = it
-            metrics[id] = MetricItem()
-        }
-    }
+     fun newMetric(id: Long, name: String): MetricUpdater = runBlocking{
+         lock.withLock{
+             names[id] = name
+             if (updaters.containsKey(id)) {
+                 updaters[id]!!.dispose()
+             }
+             MetricUpdater(metrics, id).also {
+                 updaters[id] = it
+                 metrics[id] = MetricItem()
+             }
+         }
+     }
 
     suspend fun removeMetric(id: Long) = lock.withLock(NonCancellable) {
         updaters.remove(id)?.dispose()

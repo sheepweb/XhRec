@@ -1,7 +1,7 @@
 <configuration  scan="true" scanPeriod="30 seconds">
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{MM-dd HH:mm:ss} %-5level %16logger{16} - %msg ::%M%n</pattern>
+            <pattern>%d{MM-dd HH:mm:ss} %highlight(%-5level) %16logger{16} - %cyan(%msg) ::%M%n</pattern>
             <charset>utf8</charset>
         </encoder>
     </appender>

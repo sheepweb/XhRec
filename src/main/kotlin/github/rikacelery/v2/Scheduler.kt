@@ -1,5 +1,6 @@
 package github.rikacelery.v2
 
+import github.rikacelery.Event
 import github.rikacelery.Room
 import github.rikacelery.v2.exceptions.DeletedException
 import github.rikacelery.v2.exceptions.RenameException
@@ -151,5 +152,16 @@ class Scheduler(
             entry.key.listen = true
         }
 
+    }
+
+    suspend fun cmdFinish(roomName:String, cmd: Event.CmdFinish) {
+        val entry = sessions.filterKeys { it.room.name == roomName }.entries.singleOrNull()
+        if (entry == null) {
+            return
+        }
+        opLock.withLock {
+            logger.info("inject {} {}", entry.key.room.name,cmd::class.simpleName)
+            entry.value.cmdFinish()
+        }
     }
 }
