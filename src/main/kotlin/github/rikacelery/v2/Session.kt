@@ -1,11 +1,9 @@
 package github.rikacelery.v2
 
 import github.rikacelery.Event
-import github.rikacelery.HOST
 import github.rikacelery.Room
+import github.rikacelery.UserManager
 import github.rikacelery.utils.*
-import github.rikacelery.v2.exceptions.DeletedException
-import github.rikacelery.v2.exceptions.RenameException
 import github.rikacelery.v2.metric.Metric
 import github.rikacelery.v2.metric.MetricItem
 import github.rikacelery.v2.metric.MetricUpdater
@@ -24,14 +22,12 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import okhttp3.internal.toLongOrDefault
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.*
 import java.util.concurrent.LinkedBlockingQueue
-import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.abs
@@ -118,55 +114,87 @@ class Session(
         }
     }
 
-    /**
-     * @throws github.rikacelery.v2.exceptions.RenameException
-     * @throws github.rikacelery.v2.exceptions.DeletedException
-     */
     suspend fun testAndConfigure(): Boolean {
         try {
-            val get = ClientManager.getProxiedClient("room-test")
-                .get("https://$HOST/api/front/v1/broadcasts/${room.name}") {
-                    this.expectSuccess = false
+            // fetch room info
+            val info = API.roomFetchBroadcastInfo(room)
+            val status = info.PathSingle("item.status").asString()
+
+            // room status check
+            when (status) {
+                "public" -> {}
+                "groupShow" -> {
+
+                    val price = API.roomFetchCamInfo(room)
+                        .PathSingle("user.user.ticketRate").asInt()
+                    if (!room.autoPay){
+                        logger.warn("[{}] Room not enable autopay. price={}", room.name, price)
+                        _isOpen.set(false)
+                        return false
+                    }
+                    val u = UserManager.validPaymentAccount(price)
+                    if (u == null) {
+                        logger.warn("[{}] No account to pay. price={}", room.name, price)
+                        _isOpen.set(false)
+                        return false
+                    }
+                    // TODO check cookie and coins status
+                    val token = API.roomFetchModelToken(room, u) ?: run {
+                        API.roomRequestGroupShow(room, u)
+                        UserManager.update(
+                            u.copy(
+                                coins = u.coins - price
+                            )
+                        )
+                        delay(1000)
+                        API.roomFetchModelToken(room, u)
+                    }
+                    if (token == null) {
+                        logger.warn("[{}] Failed to get model token.", room.name)
+                        return false
+                    }
+                    modelToken = token
                 }
-            logger.trace("[{}] request api code={}", room.name, get.status.value)
-            if (get.status == HttpStatusCode.NotFound) {
-                val reason =
-                    runCatching { Json.Default.parseToJsonElement(get.bodyAsText()).String("description") }.getOrNull()
-                logger.trace("[{}] request api reason={}", room.name, reason)
-                if (reason == null) {
-                    logger.trace("[{}] -> false", room.name)
+//
+//                "private" -> {
+//                    logger.trace("[{}] -> false, status={}", room.name, status)
+//                    _isOpen.set(false)
+//                    return false
+//                }
+//
+//                "idle" -> {
+//                    logger.trace("[{}] -> false, status={}", room.name, status)
+//                    _isOpen.set(false)
+//                    return false
+//                }
+//
+//                "p2p" -> {
+//                    logger.trace("[{}] -> false, status={}", room.name, status)
+//                    _isOpen.set(false)
+//                    return false
+//                }
+//
+//                "off" -> {
+//                    logger.trace("[{}] -> false, status={}", room.name, status)
+//                    _isOpen.set(false)
+//                    return false
+//                }
+//
+                else -> {
+                    logger.trace("[{}] -> false, status={}", room.name, status)
                     _isOpen.set(false)
                     return false
                 }
-                when {
-                    reason.matches("Model has new name: newName=(.*)".toRegex()) -> {
-                        val newName = "Model has new name: newName=(.*)".toRegex().find(reason)!!.groupValues[1]
-                        logger.debug("[{}] model renamed to {}", room.name, newName)
-                        throw RenameException(
-                            newName
-                        )
-                    }
-
-                    reason == "model already deleted" -> {
-                        logger.debug("[{}] model deleted", room.name)
-                        throw DeletedException(room.name)
-                    }
-                }
             }
 
-            val element = Json.Default.parseToJsonElement(get.bodyAsText())
-            val status = element.PathSingle("item.status").asString()
-            val presets = element.PathSingle("item.settings.presets").jsonArray
-            if (status != "public") {
-                logger.trace("[{}] -> false, status={}", room.name, status)
-                _isOpen.set(false)
-                return false//不开播
-            }
+            // quality setting
             if (room.quality == "raw") {
                 logger.trace("[{}] -> true, skip quality selection for 'raw'", room.name)
                 _isOpen.set(true)
                 return true
             }
+
+            val presets = info.PathSingle("item.settings.presets").jsonArray
             val qualities = presets.map { element -> element.asString() }
                 .filterNot { it.contains("blurred") }
             val q = qualities.lastOrNull { it == room.quality } ?: qualities.minByOrNull {
@@ -191,11 +219,7 @@ class Session(
             _isOpen.set(true)
             return true
         } catch (e: ClientRequestException) {
-            println(e.stackTraceToString())
-        } catch (e: TimeoutException) {
-            println(e.stackTraceToString())
-        } catch (e: Exception) {
-            println(e.stackTraceToString())
+            logger.warn("Room configure failed.", e)
         }
         logger.warn("[{}] Failed to check room state", room.name)
         logger.trace("[{}] -> true", room.name)
@@ -203,9 +227,9 @@ class Session(
         return false
     }
 
-    fun createDiscontinuityCounter(): suspend (List<Int>) -> Int {
-        var lastMax: Int? = null        // 上次输入的最大值
-        var totalGaps = 0               // 累计的不连续数字个数（所有间隙之和）
+    private fun createDiscontinuityCounter(): suspend (List<Int>) -> Int {
+        var lastMax: Int? = null
+        var totalGaps = 0
         val lock = Mutex()
         return counter@{ numbers: List<Int> ->
             lock.withLock {
@@ -228,13 +252,13 @@ class Session(
         }
     }
 
-    fun segmentIDFromUrl(url: String): Int? {
+    private fun segmentIDFromUrl(url: String): Int? {
 //        "https://media-hls.doppiocdn.org/b-hls-24/roomid/roomid_480p_h265_7970_XXXXXXXXXXX_timestamp.mp4"
         val parts = url.substringAfterLast("/").split("_")
         return parts[(parts.size - 3).coerceAtLeast(0)].toIntOrNull()
     }
 
-    var metric: MetricUpdater = Metric.newMetric(room.id, room.name)
+    private var metric: MetricUpdater = Metric.newMetric(room.id, room.name)
     suspend fun start() {
         if (!_isActive.compareAndSet(false, true)) {
             throw IllegalStateException("Session is already active")
@@ -327,7 +351,7 @@ class Session(
                             logger.error("channel result is null")
                             continue
                         }
-                        logger.trace("Collected: {}: {}",result.first::class.simpleName,result.first.url())
+                        logger.trace("Collected: {}: {}", result.first::class.simpleName, result.first.url())
 
                         when (result.first) {
                             is Event.CmdFinish -> {
@@ -368,7 +392,7 @@ class Session(
                         emittedIndex++
                     }
                 }
-                if (metric.data!=null &&metric.data!!.successDirect + metric.data!!.successProxied <= 1) {
+                if (metric.data != null && metric.data!!.successDirect + metric.data!!.successProxied <= 1) {
                     logger.info(
                         "[{}}] No valid segments downloaded({}/{}) since start. clean empty file",
                         room.name,
@@ -385,6 +409,7 @@ class Session(
 
             generatorJob?.join()
         } finally {
+            modelToken = null
             logger.info("[-] stop recording {}({}) q:{}(want {})", room.name, room.id, currentQuality, room.quality)
             Metric.removeMetric(room.id)
         }
@@ -408,23 +433,28 @@ class Session(
         }
     }
 
-
+    private var modelToken: String? = null
     private val streamUrl: String
-        get() {
-            return if (currentQuality != "raw" && currentQuality.isNotBlank()) "https://media-hls.doppiocdn.org/b-hls-%d/%d/%d_%s.m3u8".format(
-                Random().nextInt(12, 13), room.id, room.id, currentQuality
-            )
-            else "https://media-hls.doppiocdn.org/b-hls-%d/%d/%d.m3u8".format(
-                Random().nextInt(
-                    12, 13
-                ), room.id, room.id
-            )
-        }
+        get() = buildUrl {
+            val token = modelToken
+            protocol = URLProtocol.HTTPS
+            host = "media-hls.doppiocdn.org"
+            encodedPath =
+                if (currentQuality != "raw" && currentQuality.isNotBlank()) "b-hls-%d/%d/%d_%s.m3u8".format(
+                    Random().nextInt(12, 13), room.id, room.id, currentQuality
+                ) else "b-hls-%d/%d/%d.m3u8".format(
+                    Random().nextInt(12, 13), room.id, room.id
+                )
+            if (token != null) {
+                parameters["aclAuth"] = token
+            }
+        }.toString()
 
     private val eventFinish = LinkedBlockingQueue<Event>()
     fun cmdFinish() {
         eventFinish.add(Event.CmdFinish())
     }
+
     private fun segmentGenerator(): Flow<Event> = flow {
         var initSent = false
         var initUrl = ""
@@ -500,7 +530,6 @@ class Session(
                     initSent = true
                     emit(Event.LiveSegmentInit(initUrlCur))
                 }
-                logger.trace("[{}] fetched: {}", room.name, videos.size)
                 if (videos.isEmpty()) {
                     logger.warn("[{}] Got 0 videos from playlist, maybe decode failed!", room.name)
                 }
@@ -516,7 +545,7 @@ class Session(
                     }
                     // external finish cmd
                     val poll = eventFinish.poll()
-                    if (poll!=null){
+                    if (poll != null) {
                         emit(poll)
                         // reset state
                         initSent = false

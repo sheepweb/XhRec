@@ -3,9 +3,11 @@ package github.rikacelery.utils
 import io.ktor.client.*
 import io.ktor.client.engine.okhttp.*
 import io.ktor.client.plugins.*
+import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.logging.*
 import io.ktor.client.request.*
 import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.*
 import okhttp3.ConnectionPool
 import org.slf4j.LoggerFactory
 import java.net.InetSocketAddress
@@ -35,8 +37,17 @@ object ClientManager {
         logger.info("create proxied client key={} proxy={}", key, proxyEnv)
         return HttpClient(OkHttp) {
             configureClient()
+            install(ContentNegotiation) {
+                json()
+            }
             install(Logging) {
-                logger = Logger.DEFAULT
+                val clientLogger = LoggerFactory.getLogger("Client-$key")
+                logger = object: Logger{
+                    override fun log(message: String) {
+                        clientLogger.trace(message)
+                    }
+
+                }
                 level = LogLevel.INFO
             }
             engine {
@@ -69,7 +80,10 @@ object ClientManager {
                     HttpHeaders.Accept,
                     "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"
                 )
-                append(HttpHeaders.UserAgent,"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:146.0) Gecko/20100101 Firefox/146.0")
+                append(
+                    HttpHeaders.UserAgent,
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:146.0) Gecko/20100101 Firefox/146.0"
+                )
                 append(HttpHeaders.AcceptLanguage, "en,zh-CN;q=0.9,zh;q=0.8")
                 append(HttpHeaders.Connection, "keep-alive")
             }
@@ -87,6 +101,7 @@ object ClientManager {
             return clientsProxied[key] ?: clientProxied(key).also { clientsProxied[key] = it }
         }
     }
+
     fun close() {
         clientsProxied.forEach {
             it.value.close()

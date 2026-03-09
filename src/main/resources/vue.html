@@ -367,7 +367,7 @@
 
 <div id="app" class="w-full flex flex-col ">
 
-    <div class="gantt-background">
+    <div class="gantt-background" hidden="hidden">
         <div class="gantt-container  overflow-x-auto">
             <table class="gantt-table ">
                 <thead>
@@ -467,6 +467,10 @@
                         <span class="select-none" v-if="sort['Status']==1">↓</span>
                         <span class="select-none" v-if="sort['Status']==2">↑</span>
                     </td>
+                    <td class="hover:cursor-pointer" @click="sortToggle('AutoPay')">AutoPay
+                        <span class="select-none" v-if="sort['AutoPay']==1">↓</span>
+                        <span class="select-none" v-if="sort['AutoPay']==2">↑</span>
+                    </td>
                     <td>Segments status</td>
                     <td class="hover:cursor-pointer" @click="sortToggle('Size')">File
                         size({{formatBytes(Object.values(this.roomDisplay).reduce((a, b) => {
@@ -514,11 +518,13 @@
                     </td>
                     <td v-if="room.status=='Recording'"><i class="fa-regular fa-circle-dot"
                                                            style="color: rgb(238, 18, 18);"></i></td>
-                    <td v-else-if="room.status=='listening'"><i class="fa-regular fa-hourglass-half fa-fade"
+                    <td v-else-if="room.status=='Listening'"><i class="fa-regular fa-hourglass-half fa-fade"
                                                                 style="color: rgb(45, 90, 236);"></i></td>
                     <td v-else-if="room.status==''"><i class="fa-solid fa-video-slash" style="color: #c0c0c0;"></i>
                     </td>
                     <td v-else>{{room.status}}</td>
+                    <td><input type="checkbox" v-model="room.autoPay"
+                               @change="setAutoPay($event.target.checked,room.name)"></td>
                     <td>
                             <span v-if="room.status=='Recording'" class="text-green-800 mr-1"><i
                                     class="fa-solid fa-arrow-down"
@@ -638,6 +644,11 @@
                 const data1 = await r1.text()
                 showToast(data1)
             },
+            async setAutoPay(value, roomName) {
+                const r1 = await fetch(`${HOST}/autopay?slug=${roomName}&value=${value}`)
+                const data1 = await r1.text()
+                showToast(data1)
+            },
             async setLimit(roomName) {
                 const inputId = `limit-${roomName}`;
                 const inputElement = document.getElementById(inputId);
@@ -686,7 +697,7 @@
                 const data1 = await r1.json()
                 const r2 = await fetch(`${HOST}/status`)
                 const data2 = await r2.json()
-                const r3 = await fetch(`${HOST}/list`)
+                const r3 = await fetch(`${HOST}/listv2`)
                 const data3 = await r3.json()
                 this.roomInfo = {}
                 for (const room of data1) {
@@ -741,10 +752,10 @@
                     });
                 }
                 for (const room of data3) {
-                    this.roomInfo[(room[3])] = {
-                        ...this.roomInfo[(room[3])],
-                        status: room[2] === "recording" ? "Recording" : room[1].trim(),
-                        limit: room[6]
+                    this.roomInfo[(room.room.name)] = {
+                        ...this.roomInfo[(room.room.name)],
+                        status: room.session.active ? "Recording" : (room.listening ? "Listening" : ""),
+                        ...room.room,
                     }
                 }
             },
@@ -829,33 +840,39 @@
                         if (a.status != "Recording" && b.status == "Recording") {
                             return this.sort["Status"] == 1 ? 1 : -1
                         }
-                        if (a.status == "listening" && b.status != "listening") {
+                        if (a.status == "Listening" && b.status != "Listening") {
                             return this.sort["Status"] == 1 ? -1 : 1
                         }
-                        if (a.status != "listening" && b.status == "listening") {
+                        if (a.status != "Listening" && b.status == "Listening") {
                             return this.sort["Status"] == 1 ? 1 : -1
                         }
                     }
                     if (this.sort["Quality"]) {
-                        if (a.quality == "raw" && b.quality != "raw") {
-                            return 1 * (this.sort["Quality"] == 1 ? 1 : -1)
+                        if (a.quality === "raw" && b.quality !== "raw") {
+                            return 1 * (this.sort["Quality"] === 1 ? 1 : -1)
                         }
-                        if (a.quality != "raw" && b.quality == "raw") {
-                            return -1 * (this.sort["Quality"] == 1 ? 1 : -1)
+                        if (a.quality !== "raw" && b.quality === "raw") {
+                            return -1 * (this.sort["Quality"] === 1 ? 1 : -1)
                         }
                         const res = parseInt(a.quality.split("p")[0]) - parseInt(b.quality.split("p")[0]) +
                             (a.quality.includes("p") && a.quality.split("p")[1] ? parseInt(a.quality.split("p")[1]) / 60 : 0) - (b.quality.includes("p") && b.quality.split("p")[1] ? parseInt(b.quality.split("p")[1]) / 60 : 0)
                         if (!isNaN(res))
-                            return this.sort["Quality"] == 1 ? res : -res
+                            return this.sort["Quality"] === 1 ? res : -res
+                    }
+                    if (this.sort["AutoPay"]) {
+                        if (this.sort["AutoPay"] === 1 && a.autoPay !== b.autoPay)
+                            return a.autoPay && !b.autoPay ? 1 : -1
                     }
                     if (this.sort["ID"]) {
-                        return this.sort["ID"] == 1 ? a.id - b.id : b.id - a.id
+                        if (a.id !== b.id)
+                            return this.sort["AutoPay"] === 1 ? a.id - b.id : b.id - a.id
                     }
                     if (this.sort["Size"]) {
-                        return this.sort["Size"] == 1 ? (a.bytesWrite || 0) - (b.bytesWrite || 0) : (b.bytesWrite || 0) - (a.bytesWrite || 0)
+                        if (a.bytesWrite !== b.bytesWrite)
+                            return this.sort["Size"] === 1 ? (a.bytesWrite || 0) - (b.bytesWrite || 0) : (b.bytesWrite || 0) - (a.bytesWrite || 0)
                     }
                     if (this.sort["Room"]) {
-                        return this.sort["Room"] == 1 ? a.name.toLowerCase().localeCompare(b.name.toLowerCase()) : b.name.toLowerCase().localeCompare(a.name.toLowerCase())
+                        return this.sort["Room"] === 1 ? a.name.toLowerCase().localeCompare(b.name.toLowerCase()) : b.name.toLowerCase().localeCompare(a.name.toLowerCase())
                     }
                     return 0
                 })
