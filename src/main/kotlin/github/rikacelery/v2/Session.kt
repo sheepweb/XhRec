@@ -463,13 +463,6 @@ class Session(
                                         DECRYPT_KEY_V2
                                     )
                                 }
-                                logger.trace(
-                                    "decode {} key={} result={}",
-                                    encrypted,
-                                    DECRYPT_KEY_V2,
-                                    result.getOrElse { "Failed" },
-                                    result.exceptionOrNull()
-                                )
                                 result.getOrThrow()
                             } catch (e: Exception) {
                                 logger.error("[ERROR] failed to decrypt $mouflon(${encrypted.reversed()})", e)
