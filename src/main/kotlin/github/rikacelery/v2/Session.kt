@@ -279,109 +279,112 @@ class Session(
 
         try {
             generatorJob = scope.launch {
-                val pending = mutableMapOf<Int, Pair<Event, Deferred<Result<ByteArray>>>>()
-                val readyToEmit = PriorityQueue<Int>()
-
-                segmentGenerator().map { event ->
-                    if (event is Event.CmdFinish) {
-                        return@map (event to async { Result.success(byteArrayOf()) })
-                    }
-                    if (event is Event.WSEvent) {
-                        return@map (event to async { Result.success(byteArrayOf()) })
-                    }
-                    val index = segmentIDFromUrl(event.url())?.let { segmentID ->
-                        metric.segmentID(segmentID)
-                        metric.segmentMissing(counter(listOf(segmentID)))
-                        metric.quality(currentQuality)
-                    }
-                    (event to scope.async {
-                        metric.downloadingIncrement()
-                        metric.totalIncrement()
-                        val ms = System.currentTimeMillis()
-                        val result = runCatching {
-                            synchronized(runningUrl) {
-                                runningUrl[event.url()] = UrlInfo(ClientType.DIRECT, System.currentTimeMillis())
-                            }
-                            tryDownload(event).await()?.also {
-                                metric.successDirectIncrement()
-                            } ?: run {
-//                                    println("Falling back to proxy download for ${room.name}")
+                segmentGenerator()
+                    .map { event ->
+                        if (event is Event.CmdFinish) {
+                            return@map (event to async { Result.success(byteArrayOf()) })
+                        }
+                        if (event is Event.WSEvent) {
+                            return@map (event to async { Result.success(byteArrayOf()) })
+                        }
+                        val index = segmentIDFromUrl(event.url())?.let { segmentID ->
+                            metric.segmentID(segmentID)
+                            metric.segmentMissing(counter(listOf(segmentID)))
+                            metric.quality(currentQuality)
+                        }
+                        (event to scope.async {
+                            metric.downloadingIncrement()
+                            metric.totalIncrement()
+                            val ms = System.currentTimeMillis()
+                            val result = runCatching {
                                 synchronized(runningUrl) {
-                                    runningUrl[event.url()] = UrlInfo(ClientType.PROXY, System.currentTimeMillis())
+                                    runningUrl[event.url()] = UrlInfo(ClientType.DIRECT, System.currentTimeMillis())
                                 }
-                                withRetry(2) {
-                                    ClientManager.getProxiedClient(room.name).get(
-                                        event.url()
-                                    ).readBytes().also {
-                                        metric.successProxiedIncrement()
+                                tryDownload(event).await()?.also {
+                                    metric.successDirectIncrement()
+                                } ?: run {
+                                    synchronized(runningUrl) {
+                                        runningUrl[event.url()] = UrlInfo(ClientType.PROXY, System.currentTimeMillis())
+                                    }
+                                    withRetry(2) {
+                                        ClientManager.getProxiedClient(room.name).get(
+                                            event.url()
+                                        ).readBytes().also {
+                                            metric.successProxiedIncrement()
+                                        }
                                     }
                                 }
                             }
-                        }
-                        metric.updateLatency(System.currentTimeMillis() - ms)
-                        synchronized(runningUrl) {
-                            runningUrl.remove(event.url())
-                        }
-                        result.onFailure {
-                            if (event is Event.LiveSegmentInit) {
-                                logger.error("failed to download init segment {}, download stopped", event.url())
-                                throw InitSegmentDownloadFiledException(it)
-                            } else {
-                                val created = (event.url().substringBeforeLast("_").substringAfterLast("_")
-                                    .toLongOrDefault(0))
-                                val diff = System.currentTimeMillis() / 1000 - created
-                                logger.warn(
-                                    "Download segment:{} failed({}), delayed: {}s",
-                                    index,
-                                    (it as? ClientRequestException)?.response?.status?.value ?: it.message,
-                                    diff / 1000
-                                )
+                            metric.updateLatency(System.currentTimeMillis() - ms)
+                            synchronized(runningUrl) {
+                                runningUrl.remove(event.url())
                             }
-                        }
-                    })
-                }.buffer(Channel.UNLIMITED).collect { result ->
-                    logger.trace("Collected: {}: {}", result.first::class.simpleName, result.first.url())
-                    when (result.first) {
-                        is Event.WSEvent -> {
-                            writerReference.get()!!.appendEvent((result.first as Event.WSEvent).data)
-                        }
-
-                        is Event.CmdFinish -> {
-                            try {
-                                val file = writerReference.get()!!.done()
-                                requireNotNull(file)
-                                scope.launch(NonCancellable) {
-                                    runCatching {
-                                        PostProcessor.process(
-                                            file.first,
-                                            ProcessorCtx(room, file.second, Date(), file.third, currentQuality)
-                                        )
-                                    }.onFailure {
-                                        logger.error("[{}] Postprocess failed", room.name, it)
-                                    }
+                            result.onFailure {
+                                if (event is Event.LiveSegmentInit) {
+                                    logger.error("failed to download init segment {}, download stopped", event.url())
+                                    throw InitSegmentDownloadFiledException(it)
+                                } else {
+                                    val created = (event.url().substringBeforeLast("_").substringAfterLast("_")
+                                        .toLongOrDefault(0))
+                                    val diff = System.currentTimeMillis() / 1000 - created
+                                    logger.warn(
+                                        "Download segment:{} failed({}), delayed: {}s",
+                                        index,
+                                        (it as? ClientRequestException)?.response?.status?.value ?: it.message,
+                                        diff / 1000
+                                    )
                                 }
-                            } catch (e: Exception) {
-                                logger.error("[${room.name}] Failed to postprocess", e)
-                            } finally {
-                                writer.init()
-                                metric.reset()
                             }
-                        }
+                        })
+                    }
+                    .buffer(Channel.UNLIMITED)
+                    .collect { result ->
+                        logger.trace(
+                            "[${room.name}] Collected: {}: {}",
+                            result.first::class.simpleName,
+                            result.first.url()
+                        )
+                        when (result.first) {
+                            is Event.WSEvent -> {
+                                writerReference.get()!!.appendEvent((result.first as Event.WSEvent).data)
+                            }
 
-                        else -> {
-                            val bytes = result.second.await()
-                            metric.downloadingDecrement()
-                            metric.doneIncrement()
-                            if (bytes.isSuccess) {
-                                val data = bytes.getOrThrow()
-                                metric.bytesWriteIncrement(data.size.toLong())
-                                writerReference.get()?.append(data)
-                            } else {
-                                metric.failedIncrement()
+                            is Event.CmdFinish -> {
+                                try {
+                                    val file = writerReference.get()!!.done()
+                                    requireNotNull(file)
+                                    scope.launch(NonCancellable) {
+                                        runCatching {
+                                            PostProcessor.process(
+                                                file.first,
+                                                ProcessorCtx(room, file.second, Date(), file.third, currentQuality)
+                                            )
+                                        }.onFailure {
+                                            logger.error("[{}] Postprocess failed", room.name, it)
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    logger.error("[${room.name}] Failed to postprocess", e)
+                                } finally {
+                                    writer.init()
+                                    metric.reset()
+                                }
+                            }
+
+                            else -> {
+                                val bytes = result.second.await()
+                                metric.downloadingDecrement()
+                                metric.doneIncrement()
+                                if (bytes.isSuccess) {
+                                    val data = bytes.getOrThrow()
+                                    metric.bytesWriteIncrement(data.size.toLong())
+                                    writerReference.get()?.append(data)
+                                } else {
+                                    metric.failedIncrement()
+                                }
                             }
                         }
                     }
-                }
             }
             generatorJob?.join()
             if (metric.data != null && metric.data!!.successDirect + metric.data!!.successProxied <= 1) {
@@ -613,6 +616,7 @@ class Session(
         }
         logger.info("[${room.name}] Segment generator exited.")
         EventDispatcher.unsubscribe(room.id)
+        close()
     }
 
     private fun parseSegmentUrl(lines: List<String>): List<String> {
