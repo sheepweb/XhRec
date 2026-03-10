@@ -6,7 +6,10 @@ import java.nio.file.StandardCopyOption
 
 class FixStampProcessor(room: ProcessorCtx, val destinationFolder: String) : Processor(room) {
     override fun process(input: File): List<File> {
+        val eventFile = input.parentFile.resolve(input.nameWithoutExtension + ".event")
         val output = input.parentFile.resolve("${input.nameWithoutExtension}.fixed.${input.extension}")
+        if(eventFile.exists())
+            eventFile.renameTo(output.parentFile.resolve(output.nameWithoutExtension+".event"))
         val builder = ProcessBuilder(
             "ffmpeg",
             "-hide_banner",

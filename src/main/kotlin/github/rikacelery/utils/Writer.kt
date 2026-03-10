@@ -1,11 +1,12 @@
 package github.rikacelery.utils
 
+import kotlinx.serialization.json.JsonObject
 import java.io.BufferedOutputStream
 import java.io.File
 import java.time.format.DateTimeFormatter
 import java.util.*
 
-class Writer(private val name: String, private val destFolder:String, private val tmpfolder:String) {
+class Writer(private val name: String, private val destFolder: String, private val tmpfolder: String) {
     private lateinit var file: File
     private lateinit var bufferedWriter: BufferedOutputStream
     private lateinit var timeStarted: Date
@@ -43,19 +44,24 @@ class Writer(private val name: String, private val destFolder:String, private va
         bufferedWriter.write(data)
     }
 
+    fun appendEvent(data: JsonObject) {
+        if (!isInit) throw Exception("Writer not initialized yet.")
+        file.parentFile.resolve(file.nameWithoutExtension + ".event").appendText(data.toString() + "\n")
+    }
+
     private fun formatedStartTime(): String =
         timeStarted.toLocalDateTime().format(DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm_ss"))
 
     fun done(): Triple<File, Date, Long>? {
         if (!isInit) return null
-        isInit=false
+        isInit = false
         bufferedWriter.close()
         val duration = Date().time - timeStarted.time
         val formatted = File(tmpfolder, "${name}-${formatedStartTime()}-${format(duration)}.$ext")
         if (!file.renameTo(formatted)) {
             throw Exception("Failed to rename $formatted")
         }
-        return Triple(formatted,timeStarted,duration)
+        return Triple(formatted, timeStarted, duration)
     }
 
     fun dispose() {

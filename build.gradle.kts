@@ -26,8 +26,9 @@ dependencies {
     implementation("io.ktor:ktor-server-content-negotiation-jvm")
 
     implementation("io.ktor:ktor-client-core-jvm:3.3.3")
-    implementation("io.ktor:ktor-client-logging:3.3.3")
     implementation("io.ktor:ktor-client-okhttp-jvm:3.3.3")
+    implementation("io.ktor:ktor-client-logging:3.3.3")
+    implementation("io.ktor:ktor-client-websockets:3.3.3")
     implementation("io.ktor:ktor-client-content-negotiation-jvm")
 
     implementation("io.github.nomisrev:kotlinx-serialization-jsonpath:0.2.0")
