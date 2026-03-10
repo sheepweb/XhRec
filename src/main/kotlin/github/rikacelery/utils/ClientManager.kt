@@ -4,7 +4,6 @@ import io.ktor.client.*
 import io.ktor.client.engine.okhttp.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
-import io.ktor.client.plugins.logging.*
 import io.ktor.client.plugins.websocket.*
 import io.ktor.client.request.*
 import io.ktor.http.*
@@ -44,16 +43,17 @@ object ClientManager {
 
             install(WebSockets){
             }
-            install(Logging) {
-                val clientLogger = LoggerFactory.getLogger("Client-$key")
-                logger = object: Logger{
-                    override fun log(message: String) {
-                        clientLogger.trace(message)
-                    }
-
-                }
-                level = LogLevel.INFO
-            }
+//
+//            install(Logging) {
+//                val clientLogger = LoggerFactory.getLogger("Client-$key")
+//                logger = object: Logger{
+//                    override fun log(message: String) {
+//                        clientLogger.trace(message)
+//                    }
+//
+//                }
+//                level = LogLevel.INFO
+//            }
             engine {
                 if (proxyEnv != null) {
                     val url = Url(proxyEnv)

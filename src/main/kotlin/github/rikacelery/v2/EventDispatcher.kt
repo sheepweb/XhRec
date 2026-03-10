@@ -67,7 +67,6 @@ object EventDispatcher {
                                         outgoing.send(Frame.Text("{}"))
                                     }
                                     else -> {
-                                        logger.trace(data)
                                         flow.emit(data)
                                     }
                                 }

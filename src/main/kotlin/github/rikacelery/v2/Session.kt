@@ -281,23 +281,20 @@ class Session(
             generatorJob = scope.launch {
                 val pending = mutableMapOf<Int, Pair<Event, Deferred<Result<ByteArray>>>>()
                 val readyToEmit = PriorityQueue<Int>()
-                var nextIndex = 0
-                var emittedIndex = 0
 
                 segmentGenerator().map { event ->
-                    val index = nextIndex++
                     if (event is Event.CmdFinish) {
-                        return@map index to (event to async { Result.success(byteArrayOf()) })
+                        return@map (event to async { Result.success(byteArrayOf()) })
                     }
                     if (event is Event.WSEvent) {
-                        return@map index to (event to async { Result.success(byteArrayOf()) })
+                        return@map (event to async { Result.success(byteArrayOf()) })
                     }
-                    segmentIDFromUrl(event.url())?.let { segmentID ->
+                    val index = segmentIDFromUrl(event.url())?.let { segmentID ->
                         metric.segmentID(segmentID)
                         metric.segmentMissing(counter(listOf(segmentID)))
                         metric.quality(currentQuality)
                     }
-                    index to (event to scope.async {
+                    (event to scope.async {
                         metric.downloadingIncrement()
                         metric.totalIncrement()
                         val ms = System.currentTimeMillis()
@@ -342,79 +339,63 @@ class Session(
                             }
                         }
                     })
-                }.buffer(Channel.UNLIMITED).collect { (index, pair) ->
-                    pending[index] = pair
-                    readyToEmit.add(index)
-
-                    while (readyToEmit.peek() == emittedIndex) {
-                        val current = readyToEmit.poll()
-                        val result = pending.remove(current)
-                        if (result == null) {
-                            emittedIndex++
-                            logger.error("channel result is null")
-                            continue
+                }.buffer(Channel.UNLIMITED).collect { result ->
+                    logger.trace("Collected: {}: {}", result.first::class.simpleName, result.first.url())
+                    when (result.first) {
+                        is Event.WSEvent -> {
+                            writerReference.get()!!.appendEvent((result.first as Event.WSEvent).data)
                         }
-                        logger.trace("Collected: {}: {}", result.first::class.simpleName, result.first.url())
 
-                        when (result.first) {
-                            is Event.WSEvent -> {
-                                writer.appendEvent((result.first as Event.WSEvent).data)
-                            }
-
-                            is Event.CmdFinish -> {
-                                try {
-                                    val file = writerReference.get()!!.done()
-                                    requireNotNull(file)
-                                    scope.launch(NonCancellable) {
-                                        runCatching {
-                                            PostProcessor.process(
-                                                file.first,
-                                                ProcessorCtx(room, file.second, Date(), file.third, currentQuality)
-                                            )
-                                        }.onFailure {
-                                            logger.error("[{}] Postprocess failed", room.name, it)
-                                        }
+                        is Event.CmdFinish -> {
+                            try {
+                                val file = writerReference.get()!!.done()
+                                requireNotNull(file)
+                                scope.launch(NonCancellable) {
+                                    runCatching {
+                                        PostProcessor.process(
+                                            file.first,
+                                            ProcessorCtx(room, file.second, Date(), file.third, currentQuality)
+                                        )
+                                    }.onFailure {
+                                        logger.error("[{}] Postprocess failed", room.name, it)
                                     }
-                                } catch (e: Exception) {
-                                    logger.error("[${room.name}] Failed to postprocess", e)
-                                } finally {
-                                    writerReference.get()?.init()
-                                    metric.reset()
                                 }
-                            }
-
-                            else -> {
-                                val bytes = result.second.await()
-                                metric.downloadingDecrement()
-                                metric.doneIncrement()
-                                if (bytes.isSuccess) {
-                                    val data = bytes.getOrThrow()
-                                    metric.bytesWriteIncrement(data.size.toLong())
-                                    writer.append(data)
-                                } else {
-                                    metric.failedIncrement()
-                                }
+                            } catch (e: Exception) {
+                                logger.error("[${room.name}] Failed to postprocess", e)
+                            } finally {
+                                writer.init()
+                                metric.reset()
                             }
                         }
-                        emittedIndex++
+
+                        else -> {
+                            val bytes = result.second.await()
+                            metric.downloadingDecrement()
+                            metric.doneIncrement()
+                            if (bytes.isSuccess) {
+                                val data = bytes.getOrThrow()
+                                metric.bytesWriteIncrement(data.size.toLong())
+                                writerReference.get()?.append(data)
+                            } else {
+                                metric.failedIncrement()
+                            }
+                        }
                     }
                 }
-                if (metric.data != null && metric.data!!.successDirect + metric.data!!.successProxied <= 1) {
-                    logger.info(
-                        "[{}}] No valid segments downloaded({}/{}) since start. clean empty file",
-                        room.name,
-                        metric.data!!.successDirect + metric.data!!.successProxied,
-                        metric.data?.total
-                    )
-                    // some model start and stop their frequently
-                    // this cause the stream url become invalid immediately
-                    // so we need to reset writer to avoid empty files
-                    writer.dispose()
-                    writerReference.set(null)
-                }
             }
-
             generatorJob?.join()
+            if (metric.data != null && metric.data!!.successDirect + metric.data!!.successProxied <= 1) {
+                logger.info(
+                    "[{}}] No valid segments downloaded({}/{}) since start. clean empty file",
+                    room.name,
+                    metric.data!!.successDirect + metric.data!!.successProxied,
+                    metric.data?.total
+                )
+                // some model start and stop their frequently
+                // this cause the stream url become invalid immediately
+                // so we need to reset writer to avoid empty files
+                writerReference.getAndSet(null)?.dispose()
+            }
         } finally {
             modelToken = null
             logger.info("[-] stop recording {}({}) q:{}(want {})", room.name, room.id, currentQuality, room.quality)
@@ -462,7 +443,7 @@ class Session(
         eventFinish.add(Event.CmdFinish())
     }
 
-    private fun segmentGenerator(): Flow<Event> = channelFlow  {
+    private fun segmentGenerator(): Flow<Event> = channelFlow {
         val scope = CoroutineScope(currentCoroutineContext())
         var initSent = false
         var initUrl = ""
