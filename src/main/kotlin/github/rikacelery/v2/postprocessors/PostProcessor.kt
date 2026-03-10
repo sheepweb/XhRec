@@ -68,7 +68,6 @@ object PostProcessor {
         val processors = buildProcessors(context)
         var files = listOf(input)
         for (processor in processors) {
-
             val tmp = files.flatMapIndexed { idx, file ->
                 println("[${context.room.name}] $idx/${files.size} ${processor.javaClass.simpleName} $file")
                 val outs = try {

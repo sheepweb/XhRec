@@ -1,5 +1,7 @@
 package github.rikacelery
 
+import kotlinx.serialization.json.JsonObject
+
 sealed interface Event {
     fun url():String
     class LiveSegmentInit(val url: String) : Event {
@@ -13,6 +15,12 @@ sealed interface Event {
         }
     }
     class CmdFinish(): Event{
+        override fun url(): String {
+            return ""
+        }
+    }
+    class WSEvent(val data: JsonObject): Event{
+
         override fun url(): String {
             return ""
         }

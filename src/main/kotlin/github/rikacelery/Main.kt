@@ -3,6 +3,7 @@ package github.rikacelery
 import github.rikacelery.utils.ClientManager
 import github.rikacelery.utils.withRetryOrNull
 import github.rikacelery.v2.API
+import github.rikacelery.v2.EventDispatcher
 import github.rikacelery.v2.Scheduler
 import github.rikacelery.v2.metric.Metric
 import github.rikacelery.v2.postprocessors.PostProcessor
@@ -89,7 +90,6 @@ fun main(vararg args: String): Unit = runBlocking {
     }
 
 
-
     val file = File(commandLine.getOptionValue("post", "postprocessor.json"))
     if (file.exists().not()) {
         file.writeText(
@@ -132,7 +132,7 @@ fun main(vararg args: String): Unit = runBlocking {
                 room.limit = timeLimit.toLong().seconds
             }
             room.autoPay = autopay
-            rootLogger.info("Got new room {}.",room)
+            rootLogger.info("Got new room {}.", room)
             room to active
         }
     }.toList().filterNotNull().awaitAll().filterNotNull().toMutableList()
@@ -161,7 +161,7 @@ fun main(vararg args: String): Unit = runBlocking {
             continue
         try {
             val u = API.getUserFromCookie(line.trim())
-            rootLogger.info("New user: {}",u)
+            rootLogger.info("New user: {}", u)
             UserManager.update(u)
         } catch (e: Exception) {
             rootLogger.warn(
@@ -172,77 +172,14 @@ fun main(vararg args: String): Unit = runBlocking {
     }
 
     println("-".repeat(10) + "DONE" + "-".repeat(10))
-    rootLogger.info("start scheduler")
-    scheduler.start(false)
 
-    // 开启截图协程
-//fixme: 修复截图功能
-
-//    val sc = launch(Dispatchers.IO + CoroutineExceptionHandler { coroutineContext, throwable ->
-//        println(throwable.stackTraceToString())
-//    }) {
-//        delay(10000)
-//        while (true) {
-//            scheduler.sessions.filter { it.key.room.quality != "model already deleted" }.map {
-//                async {
-////                    println("[INFO] screenshot ${it.key.room.name}:${it.key.room.id}")
-//                    File("/screenshot/${it.key.room.name}").mkdir()
-//                    val url =
-//                        ClientManager.getProxiedClient().testFast(
-//                            listOf(
-//                                "https://b-hls-04.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}_160p.m3u8",
-//                                "https://b-hls-04.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}_240p.m3u8",
-//                                "https://b-hls-04.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}_560p.m3u8",
-//                                "https://b-hls-04.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}_720p.m3u8",
-//                                "https://b-hls-04.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}_720p60.m3u8",
-//                                "https://b-hls-04.doppiocdn.live/hls/${it.key.room.id}/${it.key.room.id}.m3u8",
-//                            )
-//                        )
-//                    if (url == null) {
-//                        return@async
-//                    }
-//                    runCatching {
-//                        val builder = ProcessBuilder(
-//                            "ffmpeg",
-//                            "-hide_banner",
-//                            "-v",
-//                            "error",
-//                            "-i",
-//                            url,
-//                            "-vf",
-//                            "scale=480:-1",
-//                            "-vframes",
-//                            "1",
-//                            "-q:v",
-//                            "2",
-//                            "/screenshot/${it.key.room.name}/%d.jpg".format(System.currentTimeMillis() / 1000)
-//                        )
-//                        val proxyEnv = System.getenv("http_proxy") ?: System.getenv("HTTP_PROXY")
-//                        if (proxyEnv != null) {
-//                            builder.environment()["http_proxy"] = proxyEnv
-//                        }
-//                        val p = builder.start()
-//                        if (p.waitFor() != 0) {
-//                            println("[ERROR] screenshot exited ${p.exitValue()}")
-//                        }
-//                        val readText = p.errorStream.bufferedReader().readText()
-//                        if (readText.isNotBlank()) {
-//                            println(readText)
-//                        }
-//                    }.onFailure { it ->
-//                        println(it.stackTraceToString())
-//                    }
-//                }
-//            }.awaitAll()
-//            delay(5 * 60_000)
-//        }
-//    }
     // web server
     var engine: EmbeddedServer<CIOApplicationEngine, CIOApplicationEngine.Configuration>? = null
     engine = embeddedServer(
         CIO,
         port = commandLine.getOptionValue("p", "8090").toInt(),
         host = "0.0.0.0"
+
     ) {
         install(ContentNegotiation) {
             json()
@@ -471,14 +408,19 @@ fun main(vararg args: String): Unit = runBlocking {
             }
         }
     }
-    println("Starting server ...")
+    rootLogger.info("start event dispatcher")
+    val jobEventDispatcher = launch { EventDispatcher.run() }
+    rootLogger.info("start scheduler")
+    val jobScheduler = launch { scheduler.start(true) }
+    rootLogger.info("start server")
     engine.start(true)
-    println("Server Stopped, waiting post processors exit...")
+    rootLogger.info("Server Stopped, waiting post processors exit...")
+    jobEventDispatcher.cancel()
     withContext(NonCancellable) {
         scheduler.stop()
     }
     // Suppress waring
-    println("all done")
+    rootLogger.info("all done")
     ClientManager.close()
     return@runBlocking
 }

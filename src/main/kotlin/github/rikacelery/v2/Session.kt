@@ -17,7 +17,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.buffer
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -127,7 +127,7 @@ class Session(
 
                     val price = API.roomFetchCamInfo(room)
                         .PathSingle("user.user.ticketRate").asInt()
-                    if (!room.autoPay){
+                    if (!room.autoPay) {
                         logger.warn("[{}] Room not enable autopay. price={}", room.name, price)
                         _isOpen.set(false)
                         return false
@@ -289,6 +289,9 @@ class Session(
                     if (event is Event.CmdFinish) {
                         return@map index to (event to async { Result.success(byteArrayOf()) })
                     }
+                    if (event is Event.WSEvent) {
+                        return@map index to (event to async { Result.success(byteArrayOf()) })
+                    }
                     segmentIDFromUrl(event.url())?.let { segmentID ->
                         metric.segmentID(segmentID)
                         metric.segmentMissing(counter(listOf(segmentID)))
@@ -354,6 +357,10 @@ class Session(
                         logger.trace("Collected: {}: {}", result.first::class.simpleName, result.first.url())
 
                         when (result.first) {
+                            is Event.WSEvent -> {
+                                writer.appendEvent((result.first as Event.WSEvent).data)
+                            }
+
                             is Event.CmdFinish -> {
                                 try {
                                     val file = writerReference.get()!!.done()
@@ -455,13 +462,20 @@ class Session(
         eventFinish.add(Event.CmdFinish())
     }
 
-    private fun segmentGenerator(): Flow<Event> = flow {
+    private fun segmentGenerator(): Flow<Event> = channelFlow  {
+        val scope = CoroutineScope(currentCoroutineContext())
         var initSent = false
         var initUrl = ""
         val cache = CircleCache(100)
         var retry = 0
         var ms = System.currentTimeMillis()
         var startTime = ms
+        val eventFlow = EventDispatcher.subscribe(room.id)
+        scope.launch {
+            eventFlow.collect {
+                send(Event.WSEvent(it))
+            }
+        }
         while (currentCoroutineContext().isActive) {
             retry++
             try {
@@ -528,7 +542,7 @@ class Session(
 
                 if (!initSent) {
                     initSent = true
-                    emit(Event.LiveSegmentInit(initUrlCur))
+                    send(Event.LiveSegmentInit(initUrlCur))
                 }
                 if (videos.isEmpty()) {
                     logger.warn("[{}] Got 0 videos from playlist, maybe decode failed!", room.name)
@@ -536,7 +550,7 @@ class Session(
                 for (url in videos) {
                     // record time limit
                     if (System.currentTimeMillis() - startTime > room.limit.inWholeMilliseconds && !cache.contains(url)) {
-                        emit(Event.CmdFinish())
+                        send(Event.CmdFinish())
                         // reset state
                         initSent = false
                         initUrl = ""
@@ -546,7 +560,7 @@ class Session(
                     // external finish cmd
                     val poll = eventFinish.poll()
                     if (poll != null) {
-                        emit(poll)
+                        send(poll)
                         // reset state
                         initSent = false
                         initUrl = ""
@@ -556,7 +570,7 @@ class Session(
                     // normal segments
                     if (currentCoroutineContext().isActive && !cache.contains(url)) {
                         cache.add(url)
-                        emit(Event.LiveSegmentData(url))
+                        send(Event.LiveSegmentData(url))
                     }
                 }
                 retry = 0
@@ -617,6 +631,7 @@ class Session(
             delay(500)
         }
         logger.info("[${room.name}] Segment generator exited.")
+        EventDispatcher.unsubscribe(room.id)
     }
 
     private fun parseSegmentUrl(lines: List<String>): List<String> {

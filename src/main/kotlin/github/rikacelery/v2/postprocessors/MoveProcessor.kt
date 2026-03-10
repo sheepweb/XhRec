@@ -79,6 +79,9 @@ class MoveProcessor(room: ProcessorCtx, val destPattern: String, val datePattern
             dest.parentFile.mkdirs()
         }
         if (dest.absolutePath != input.absolutePath) {
+            val eventFile = input.parentFile.resolve(input.nameWithoutExtension + ".event")
+            if(eventFile.exists())
+                eventFile.renameTo(dest.parentFile.resolve(dest.nameWithoutExtension+".event"))
             input.renameTo(dest)
             return listOf((dest))
         } else {
