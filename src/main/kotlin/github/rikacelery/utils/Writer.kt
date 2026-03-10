@@ -61,6 +61,7 @@ class Writer(private val name: String, private val destFolder: String, private v
         if (!file.renameTo(formatted)) {
             throw Exception("Failed to rename $formatted")
         }
+        file.parentFile.resolve(file.nameWithoutExtension + ".event").renameTo(File(tmpfolder, "${name}-${formatedStartTime()}-${format(duration)}.event"))
         return Triple(formatted, timeStarted, duration)
     }
 

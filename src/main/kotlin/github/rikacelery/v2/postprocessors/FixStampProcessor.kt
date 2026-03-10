@@ -8,8 +8,6 @@ class FixStampProcessor(room: ProcessorCtx, val destinationFolder: String) : Pro
     override fun process(input: File): List<File> {
         val eventFile = input.parentFile.resolve(input.nameWithoutExtension + ".event")
         val output = input.parentFile.resolve("${input.nameWithoutExtension}.fixed.${input.extension}")
-        if(eventFile.exists())
-            eventFile.renameTo(output.parentFile.resolve(output.nameWithoutExtension+".event"))
         val builder = ProcessBuilder(
             "ffmpeg",
             "-hide_banner",
@@ -27,6 +25,9 @@ class FixStampProcessor(room: ProcessorCtx, val destinationFolder: String) : Pro
         if (!File(destinationFolder).exists()) {
             File(destinationFolder).mkdirs()
         }
+        if(eventFile.exists())
+            Files.move(eventFile.toPath(),File(destinationFolder).resolve(output.nameWithoutExtension+".event").toPath())
+
         p.inputStream.bufferedReader().use {
             while (true) {
                 val char = it.readLine() ?: break
