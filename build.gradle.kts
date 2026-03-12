@@ -31,7 +31,7 @@ dependencies {
     implementation("io.ktor:ktor-client-websockets:3.3.3")
     implementation("io.ktor:ktor-client-content-negotiation-jvm")
 
-    implementation("io.github.nomisrev:kotlinx-serialization-jsonpath:0.2.0")
+    implementation("io.github.nomisrev:kotlinx-serialization-jsonpath:1.0.0")
     // https://mvnrepository.com/artifact/org.jsoup/jsoup
     implementation("org.jsoup:jsoup:1.18.1")
     // https://mvnrepository.com/artifact/org.jline/jline
