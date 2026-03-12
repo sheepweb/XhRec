@@ -37,7 +37,7 @@ dependencies {
     // https://mvnrepository.com/artifact/org.jline/jline
     implementation("org.jline:jline:3.30.6")
     // https://mvnrepository.com/artifact/commons-cli/commons-cli
-    implementation("commons-cli:commons-cli:1.9.0")
+    implementation("commons-cli:commons-cli:1.11.0")
 
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation(platform("org.junit:junit-bom:5.10.0"))
