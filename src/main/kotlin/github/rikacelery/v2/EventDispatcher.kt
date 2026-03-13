@@ -69,7 +69,11 @@ object EventDispatcher {
                                     }
 
                                     else -> {
-                                        flow.emit(data)
+                                        data.lines().filter {
+                                            it.startsWith("{\"push\"")
+                                        }.forEach {
+                                            flow.emit(it )
+                                        }
                                     }
                                 }
                             }
