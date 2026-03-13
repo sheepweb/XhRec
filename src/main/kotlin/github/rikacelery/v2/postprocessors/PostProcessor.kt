@@ -6,19 +6,21 @@ import github.rikacelery.utils.String
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.json.*
+import org.slf4j.LoggerFactory
 import java.io.File
 import kotlin.time.Duration
 
 object PostProcessor {
     val concurrency = Semaphore(4)
     lateinit var config: JsonArray
+    private val logger = LoggerFactory.getLogger(this::class.java)
 
     fun loadConfig(file: File) {
         config = Json.Default.decodeFromString(
             JsonObject.Companion.serializer(),
             file.readText()
         ).jsonObject["default"]?.jsonArray ?: JsonArray(listOf())
-        println("Post processors loads: ${config.map { it.String("type") }}")
+        logger.info("Post processors loads: ${config.map { it.String("type") }}")
     }
 
 
@@ -60,7 +62,7 @@ object PostProcessor {
                 }
             }
         }
-        println("Post processors build(${context.room}): ${processors.map { it }}")
+        logger.info("Post processors build(${context.room}): ${processors.map { it::class.simpleName }}")
         return processors
     }
 
@@ -69,13 +71,13 @@ object PostProcessor {
         var files = listOf(input)
         for (processor in processors) {
             val tmp = files.flatMapIndexed { idx, file ->
-                println("[${context.room.name}] $idx/${files.size} ${processor.javaClass.simpleName} $file")
+                logger.info("[${context.room.name}] $idx/${files.size} ${processor.javaClass.simpleName} <- $file")
                 val outs = try {
                     processor.process(file)
                 } catch (e: Exception) {
                     throw e
                 }
-                println("[${context.room.name}] $idx/${outs.size} ${processor.javaClass.simpleName} -> $outs")
+                logger.info("[${context.room.name}] $idx/${outs.size} ${processor.javaClass.simpleName} -> $outs")
                 outs
             }
             files = tmp

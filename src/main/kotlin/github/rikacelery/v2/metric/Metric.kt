@@ -1,6 +1,5 @@
 package github.rikacelery.v2.metric
 
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -25,7 +24,7 @@ object Metric {
          }
      }
 
-    suspend fun removeMetric(id: Long) = lock.withLock(NonCancellable) {
+    suspend fun removeMetric(id: Long) = lock.withLock {
         updaters.remove(id)?.dispose()
         metrics.remove(id)
     }

@@ -27,7 +27,7 @@ class SliceProcessor(room: ProcessorCtx, val duration: Duration) : Processor(roo
         val sliceDuration = total / sliceCount
         val outputFiles = (0 until sliceCount).mapNotNull { i ->
             val output = input.parentFile.resolve("${input.nameWithoutExtension}_${i}.${input.extension}")
-            println(
+            info(
                 "[${context.room.name}] piece$i/${sliceCount} start:${formatDuration((i * sliceDuration).inWholeSeconds)} duration:${
                     formatDuration(
                         sliceDuration.inWholeSeconds
@@ -58,7 +58,7 @@ class SliceProcessor(room: ProcessorCtx, val duration: Duration) : Processor(roo
             p.inputStream.bufferedReader().use {
                 while (true) {
                     val char = it.readLine() ?: break
-                    log(char.replace("\r", ""))
+                    info(char.replace("\r", ""))
                 }
             }
             if (p.waitFor() == 0) {

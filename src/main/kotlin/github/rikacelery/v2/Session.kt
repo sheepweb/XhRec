@@ -494,8 +494,7 @@ class Session(
                                 }
                                 result.getOrThrow()
                             } catch (e: Exception) {
-                                logger.error("[ERROR] failed to decrypt $mouflon(${encrypted.reversed()})", e)
-                                println(rawList.joinToString("\n"))
+                                logger.error("[ERROR] failed to decrypt $mouflon(${encrypted.reversed()}),rawm3u8=$rawList", e)
                                 throw e
                             }
                             val dec = rawList[idx + 1].replace(
@@ -519,7 +518,7 @@ class Session(
                 val initUrlCur = parseInitUrl(lines)
                 if (initUrl.isEmpty()) initUrl = initUrlCur
                 if (initUrlCur != initUrl) {
-                    println("[${room.name}] Init segment changed, exiting...")
+                    logger.warn("[${room.name}] Init segment changed, exiting...")
                     break
                 }
                 val videos = parseSegmentUrl(lines)
@@ -602,7 +601,6 @@ class Session(
                     logger.error("[{}] Generator error", room.name, e)
                 }
             } catch (_: CancellationException) {
-                logger.error("[{}] Segment generator is cancelled, exiting...", room.name)
                 break
             } catch (e: Exception) {
                 logger.error("[{}] Unexpected error in segment generator", room.name, e)
@@ -614,7 +612,7 @@ class Session(
 
             delay(500)
         }
-        logger.info("[${room.name}] Segment generator exited.")
+        logger.debug("[${room.name}] Segment generator exited.")
         EventDispatcher.unsubscribe(room.id)
         close()
     }
@@ -624,7 +622,7 @@ class Session(
             try {
                 line.substringAfter("URI=\"").substringBefore("\"")
             } catch (e: Exception) {
-                println("Failed to parse segment URL from line: $line, $e")
+                logger.error("Failed to parse segment URL from line: $line",e)
                 null
             }
         }

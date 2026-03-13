@@ -82,7 +82,7 @@ class ShellProcessor(
 
         }
         val cmd = script.map(replace)
-        println(cmd.joinToString(" "))
+        debug(cmd.joinToString(" "))
         val builder = ProcessBuilder(
             cmd
         )
@@ -90,7 +90,7 @@ class ShellProcessor(
         p.errorStream.bufferedReader().use {
             while (true) {
                 val char = it.readLine() ?: break
-                log(char.replace("\r", ""))
+                info(char.replace("\r", ""))
             }
         }
         if (p.waitFor() == 0) {
@@ -103,8 +103,8 @@ class ShellProcessor(
             return listOf(outputFile)
         } else {
             if (noreturn) return listOf(input)
-            println("[warning] $input shell process failed.")
-            throw Exception("运行失败")
+            warn("$input ffmpeg failed.")
+            throw Exception("Execution failed.")
         }
     }
 }

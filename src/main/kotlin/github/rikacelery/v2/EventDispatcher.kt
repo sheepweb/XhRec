@@ -21,6 +21,7 @@ import kotlin.time.Duration.Companion.seconds
 object EventDispatcher {
     val client = ClientManager.getProxiedClient("EventDispatcher")
     val logger = LoggerFactory.getLogger(EventDispatcher::class.java)
+
     @Volatile
     var wssession: WebSocketSession? = null
         private set
@@ -31,7 +32,8 @@ object EventDispatcher {
 
     private val subscribedRooms = ConcurrentHashMap.newKeySet<Long>()
 
-    private const val AUTH_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiItMTA4MSIsImluZm8iOnsiaXNHdWVzdCI6dHJ1ZSwidXNlcklkIjotMTA4MX19.IXF36-UfCEmOPGvhl2a19rgLsh2rDCdXNJ3su9LkA9Y"
+    private const val AUTH_TOKEN =
+        "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiItMTA4MSIsImluZm8iOnsiaXNHdWVzdCI6dHJ1ZSwidXNlcklkIjotMTA4MX19.IXF36-UfCEmOPGvhl2a19rgLsh2rDCdXNJ3su9LkA9Y"
     private const val WS_URL = "wss://websocket-v6.xhamsterlive.com/connection/websocket"
 
     suspend fun run() {
@@ -48,14 +50,13 @@ object EventDispatcher {
                     val connectMsg = """{"connect":{"token":"$AUTH_TOKEN","name":"js"},"id":${seq.incrementAndGet()}}"""
                     outgoing.send(Frame.Text(connectMsg))
 
-                     delay(1000)
+                    delay(1000)
                     if (subscribedRooms.isNotEmpty()) {
                         logger.info("Restoring ${subscribedRooms.size} subscriptions...")
                         subscribedRooms.forEach { roomId ->
                             sendSubscribeCommand(roomId)
                         }
                     }
-
                     while (true) {
                         select {
                             incoming.onReceive { frame ->
@@ -66,6 +67,7 @@ object EventDispatcher {
                                     "{}" -> {
                                         outgoing.send(Frame.Text("{}"))
                                     }
+
                                     else -> {
                                         flow.emit(data)
                                     }

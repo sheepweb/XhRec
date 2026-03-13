@@ -29,29 +29,30 @@ class FixStampProcessor(room: ProcessorCtx, val destinationFolder: String) : Pro
             Files.move(eventFile.toPath(),File(destinationFolder).resolve(output.nameWithoutExtension+".event").toPath())
 
         p.inputStream.bufferedReader().use {
+            info("Transcoding...")
             while (true) {
                 val char = it.readLine() ?: break
-                log(char.replace("\r", ""))
+                debug(char.replace("\r", ""))
             }
         }
         if (p.waitFor() == 0) {
             input.delete()
-            log("moving...")
+            info("Moving...")
             try {
                 Files.move(
                     output.toPath(),
                     File(destinationFolder).resolve(output.name).toPath(),
                     StandardCopyOption.REPLACE_EXISTING
                 )
-                log("移动成功")
+                info("Moved")
                 return listOf(File(destinationFolder).resolve(output.name))
             } catch (e: Exception) {
-                log("无法移动文件$e")
+                error("Failed to move file",e)
                 throw e
             }
         } else {
-            log("转码失败，请查看命令输出")
-            throw Exception("转码失败")
+            error("Transcoding failed, please check the command output")
+            throw Exception("Transcoding failed")
         }
     }
 }
