@@ -69,10 +69,10 @@ class Session(
             logger.error("Exception in {}", coroutineContext, throwable)
         })
 
-    private val _isOpen = AtomicBoolean(false)
+    private val _status = AtomicReference("")
     private val _isActive = AtomicBoolean(false)
     val isActive: Boolean get() = _isActive.get()
-    val isOpen: Boolean get() = _isOpen.get()
+    val status: String get() = _status.get()
     var currentQuality = room.quality
 
     private val writerReference = AtomicReference<Writer?>(null)
@@ -121,6 +121,7 @@ class Session(
             val status = info.PathSingle("item.status").asString()
 
             // room status check
+            _status.set(status)
             when (status) {
                 "public" -> {}
                 "groupShow" -> {
@@ -129,13 +130,11 @@ class Session(
                         .PathSingle("user.user.ticketRate").asInt()
                     if (!room.autoPay) {
                         logger.warn("[{}] Room not enable autopay. price={}", room.name, price)
-                        _isOpen.set(false)
                         return false
                     }
                     val u = UserManager.validPaymentAccount(price)
                     if (u == null) {
                         logger.warn("[{}] No account to pay. price={}", room.name, price)
-                        _isOpen.set(false)
                         return false
                     }
                     // TODO check cookie and coins status
@@ -158,31 +157,26 @@ class Session(
 //
 //                "private" -> {
 //                    logger.trace("[{}] -> false, status={}", room.name, status)
-//                    _isOpen.set(false)
 //                    return false
 //                }
 //
 //                "idle" -> {
 //                    logger.trace("[{}] -> false, status={}", room.name, status)
-//                    _isOpen.set(false)
 //                    return false
 //                }
 //
 //                "p2p" -> {
 //                    logger.trace("[{}] -> false, status={}", room.name, status)
-//                    _isOpen.set(false)
 //                    return false
 //                }
 //
 //                "off" -> {
 //                    logger.trace("[{}] -> false, status={}", room.name, status)
-//                    _isOpen.set(false)
 //                    return false
 //                }
 //
                 else -> {
                     logger.trace("[{}] -> false, status={}", room.name, status)
-                    _isOpen.set(false)
                     return false
                 }
             }
@@ -190,7 +184,6 @@ class Session(
             // quality setting
             if (room.quality == "raw") {
                 logger.trace("[{}] -> true, skip quality selection for 'raw'", room.name)
-                _isOpen.set(true)
                 return true
             }
 
@@ -216,14 +209,12 @@ class Session(
                 currentQuality = new
             }
             logger.trace("[{}] -> true", room.name)
-            _isOpen.set(true)
             return true
         } catch (e: ClientRequestException) {
             logger.warn("Room configure failed.", e)
         }
         logger.warn("[{}] Failed to check room state", room.name)
         logger.trace("[{}] -> true", room.name)
-        _isOpen.set(false)
         return false
     }
 
@@ -269,7 +260,7 @@ class Session(
             room.id,
             currentQuality,
             room.quality,
-            isOpen
+            status
         )
 
         val writer = Writer(room.name, dest, tmp).apply { init() }

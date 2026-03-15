@@ -188,6 +188,7 @@
                                 Room <i class="fa-solid ml-1"
                                     :class="!sort['Room'] ? 'fa-sort text-slate-300' : (sort['Room'] === 1 ? 'fa-sort-down text-indigo-500' : 'fa-sort-up text-indigo-500')"></i>
                             </th>
+                            <th class="px-4 py-3 text-center">Room</th>
                             <th class="px-4 py-3 text-center">Preview</th>
                             <th class="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors select-none"
                                 @click="sortToggle('ID')">
@@ -240,6 +241,9 @@
                                     {{room.name}} <i
                                         class="fa-solid fa-arrow-up-right-from-square text-[0.65rem] text-slate-400"></i>
                                 </a>
+                            </td>
+                            <td class="px-4 py-2 text-center">
+                                {{room.status}}
                             </td>
                             <td class="px-4 py-2 text-center">
                                 <div class="thumb-container">
@@ -564,6 +568,7 @@
                             if (!newRoomInfo[room.room.name]) newRoomInfo[room.room.name] = {};
                             Object.assign(newRoomInfo[room.room.name], {
                                 status: room.session.active ? "Recording" : (room.listening ? "Listening" : ""),
+                                roomStatus: room.session.status,
                                 ...room.room,
                             });
                         }
