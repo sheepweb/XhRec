@@ -2,909 +2,627 @@
 <html lang="zh">
 
 <head>
-    <meta charset="UTF-8"/>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>XhRec Dashboard</title>
+
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css"
-          integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw=="
-          crossorigin="anonymous" referrerpolicy="no-referrer"/>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"
-          rel="stylesheet">
-    <title>XhRec</title>
+        integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600&display=swap"
+        rel="stylesheet">
+
+    <script type="importmap">
+        {
+          "imports": {
+            "vue": "https://unpkg.com/vue@3/dist/vue.esm-browser.js"
+          }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Custom Scrollbar for Terminal */
+        .terminal-scroll::-webkit-scrollbar {
+            height: 8px;
+            width: 8px;
+        }
+
+        .terminal-scroll::-webkit-scrollbar-track {
+            background: #1e1e1e;
+            border-radius: 4px;
+        }
+
+        .terminal-scroll::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 4px;
+        }
+
+        /* Toast Animation */
+        .toast-enter-active,
+        .toast-leave-active {
+            transition: all 0.3s ease;
+        }
+
+        .toast-enter-from {
+            opacity: 0;
+            transform: translateX(30px);
+        }
+
+        .toast-leave-to {
+            opacity: 0;
+            transform: translateY(-30px);
+        }
+
+        /* Table Image Preview Hover */
+        .thumb-container {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+        }
+
+        .thumb-preview {
+            visibility: hidden;
+            opacity: 0;
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%) translateY(10px);
+            transition: all 0.2s ease-in-out;
+            z-index: 50;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid white;
+            width: 200px;
+            /* Base size for preview */
+        }
+
+        .thumb-container:hover .thumb-preview {
+            visibility: visible;
+            opacity: 1;
+            transform: translateX(-50%) translateY(-5px);
+        }
+
+        /* Status Indicator Pulse */
+        @keyframes pulse-red {
+            0% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            }
+        }
+
+        .status-recording {
+            animation: pulse-red 2s infinite;
+        }
+    </style>
 </head>
-<style>
-    :root {
-        --bg-color-light: #ffffff;
-        --text-color-light: #000000;
-        --bg-color-dark: #121212;
-        --text-color-dark: #eeeeee;
-        --table-border: #444;
-        --highlight-blue: #007bff;
-        --highlight-green: #28a745;
-        --highlight-orange: orange;
-        --highlight-red: red;
-        --highlight-yellow: gold;
-    }
 
-    .url-list {
-        margin-top: 20px;
-        overflow-x: scroll;
-    }
+<body class="bg-slate-50 text-slate-800 min-h-screen p-4 md:p-6">
 
-    .url-item {
-        font-family: "JetBrains Mono", monospace;
-        font-style: normal;
-        font-size: .9em;
-        margin-bottom: 4px;
-    }
+    <div id="app" class="max-w-screen-2xl mx-auto flex flex-col gap-6" v-cloak>
 
-    .url-item span {
-        font-weight: 600;
-    }
-
-    table.control-panel,
-    table.control-panel tr th,
-    table.control-panel tr td {
-        border: 1px solid #00000056;
-        padding: .4em;
-    }
-
-    button {
-        --color-hover: 230, 230, 230;
-        --color: 170, 170, 170;
-        color: rgb(var(--color), 1);
-        /* color: rgb(0, 0, 0); */
-        /* padding: 4px; */
-        /* margin: 2px; */
-        text-shadow: 2px 2px 4px #00000023;
-        transition: all .2s;
-        display: inline-flex;
-        justify-content: center;
-        align-items: center;
-    }
-
-    button:hover {
-        color: rgb(var(--color-hover), 1);
-        cursor: pointer;
-    }
-
-    .btn-green {
-        /* color: rgb(255, 255, 255); */
-        /* background-color: rgb(82, 122, 77); */
-        --color-hover: 46, 199, 26;
-        --color: 40, 100, 12;
-    }
-
-    .btn-red {
-        /* color: rgb(255, 255, 255); */
-        /* background-color: rgb(209, 43, 43); */
-        --color-hover: 209, 43, 43;
-        --color: 136, 52, 52;
-    }
-
-    .btn-blue {
-        /* color: rgb(255, 255, 255); */
-        /* color: rgb(26, 78, 128); */
-        --color-hover: 58, 148, 233;
-        --color: 26, 78, 128;
-    }
-
-    .time-short {
-        color: var(--highlight-green);
-    }
-
-    .time-medium {
-        color: var(--highlight-orange);
-    }
-
-    .time-long {
-        color: var(--highlight-red);
-        font-weight: bold;
-    }
-
-
-    /* Tooltip 容器 */
-    .tooltip {
-        position: relative;
-        /* display: inline-block; */
-        /* 悬停元素上显示点线 */
-    }
-
-    /* Tooltip 文本 */
-    .tooltip .tooltiptext {
-        visibility: hidden;
-        text-wrap: nowrap;
-        /* width: 120px; */
-        background-color: rgb(0, 0, 0);
-        color: #fff;
-        text-align: center;
-        padding: 0px 3px;
-        border-radius: 6px;
-
-        /* 定位 */
-        left: 0%;
-        transform: translateX(-50%);
-        bottom: calc(-100% + 8px);
-        position: absolute;
-        z-index: 1;
-    }
-
-    /* 鼠标移动上去后显示提示框 */
-    .tooltip:hover .tooltiptext {
-        visibility: visible;
-    }
-
-    @keyframes download {
-        0% {
-            opacity: 0;
-            transform: translateY(-50%);
-        }
-
-        70% {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        100% {
-            opacity: 0;
-            transform: translateY(50%);
-        }
-    }
-
-    .downloadAnimation {
-        animation: download .4s cubic-bezier(0.002, 0.569, 0.716, 0.997) infinite forwards;
-    }
-
-    @keyframes toast-slide-in {
-        from {
-            transform: translateY(100%);
-            opacity: 0;
-        }
-
-        to {
-            transform: translateY(0);
-            opacity: 1;
-        }
-    }
-
-    @keyframes toast-slide-out {
-        from {
-            transform: translateY(0);
-            opacity: 1;
-        }
-
-        to {
-            transform: translateY(-100%);
-            opacity: 0;
-        }
-    }
-
-    #popup {
-        height: 50px;
-        position: fixed;
-        top: 0;
-        left: 0;
-        z-index: 10;
-    }
-
-    .gantt-background {
-        margin: 0 auto;
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-        overflow: auto;
-        width: 100%;
-    }
-
-    .gantt-container {
-        overflow-x: auto;
-        padding: 20px;
-    }
-
-    .gantt-table {
-        width: 100%;
-        min-width: 1200px;
-        border-collapse: collapse;
-        table-layout: fixed;
-    }
-
-    .gantt-table th {
-        background: #f1f5fd;
-        padding: 15px 10px;
-        text-align: left;
-        font-weight: 600;
-        color: #2c3e50;
-        border-bottom: 2px solid #e1e8f0;
-        position: sticky;
-        top: 0;
-        z-index: 10;
-    }
-
-    .gantt-table td {
-        border-bottom: 1px solid #eef2f7;
-        vertical-align: top;
-    }
-
-    .model-name {
-        font-weight: 600;
-        color: #2c3e50;
-        position: sticky;
-        left: 0;
-        background: white;
-        z-index: 5;
-        min-width: 0;
-    }
-
-    .day-header {
-        text-align: center;
-        font-weight: 600;
-        color: #4b6cb7;
-    }
-
-
-    .time-slot {
-        height: 30px;
-        position: relative;
-        background: #f8fafc;
-        border-radius: 6px;
-        overflow: hidden;
-    }
-
-    .period-bar {
-        position: absolute;
-        height: 30px;
-        background: linear-gradient(90deg, #4b6cb7, #6a89cc);
-        border-radius: 4px;
-        cursor: pointer;
-        transition: all 0.3s;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-size: 12px;
-        font-weight: 500;
-        overflow: hidden;
-    }
-
-    .period-bar:hover {
-        transform: scaleY(1.1);
-        box-shadow: 0 4px 8px rgba(75, 108, 183, 0.3);
-    }
-
-    .disabled-day .period-bar {
-        background: linear-gradient(90deg, #95a5a6, #7f8c8d);
-        opacity: 0.5;
-    }
-
-    .gantt-tooltip {
-        position: absolute;
-        background: rgba(0, 0, 0, 0.8);
-        color: white;
-        padding: 8px 12px;
-        border-radius: 4px;
-        font-size: 12px;
-        z-index: 100;
-        pointer-events: none;
-        transform: translateY(-100%);
-        margin-top: -10px;
-    }
-
-    .snapshot {
-        transform: translateY(0);
-    }
-
-    .thumb {
-        display: inline;
-        max-height: 100px;
-    }
-</style>
-
-<script type="importmap">
-    {
-      "imports": {
-        "vue": "https://unpkg.com/vue@3/dist/vue.esm-browser.js"
-      }
-    }
-</script>
-
-<script>
-
-    function showToast(message, type = "success") {
-        // Create toast element
-        const toast = document.createElement("div");
-        toast.textContent = message;
-        toast.style.cssText = `
-        position:absolute;
-        top:0px;
-        left:0;
-        padding: 12px 20px;
-        border-radius: 4px;
-        background-color: ${type === "error" ? "#d32f2f" : "#4caf50"};
-        color: white;
-        font-family: Arial, sans-serif;
-        font-size: 14px;
-        z-index: 9999;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-        animation: toast-slide-in 0.3s ease-out forwards;
-    `;
-
-        // Add toast to document
-        document.getElementById("popup").appendChild(toast);
-
-        // Remove toast after 3 seconds
-        setTimeout(() => {
-            toast.style.animation = "toast-slide-out 0.3s ease-out forwards";
-            setTimeout(() => {
-                if (toast.parentNode) {
-                    toast.parentNode.removeChild(toast);
-                }
-            }, 300);
-        }, 2000);
-    }
-</script>
-<style>
-    .gantt-btn {
-        padding: 8px 16px;
-        border: 1px solid #4b6cb7;
-        background: white;
-        color: #4b6cb7;
-        border-radius: 6px;
-        cursor: pointer;
-        font-weight: 500;
-    }
-
-    .gantt-btn:hover {
-        background: #4b6cb7;
-        color: white;
-        text-shadow: 3px 3px 8px #00000050;
-    }
-</style>
-
-<body class="p-3 flex flex-col justify-center items-center bg-slate-300">
-<div id="popup"></div>
-
-<div id="app" class="w-full flex flex-col ">
-
-    <div class="gantt-background" hidden="hidden">
-        <div class="gantt-container  overflow-x-auto">
-            <table class="gantt-table ">
-                <thead>
-                <tr>
-                    <th>Room
-                        <button @click="fetchSchedule()" class="gantt-btn"><i
-                                class="fa-solid fa-arrow-rotate-right"></i></button>
-                    </th>
-                    <th v-for="day in days" :key="day.key" class="day-header">
-                        {{ day.label }}
-                    </th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr v-for="(modelData, modelName) in schedules" :key="modelName">
-                    <td class="model-name">{{ modelName }}</td>
-                    <td v-for="day in days" :key="`${modelName}-${day.key}`" class="day-column"
-                        :class="{'disabled-day': !modelData[day.key]?.isEnabled}">
-                        <div class="time-slot">
-                            <div v-for="(period, index) in modelData[day.key]?.periods || []" :key="index"
-                                 class="period-bar" :style="{
-                                            left: `${calculatePosition(period[0])}%`,
-                                            width: `${calculateWidth(period[0], period[1])}%`
-                                        }"
-                                 @mouseover="showTooltip($event, {model: modelName, day: day.label, start: period[0], end: period[1]})"
-                                 @mouseout="hideTooltip"
-                                 @click="selectPeriod({model: modelName, day: day.label, start: period[0], end: period[1]})">
-                                {{ formatPeriodTime(period[0], period[1]) }}
-                            </div>
-                        </div>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
+        <div class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+            <transition-group name="toast">
+                <div v-for="toast in toasts" :key="toast.id"
+                    class="px-4 py-3 rounded shadow-lg flex items-center gap-3 text-white pointer-events-auto backdrop-blur-sm"
+                    :class="toast.type === 'error' ? 'bg-red-600/90' : 'bg-emerald-600/90'">
+                    <i class="fa-solid" :class="toast.type === 'error' ? 'fa-circle-xmark' : 'fa-circle-check'"></i>
+                    <span class="font-medium text-sm">{{ toast.message }}</span>
+                </div>
+            </transition-group>
         </div>
-    </div>
 
-    <div v-if="tooltip.visible" class="gantt-tooltip" :style="{left: tooltip.x + 'px', top: tooltip.y + 'px'}">
-        {{ tooltip.text }}
-    </div>
-    <div class="bg-slate-200 rounded-md p-4">
-        <div class="row mb-2">
-            <div class="input flex gap-2">
-                <label for="new_room" class="text-nowrap">
-                    Add room
-                </label>
-                <div class="w-full flex justify-center items-center text-gray-600 bg-slate-300 rounded-md px-2">
-                    <input v-model="addInput" class="outline-none w-full" type="text" name="" id="new_room">
-                    <i class="fa fa-times text-gray-600" aria-hidden="true"></i>
+        <div
+            class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div
+                    class="w-10 h-10 bg-indigo-600 text-white rounded-lg flex items-center justify-center text-xl shadow-md">
+                    <i class="fa-solid fa-video"></i>
                 </div>
-                <div class="w-fit flex justify-center items-center text-gray-600 bg-slate-300 rounded-md px-2">
-                    <input v-model="timeLimit" class="outline-none w-full" type="number" name="" id="time_limit">
-                    <i class="fa fa-times text-gray-600" aria-hidden="true"></i>
+                <h1 class="text-xl font-bold text-slate-800 tracking-tight">XhRec Manager</h1>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-3 bg-slate-50 p-2 rounded-lg border border-slate-200">
+                <div class="relative flex items-center">
+                    <i class="fa-solid fa-satellite-dish absolute left-3 text-slate-400"></i>
+                    <input v-model="addInput" type="text" placeholder="Room URL or Slug"
+                        class="pl-9 pr-8 py-1.5 text-sm bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 w-48 transition-all">
+                    <i v-show="addInput" @click="addInput=''"
+                        class="fa-solid fa-xmark absolute right-3 text-slate-400 hover:text-red-500 cursor-pointer transition-colors"></i>
                 </div>
-                <select v-model="addQuality" name="quality" id="quality">
-                    <option>160p</option>
-                    <option>240p</option>
-                    <option>480p</option>
-                    <option>720p</option>
-                    <option>720p60</option>
-                    <option>1080p</option>
-                    <option>1080p60</option>
-                    <option>2560p60</option>
-                    <option>raw</option>
+
+                <div class="relative flex items-center">
+                    <i class="fa-regular fa-clock absolute left-3 text-slate-400"></i>
+                    <input v-model.number="timeLimit" type="number" min="0" placeholder="Limit"
+                        class="pl-9 pr-2 py-1.5 text-sm bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 w-24 transition-all">
+                </div>
+
+                <select v-model="addQuality"
+                    class="py-1.5 px-3 text-sm bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">
+                    <option v-for="q in ['160p','240p','480p','720p','720p60','1080p','1080p60','2560p60','raw']"
+                        :key="q" :value="q">{{q}}</option>
                 </select>
-                <button @click="addRoom(true)" class="btn-green size-7 tooltip"><i class="fa fa-paper-plane"></i><span
-                        class="tooltiptext">Add and active</span></button>
-                <button @click="addRoom(false)" class="btn-green size-7 tooltip"><i class="fa fa-plus"></i><span
-                        class="tooltiptext">Add</span></button>
-                <button @click="poweroff()" class="btn-red size-7 tooltip"><i class="fa-solid fa-power-off"></i><span
-                        class="tooltiptext">PowerOff</span></button>
 
+                <div class="flex items-center gap-1 border-l border-slate-300 pl-3">
+                    <button @click="addRoom(true)" title="Add & Activate"
+                        class="w-8 h-8 flex items-center justify-center rounded bg-emerald-100 text-emerald-700 hover:bg-emerald-600 hover:text-white transition-colors">
+                        <i class="fa-solid fa-paper-plane text-sm"></i>
+                    </button>
+                    <button @click="addRoom(false)" title="Add Only"
+                        class="w-8 h-8 flex items-center justify-center rounded bg-blue-100 text-blue-700 hover:bg-blue-600 hover:text-white transition-colors">
+                        <i class="fa-solid fa-plus text-sm"></i>
+                    </button>
+                    <button @click="poweroff()" title="Power Off Server"
+                        class="w-8 h-8 flex items-center justify-center rounded bg-red-100 text-red-700 hover:bg-red-600 hover:text-white transition-colors ml-2">
+                        <i class="fa-solid fa-power-off text-sm"></i>
+                    </button>
+                </div>
             </div>
         </div>
-        <div class="overflow-x-auto">
-            <table class="control-panel border w-full overflow-hidden">
-                <thead class="font-bold">
-                <tr>
-                    <td class="hover:cursor-pointer" @click="sortToggle('Room')">Room
-                        <span class="select-none" v-if="sort['Room']==1">↓</span>
-                        <span class="select-none" v-if="sort['Room']==2">↑</span>
-                    </td>
-                    <td style="width: 100px">Thumb</td>
-                    <td class="hover:cursor-pointer" @click="sortToggle('ID')">ID
-                        <span class="select-none" v-if="sort['ID']==1">↓</span>
-                        <span class="select-none" v-if="sort['ID']==2">↑</span>
-                    </td>
-                    <td class="hover:cursor-pointer" @click="sortToggle('Quality')">Quality
-                        <span class="select-none" v-if="sort['Quality']==1">↓</span>
-                        <span class="select-none" v-if="sort['Quality']==2">↑</span>
-                    </td>
-                    <td class="hover:cursor-pointer" @click="sortToggle('Limit')">Limit
-                        <span class="select-none" v-if="sort['Limit']==1">↓</span>
-                        <span class="select-none" v-if="sort['Limit']==2">↑</span>
-                    </td>
-                    <td class="hover:cursor-pointer" @click="sortToggle('Status')">Status
-                        <span class="select-none" v-if="sort['Status']==1">↓</span>
-                        <span class="select-none" v-if="sort['Status']==2">↑</span>
-                    </td>
-                    <td class="hover:cursor-pointer" @click="sortToggle('AutoPay')">AutoPay
-                        <span class="select-none" v-if="sort['AutoPay']==1">↓</span>
-                        <span class="select-none" v-if="sort['AutoPay']==2">↑</span>
-                    </td>
-                    <td>Segments status</td>
-                    <td class="hover:cursor-pointer" @click="sortToggle('Size')">File
-                        size({{formatBytes(Object.values(this.roomDisplay).reduce((a, b) => {
-                            return a + (b.bytesWrite || 0)
-                        }, 0))}})
-                        <span class="select-none" v-if="sort['Size']==1">↓</span>
-                        <span class="select-none" v-if="sort['Size']==2">↑</span>
-                    </td>
-                    <td>Control</td>
-                </tr>
-                </thead>
-                <tbody>
-                <tr v-for="room of roomDisplay">
-                    <td>
-                            <span>{{room.name}} <a :href="`https://xhamsterlive.com/${room.name}`" target="_blank"><i
-                                    class="fa fa-arrow-up-right-from-square"
-                                    style="font-size: .6em;vertical-align: text-top;"></i></a></span>
 
-                    </td>
-                    <td @mouseover="showSnapshot($event,room.name)" @mouseout="hideSnapshot"><img
-                            v-if="snapshotcache[room.name]?.url" :src="snapshotcache[room.name]?.url"
-                            class="thumb" alt="thumb"></td>
-                    <td>{{room.id}}</td>
-                    <td>
-                        <select @change="ev=>setQuality(ev.target.value,room.name)" :value="room.quality">
-                            <option
-                                    v-for="quality in ['160p','240p','480p','720p','720p60','540p','960p','1080p','1080p60','2560p60','raw']">
-                                {{quality}}
-                            </option>
-                        </select>
-                    </td>
-                    <td>
-                        <div class="flex">
-                            <span class="items-center text-nowrap">{{room.limit}} => </span>
-                            <input
-                                    class="outline-none"
-                                    type="number"
-                                    :id="`limit-${room.name}`"
-                                    min="0"
-                            >
-                            <button class="btn-green size-7 tooltip" @click="setLimit(room.name)"><i class="fa fa-play"
-                                                                                                     aria-hidden="true"></i><span
-                                    class="tooltiptext">Set Time Limit</span></button>
-                        </div>
-                    </td>
-                    <td v-if="room.status=='Recording'"><i class="fa-regular fa-circle-dot"
-                                                           style="color: rgb(238, 18, 18);"></i></td>
-                    <td v-else-if="room.status=='Listening'"><i class="fa-regular fa-hourglass-half fa-fade"
-                                                                style="color: rgb(45, 90, 236);"></i></td>
-                    <td v-else-if="room.status==''"><i class="fa-solid fa-video-slash" style="color: #c0c0c0;"></i>
-                    </td>
-                    <td v-else>{{room.status}}</td>
-                    <td><input type="checkbox" v-model="room.autoPay"
-                               @change="setAutoPay($event.target.checked,room.name)"></td>
-                    <td>
-                            <span v-if="room.status=='Recording'" class="text-green-800 mr-1"><i
-                                    class="fa-solid fa-arrow-down"
-                                    :class="{downloadAnimation:room.running}"></i>{{room.running}}</span>
-                        <span v-if="room.status=='Recording'" class="text-red-800  mr-1"><i
-                                class="fa-solid fa-exclamation"></i>{{room.failed}}</span>
-                        <span v-if="room.status=='Recording'" class="text-blue-800 mr-1"><i
-                                class="fa-solid fa-check"></i>{{room.success}}</span>
-                        <!-- / {{room.total}} -->
-                    </td>
-                    <td>{{formatBytes(room.bytesWrite)}}</td>
-                    <td>
-                        <div class="flex flex-nowrap border-none">
-                            <button @click="action('activate',room.name)" class="btn-green size-7 tooltip"><i
-                                    class="fa fa-play" aria-hidden="true"></i><span
-                                    class="tooltiptext">Activate</span></button>
-                            <button @click="action('deactivate',room.name)" class="btn-red   size-7  tooltip"><i
-                                    class="fa fa-stop" aria-hidden="true"></i><span
-                                    class="tooltiptext">Deactivate</span></button>
-                            <button @click="action('break',room.name)" class="btn-blue  size-7 tooltip"><i
-                                    class="fa-solid fa-floppy-disk"></i><span class="tooltiptext">Save and start new
-                                        recording</span></button>
-                            <button @click="action('remove',room.name)" class="btn-red   size-7  tooltip"><i
-                                    class="fa fa-trash" aria-hidden="true"></i><span
-                                    class="tooltiptext">Remove</span></button>
-                        </div>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead
+                        class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200 uppercase text-xs tracking-wider text-nowrap">
+                        <tr>
+                            <th class="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                                @click="sortToggle('Room')">
+                                Room <i class="fa-solid ml-1"
+                                    :class="!sort['Room'] ? 'fa-sort text-slate-300' : (sort['Room'] === 1 ? 'fa-sort-down text-indigo-500' : 'fa-sort-up text-indigo-500')"></i>
+                            </th>
+                            <th class="px-4 py-3 text-center">Preview</th>
+                            <th class="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                                @click="sortToggle('ID')">
+                                ID <i class="fa-solid ml-1"
+                                    :class="!sort['ID'] ? 'fa-sort text-slate-300' : (sort['ID'] === 1 ? 'fa-sort-down text-indigo-500' : 'fa-sort-up text-indigo-500')"></i>
+                            </th>
+                            <th class="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                                @click="sortToggle('Quality')">
+                                Quality <i class="fa-solid ml-1"
+                                    :class="!sort['Quality'] ? 'fa-sort text-slate-300' : (sort['Quality'] === 1 ? 'fa-sort-down text-indigo-500' : 'fa-sort-up text-indigo-500')"></i>
+                            </th>
+                            <th class="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                                @click="sortToggle('Limit')">
+                                Time Limit <i class="fa-solid ml-1"
+                                    :class="!sort['Limit'] ? 'fa-sort text-slate-300' : (sort['Limit'] === 1 ? 'fa-sort-down text-indigo-500' : 'fa-sort-up text-indigo-500')"></i>
+                            </th>
+                            <th class="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                                @click="sortToggle('Status')">
+                                Status <i class="fa-solid ml-1"
+                                    :class="!sort['Status'] ? 'fa-sort text-slate-300' : (sort['Status'] === 1 ? 'fa-sort-down text-indigo-500' : 'fa-sort-up text-indigo-500')"></i>
+                            </th>
+                            <th class="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors select-none text-center"
+                                @click="sortToggle('AutoPay')">
+                                AutoPay <i class="fa-solid ml-1"
+                                    :class="!sort['AutoPay'] ? 'fa-sort text-slate-300' : (sort['AutoPay'] === 1 ? 'fa-sort-down text-indigo-500' : 'fa-sort-up text-indigo-500')"></i>
+                            </th>
+                            <th class="px-4 py-3">Segments</th>
+                            <th class="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors select-none text-right"
+                                @click="sortToggle('Size')">
+                                <span class="">File Size</span> <span
+                                    class="text-slate-400 font-normal">({{formatBytes(totalSize)}})</span>
+                                <i class="fa-solid ml-1"
+                                    :class="!sort['Size'] ? 'fa-sort text-slate-300' : (sort['Size'] === 1 ? 'fa-sort-down text-indigo-500' : 'fa-sort-up text-indigo-500')"></i>
+                            </th>
+                            <th class="px-4 py-3 text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        <tr v-if="roomDisplay.length === 0">
+                            <td colspan="10" class="px-4 py-12 text-center text-slate-400">
+                                <i class="fa-solid fa-inbox text-3xl mb-2"></i>
+                                <p>No rooms found. Add a room to start recording.</p>
+                            </td>
+                        </tr>
+                        <tr v-for="room in roomDisplay" :key="room.name"
+                            class="hover:bg-slate-50 transition-colors group">
+                            <td class="px-4 py-3 font-medium text-indigo-600">
+                                <a :href="`https://xhamsterlive.com/${room.name}`" target="_blank"
+                                    class="hover:underline flex items-center gap-1">
+                                    {{room.name}} <i
+                                        class="fa-solid fa-arrow-up-right-from-square text-[0.65rem] text-slate-400"></i>
+                                </a>
+                            </td>
+                            <td class="px-4 py-2 text-center">
+                                <div class="thumb-container">
+                                    <img v-if="snapshotcache[room.name]?.url" :src="snapshotcache[room.name]?.url"
+                                        class="h-10 w-16 object-cover rounded shadow-sm border border-slate-200"
+                                        alt="thumb">
+                                    <div v-else
+                                        class="h-10 w-16 bg-slate-100 rounded border border-slate-200 flex items-center justify-center text-slate-300 text-xs">
+                                        N/A</div>
+                                    <img v-if="snapshotcache[room.name]?.url" :src="snapshotcache[room.name]?.url"
+                                        class="thumb-preview" alt="preview">
+                                </div>
+                            </td>
+                            <td class="px-4 py-3 text-slate-500 font-mono text-xs">{{room.id || '-'}}</td>
+                            <td class="px-4 py-3">
+                                <select @change="ev => setQuality(ev.target.value, room.name)" :value="room.quality"
+                                    class="text-xs py-1 px-2 border border-slate-200 rounded bg-white focus:outline-none focus:border-indigo-500">
+                                    <option
+                                        v-for="q in ['160p','240p','480p','720p','720p60','540p','960p','1080p','1080p60','2560p60','raw']"
+                                        :key="q">{{q}}</option>
+                                </select>
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-slate-500 w-6 text-right">{{room.limit}}</span>
+                                    <i class="fa-solid fa-arrow-right-long text-slate-300 text-xs"></i>
+                                    <input v-model.number="editLimits[room.name]" type="number" min="0"
+                                        class="w-16 px-2 py-1 text-xs border border-slate-200 rounded bg-white focus:outline-none focus:border-indigo-500"
+                                        placeholder="New">
+                                    <button @click="setLimit(room.name)" title="Apply Limit"
+                                        class="text-emerald-600 hover:text-emerald-800 transition-colors p-1">
+                                        <i class="fa-solid fa-check"></i>
+                                    </button>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3">
+                                <span v-if="room.status==='Recording'"
+                                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                                    <span class="w-2 h-2 rounded-full bg-red-500 status-recording"></span> Recording
+                                </span>
+                                <span v-else-if="room.status==='Listening'"
+                                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                                    <i class="fa-solid fa-hourglass-half fa-spin-pulse"></i> Listening
+                                </span>
+                                <span v-else-if="room.status===''"
+                                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-500">
+                                    <i class="fa-solid fa-video-slash"></i> Offline
+                                </span>
+                                <span v-else
+                                    class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                                    {{room.status}}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" v-model="room.autoPay"
+                                        @change="setAutoPay($event.target.checked, room.name)" class="sr-only peer">
+                                    <div
+                                        class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600">
+                                    </div>
+                                </label>
+                            </td>
+                            <td class="px-4 py-3">
+                                <div v-if="room.status==='Recording'" class="flex items-center gap-3 text-xs font-mono">
+                                    <span class="text-emerald-600 flex items-center gap-1" title="Running"><i
+                                            :class="[{'animate-bounce':room.running},'fa-download','fa-solid']"></i>{{room.running
+                                        || 0}}</span>
+                                    <span class="text-blue-600 flex items-center gap-1" title="Success"><i
+                                            class="fa-solid fa-check"></i>{{room.success || 0}}</span>
+                                    <span class="text-red-600 flex items-center gap-1" title="Failed"><i
+                                            class="fa-solid fa-xmark"></i>{{room.failed || 0}}</span>
+                                </div>
+                                <span v-else class="text-slate-300 text-xs">-</span>
+                            </td>
+                            <td class="px-4 py-3 text-right font-mono text-xs text-slate-600">
+                                {{formatBytes(room.bytesWrite)}}
+                            </td>
+                            <td class="px-4 py-3">
+                                <div
+                                    class="flex items-center justify-center gap-1.5 opacity-70 group-hover:opacity-100 transition-opacity">
+                                    <button @click="action('activate',room.name)" title="Activate"
+                                        class="w-7 h-7 rounded bg-slate-100 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-colors flex items-center justify-center">
+                                        <i class="fa-solid fa-play text-xs"></i>
+                                    </button>
+
+                                    <button @click="action('deactivate',room.name)" title="Deactivate"
+                                        class="w-7 h-7 rounded bg-slate-100 text-amber-600 hover:bg-amber-600 hover:text-white transition-colors flex items-center justify-center">
+                                        <i class="fa-solid fa-stop text-xs"></i>
+                                    </button>
+
+                                    <button @click="action('restart',room.name)" title="Save & Restart (Full)"
+                                        class="w-7 h-7 rounded bg-slate-100 text-purple-600 hover:bg-purple-600 hover:text-white transition-colors flex items-center justify-center">
+                                        <i class="fa-solid fa-rotate-right text-xs"></i>
+                                    </button>
+
+                                    <button @click="action('break',room.name)" title="Break (Split File Only)"
+                                        class="w-7 h-7 rounded bg-slate-100 text-blue-600 hover:bg-blue-600 hover:text-white transition-colors flex items-center justify-center">
+                                        <i class="fa-solid fa-scissors text-xs"></i>
+                                    </button>
+
+                                    <button @click="action('remove',room.name)" title="Remove"
+                                        class="w-7 h-7 rounded bg-slate-100 text-red-600 hover:bg-red-600 hover:text-white transition-colors flex items-center justify-center">
+                                        <i class="fa-solid fa-trash-can text-xs"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
-        <div v-if="snapshot.visible" class="gantt-tooltip snapshot"
-             :style="{left: snapshot.x + 'px', top: snapshot.y + 'px'}">
-            <img :src="snapshot.text" alt="">
+        <div class="bg-[#1e1e1e] rounded-xl shadow-lg border border-[#333] overflow-hidden flex flex-col h-64">
+            <div class="bg-[#2d2d2d] px-4 py-2 flex items-center gap-2 border-b border-[#444]">
+                <i class="fa-solid fa-terminal text-slate-400 text-sm"></i>
+                <span class="text-xs font-semibold text-slate-300 tracking-wider">NETWORK LOGS</span>
+            </div>
+            <div class="p-4 overflow-x-auto overflow-y-auto terminal-scroll font-mono text-xs flex-1">
+                <div v-if="allUrls.length === 0" class="text-slate-500 italic">Waiting for connection...</div>
+                <div v-for="(info, idx) in allUrls" :key="idx"
+                    class="mb-1 text-slate-300 whitespace-nowrap hover:bg-[#2a2a2a] px-1 rounded transition-colors">
+                    <span
+                        class="text-indigo-400 font-bold w-48 inline-block overflow-hidden text-ellipsis align-bottom">{{info.prefix.trim()}}</span>
+                    <span class="text-fuchsia-400">[{{info.type}}]</span>
+                    <span
+                        :class="{'text-emerald-400': info.timeClass==='time-short', 'text-amber-400': info.timeClass==='time-medium', 'text-red-400 font-bold': info.timeClass==='time-long'}">
+                        [SERVER]:{{info.elapsedAbs}}s [DOWN]:{{info.elapsed}}s
+                    </span>
+                    <a :href="info.url" target="_blank"
+                        class="text-slate-400 hover:text-blue-400 underline decoration-slate-600 hover:decoration-blue-400 ml-2">
+                        {{info.url.split('?')[0].split('/').pop() || info.url}}
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div class="url-list overflow-x-scroll">
-        <div id="url-items" class="text-nowrap">
-                <pre v-for="info of allUrls"
-                     class="url-item">{{info.prefix}}[{{info.type}}] <span
-                        :class="[info.timeClass]">[SERVER]:{{info.elapsedAbs}}[DOWNLOADER]{{info.elapsed}}</span> {{info.url}}</pre>
-        </div>
-    </div>
-</div>
-<script type="module">
-    const HOST = ""
-    import {createApp} from 'vue'
+    <script type="module">
+        import { createApp, defineComponent } from 'vue'
 
-    async function getSchedule(id) {
-        const r = await fetch(`https://xhamsterlive.com/api/front/models/${id}/broadcastSchedule`)
-        const json = await r.json()
-        console.log(json)
-        return json.broadcastSchedule?.schedule
-    }
+        const HOST = "http://docker.local:8090"
 
-    createApp({
-        data() {
-            return {
-                timeLimit: 0,
-                addInput: "",
-                addQuality: "720p",
-                sort: {"Room": 1, "Status": 1},
-                roomInfo: {},
-                schedules: {},
-                allurls: [],
-                days: [
-                    {key: 'sun', label: 'Sun'},
-                    {key: 'mon', label: 'Mon'},
-                    {key: 'tue', label: 'Tue'},
-                    {key: 'wed', label: 'Wed'},
-                    {key: 'thu', label: 'Thu'},
-                    {key: 'fri', label: 'Fri'},
-                    {key: 'sat', label: 'Sat'},
-                ],
-                tooltip: {
-                    visible: false,
-                    x: 0,
-                    y: 0,
-                    text: ''
+        createApp({
+            data() {
+                return {
+                    toasts: [],
+                    toastId: 0,
+                    timeLimit: null,
+                    addInput: "",
+                    addQuality: "720p",
+                    sort: { "Room": 1, "Status": 1 },
+                    roomInfo: {},
+                    editLimits: {}, // Cache for limits inputs to prevent overlap with polling
+                    allUrls: [],
+                    snapshotcache: {},
+                }
+            },
+            computed: {
+                totalSize() {
+                    return Object.values(this.roomInfo).reduce((a, b) => a + (b.bytesWrite || 0), 0);
                 },
-                snapshotcache: {},
-                snapshot: {
-                    visible: false,
-                    x: 0,
-                    y: 0,
-                    text: ''
-                },
-            }
-        },
-        methods: {
-            poweroff() {
-                window.open("/stop-server", "_blank")
-            },
-            sortToggle(by) {
-                if (this.sort[by]) {
-                    this.sort[by] = this.sort[by] == 1 ? 2 : undefined
-                } else {
-                    this.sort[by] = 1
-                }
-            },
-            formatBytes(bytes) {
-                if (!bytes) {
-                    return ``
-                }
-                const units = ["B", "KB", "MB", "GB"];
-                let i = 0;
-                while (bytes >= 1024 && i < units.length - 1) {
-                    bytes /= 1024;
-                    i++;
-                }
-                return `${bytes.toFixed(3)} ${units[i]}`;
-            },
-            async setQuality(quality, roomName) {
-                const r1 = await fetch(`${HOST}/quality?slug=${roomName}&quality=${quality}`)
-                const data1 = await r1.text()
-                showToast(data1)
-            },
-            async setAutoPay(value, roomName) {
-                const r1 = await fetch(`${HOST}/autopay?slug=${roomName}&value=${value}`)
-                const data1 = await r1.text()
-                showToast(data1)
-            },
-            async setLimit(roomName) {
-                const inputId = `limit-${roomName}`;
-                const inputElement = document.getElementById(inputId);
-
-                if (!inputElement) {
-                    alert(`Room not found${roomName}`);
-                    return;
-                }
-                const newLimit = Number(inputElement.value);
-                if (isNaN(newLimit) || newLimit < 0 || inputElement.value.trim() === '') {
-                    showToast(`Invalid limit.`);
-                    inputElement.value = this.roomList.find(room => room.name === roomName).limit;
-                    return;
-                }
-                const r1 = await fetch(`${HOST}/limit?slug=${roomName}&limit=${newLimit}`)
-                const data1 = await r1.text()
-                showToast(data1)
-            },
-            async action(action, roomName) {
-                const r1 = await fetch(`${HOST}/${action}?slug=${roomName}`)
-                const data1 = await r1.text()
-                showToast(data1)
-            },
-            async addRoom(active) {
-                const name = this.addInput.split("/").slice(-1)[0].split("?")[0]
-                const r1 = await fetch(`${HOST}/add?slug=${name}&active=${active}&quality=${this.addQuality}&limit=${this.timeLimit}`)
-                const data1 = await r1.text()
-                if (r1.status == 404 || r1.status == 200) {
-                    showToast("OK")
-                    this.addInput = ""
-                } else {
-                    showToast(data1)
-                }
-            },
-            async fetchSchedule() {
-                for (let model of this.roomDisplay) {
-                    console.log(model)
-                    const r = await getSchedule(model.id)
-                    if (r)
-                        this.schedules[model.name] = r
-                }
-            },
-            async fetchdata() {
-
-                const r1 = await fetch(`${HOST}/recorders`)
-                const data1 = await r1.json()
-                const r2 = await fetch(`${HOST}/status`)
-                const data2 = await r2.json()
-                const r3 = await fetch(`${HOST}/listv2`)
-                const data3 = await r3.json()
-                this.roomInfo = {}
-                for (const room of data1) {
-                    this.roomInfo[room.name] = room
-                }
-                this.allUrls = []
-                const MAXLEN = 20;
-                const now = Date.now();
-                for (const roomName in data2) {
-                    const element = data2[roomName];
-                    this.roomInfo[roomName] = {
-                        ...this.roomInfo[roomName],
-                        total: element.total,
-                        success: element.success,
-                        bytesWrite: element.bytesWrite,
-                        failed: element.failed,
-                        running: Object.keys(element.running).length,
-                    }
-                    const entries = Object.entries(element.running)
-                        .map(([url, meta]) => {
-                            let match = /_(\d+)_part.\.mp4/.exec(url)
-                            if (!match) {
-                                return [url, meta]
-                            }
-                            meta.startAtAbs = match && match.length > 1 && match[1] ? match[1] * 1000 : 0
-                            return [url, meta]
-                        })
-                    entries.forEach(([url, meta]) => {
-                        const elapsed = (
-                            (now - meta.startAt) /
-                            1000
-                        ).toFixed(1);
-
-                        const elapsedAbs = (
-                            (now - meta.startAtAbs) /
-                            1000
-                        ).toFixed(1);
-                        let timeClass = "time-short";
-                        if (elapsedAbs > 10) {
-                            timeClass = "time-long";
-                        } else if (elapsedAbs > 5) {
-                            timeClass = "time-medium";
+                roomDisplay() {
+                    const list = Object.values(this.roomInfo);
+                    return [...list].sort((a, b) => {
+                        // Status priority: Recording > Listening > Offline/Other
+                        if (this.sort["Status"]) {
+                            const sOrder = { "Recording": 3, "Listening": 2, "": 1 };
+                            const aVal = sOrder[a.status] || 0;
+                            const bVal = sOrder[b.status] || 0;
+                            if (aVal !== bVal) return this.sort["Status"] === 1 ? bVal - aVal : aVal - bVal;
                         }
-                        this.allUrls.push({
-                            prefix: (roomName + "                                ").slice(0, MAXLEN),
-                            type: meta.type,
-                            timeClass,
-                            elapsedAbs,
-                            elapsed,
-                            url
-                        });
+                        if (this.sort["Quality"]) {
+                            if (a.quality === "raw" && b.quality !== "raw") return this.sort["Quality"] === 1 ? 1 : -1;
+                            if (a.quality !== "raw" && b.quality === "raw") return this.sort["Quality"] === 1 ? -1 : 1;
+                            const parseQ = (q) => {
+                                if (!q) return 0;
+                                const parts = q.split("p");
+                                return parseInt(parts[0]) + (parts[1] ? parseInt(parts[1]) / 60 : 0);
+                            };
+                            const res = parseQ(a.quality) - parseQ(b.quality);
+                            if (!isNaN(res) && res !== 0) return this.sort["Quality"] === 1 ? res : -res;
+                        }
+                        if (this.sort["AutoPay"] && a.autoPay !== b.autoPay) {
+                            return this.sort["AutoPay"] === 1 ? (a.autoPay ? -1 : 1) : (a.autoPay ? 1 : -1);
+                        }
+                        if (this.sort["ID"] && a.id !== b.id) {
+                            return this.sort["ID"] === 1 ? b.id - a.id : a.id - b.id;
+                        }
+                        if (this.sort["Limit"] && a.limit !== b.limit) {
+                            return this.sort["Limit"] === 1 ? (b.limit || 0) - (a.limit || 0) : (a.limit || 0) - (b.limit || 0);
+                        }
+                        if (this.sort["Size"] && a.bytesWrite !== b.bytesWrite) {
+                            return this.sort["Size"] === 1 ? (a.bytesWrite || 0) - (b.bytesWrite || 0) : (b.bytesWrite || 0) - (a.bytesWrite || 0);
+                        }
+                        if (this.sort["Room"]) {
+                            return this.sort["Room"] === 1 ? a.name.toLowerCase().localeCompare(b.name.toLowerCase()) : b.name.toLowerCase().localeCompare(a.name.toLowerCase());
+                        }
+                        return 0;
                     });
                 }
-                for (const room of data3) {
-                    this.roomInfo[(room.room.name)] = {
-                        ...this.roomInfo[(room.room.name)],
-                        status: room.session.active ? "Recording" : (room.listening ? "Listening" : ""),
-                        ...room.room,
-                    }
-                }
             },
-            calculatePosition(startTime) {
-                return (startTime / 86400) * 100;
-            },
-
-            calculateWidth(startTime, endTime) {
-                const duration = endTime - startTime;
-                return (duration / 86400) * 100;
-            },
-
-            formatTime(seconds) {
-                const hours = Math.floor(seconds / 3600);
-                const minutes = Math.floor((seconds % 3600) / 60);
-                return `${hours.toString().padStart(2, '0')}${minutes != 0 ? ':' + minutes.toString().padStart(2, '0') : ''}`;
-            },
-
-            formatPeriodTime(start, end) {
-                return `${this.formatTime(start)}-${this.formatTime(end)}`;
-            },
-
-            showTooltip(event, period) {
-                this.tooltip = {
-                    visible: true,
-                    x: event.pageX,
-                    y: event.pageY,
-                    text: `${period.model} - ${period.day}: ${this.formatTime(period.start)} 至 ${this.formatTime(period.end)}`
-                };
-            },
-            async fetchThumb(modelName) {
-                const cache = this.snapshotcache
-                return cache[modelName] && Date.now() / 1000 - cache[modelName].stamp < 5 * 60 ? cache[modelName] : await (async () => {
+            methods: {
+                showToast(message, type = "success") {
+                    const id = this.toastId++;
+                    this.toasts.push({ id, message, type });
+                    setTimeout(() => {
+                        this.toasts = this.toasts.filter(t => t.id !== id);
+                    }, 3000);
+                },
+                poweroff() {
+                    window.open("/stop-server", "_blank");
+                },
+                sortToggle(by) {
+                    this.sort[by] = this.sort[by] === 1 ? 2 : (this.sort[by] === 2 ? undefined : 1);
+                },
+                formatBytes(bytes) {
+                    if (!bytes) return `0 B`;
+                    const units = ["B", "KB", "MB", "GB", "TB"];
+                    let i = 0;
+                    while (bytes >= 1024 && i < units.length - 1) { bytes /= 1024; i++; }
+                    return `${bytes.toFixed(2)} ${units[i]}`;
+                },
+                async setQuality(quality, roomName) {
                     try {
+                        const r1 = await fetch(`${HOST}/quality?slug=${roomName}&quality=${quality}`);
+                        this.showToast(await r1.text());
+                    } catch (e) { this.showToast("Network Error", "error"); }
+                },
+                async setAutoPay(value, roomName) {
+                    try {
+                        const r1 = await fetch(`${HOST}/autopay?slug=${roomName}&value=${value}`);
+                        this.showToast(await r1.text());
+                    } catch (e) { this.showToast("Network Error", "error"); }
+                },
+                async setLimit(roomName) {
+                    const newLimit = this.editLimits[roomName];
+                    if (newLimit === undefined || newLimit === null || newLimit < 0) {
+                        this.showToast(`Invalid limit value`, "error");
+                        return;
+                    }
+                    try {
+                        const r1 = await fetch(`${HOST}/limit?slug=${roomName}&limit=${newLimit}`);
+                        this.showToast(await r1.text());
+                        this.editLimits[roomName] = null; // Clear input after success
+                    } catch (e) { this.showToast("Network Error", "error"); }
+                },
+                async action(actionType, roomName) {
+                    try {
+                        const r1 = await fetch(`${HOST}/${actionType}?slug=${roomName}`);
+                        this.showToast(await r1.text());
+                    } catch (e) { this.showToast("Network Error", "error"); }
+                },
+                async addRoom(active) {
+                    const name = this.addInput.split("/").slice(-1)[0].split("?")[0];
+                    if (!name) {
+                        this.showToast("Please enter a room name or URL", "error");
+                        return;
+                    }
+                    const limit = this.timeLimit || 0;
+                    try {
+                        const r1 = await fetch(`${HOST}/add?slug=${name}&active=${active}&quality=${this.addQuality}&limit=${limit}`);
+                        if (r1.status === 404 || r1.status === 200) {
+                            this.showToast("Room added successfully");
+                            this.addInput = "";
+                            this.timeLimit = null;
+                        } else {
+                            this.showToast(await r1.text(), "error");
+                        }
+                    } catch (e) { this.showToast("Network Error", "error"); }
+                },
+                async fetchdata() {
+                    try {
+                        const [r1, r2, r3] = await Promise.all([
+                            fetch(`${HOST}/recorders`),
+                            fetch(`${HOST}/status`),
+                            fetch(`${HOST}/listv2`)
+                        ]);
 
-                        const r = await (await fetch(`https://zh.xhamsterlive.com/api/front/v1/broadcasts/${modelName}`)).json()
+                        const [data1, data2, data3] = await Promise.all([r1.json(), r2.json(), r3.json()]);
 
-                        const data = r.item.isLive == false ? {
-                            stamp: Date.now() / 1000,
-                            url: null
-                        } : {
+                        const newRoomInfo = {};
+                        for (const room of data1) newRoomInfo[room.name] = room;
+
+                        const newAllUrls = [];
+                        const now = Date.now();
+
+                        for (const roomName in data2) {
+                            const element = data2[roomName];
+                            if (!newRoomInfo[roomName]) newRoomInfo[roomName] = {};
+
+                            Object.assign(newRoomInfo[roomName], {
+                                total: element.total,
+                                success: element.success,
+                                bytesWrite: element.bytesWrite,
+                                failed: element.failed,
+                                running: Object.keys(element.running || {}).length,
+                            });
+
+                            Object.entries(element.running || {}).forEach(([url, meta]) => {
+                                let match = /_(\d+)\.mp4/.exec(url);
+                                let startAtAbs = match && match[1] ? match[1] * 1000 : 0;
+
+                                const elapsed = ((now - meta.startAt) / 1000).toFixed(1);
+                                const elapsedAbs = ((now - startAtAbs) / 1000).toFixed(1);
+
+                                let timeClass = "time-short";
+                                if (elapsedAbs > 10) timeClass = "time-long";
+                                else if (elapsedAbs > 5) timeClass = "time-medium";
+
+                                newAllUrls.push({
+                                    prefix: (roomName + " ".repeat(20)).slice(0, 20),
+                                    type: meta.type,
+                                    timeClass,
+                                    elapsedAbs,
+                                    elapsed,
+                                    url
+                                });
+                            });
+                        }
+
+                        for (const room of data3) {
+                            if (!newRoomInfo[room.room.name]) newRoomInfo[room.room.name] = {};
+                            Object.assign(newRoomInfo[room.room.name], {
+                                status: room.session.active ? "Recording" : (room.listening ? "Listening" : ""),
+                                ...room.room,
+                            });
+                        }
+
+                        this.roomInfo = newRoomInfo;
+                        this.allUrls = newAllUrls;
+                    } catch (e) {
+                        // Suppress polling error logs to keep console clean, or log if needed
+                    }
+                },
+                async fetchThumb(modelName) {
+                    const cache = this.snapshotcache;
+                    const now = Date.now() / 1000;
+
+                    if (cache[modelName] && now - cache[modelName].stamp < 5 * 60) {
+                        return cache[modelName];
+                    }
+
+                    try {
+                        const res = await fetch(`https://zh.xhamsterlive.com/api/front/v1/broadcasts/${modelName}`);
+                        const r = await res.json();
+                        const data = r.item.isLive === false ? { stamp: now, url: null } : {
                             stamp: r.item.snapshotTimestamp,
                             url: `https://img.doppiocdn.org/thumbs/${r.item.snapshotTimestamp}/${r.item.modelId}`
-                        }
-                        cache[modelName] = data
+                        };
+
+                        cache[modelName] = data;
                         localStorage.setItem('xhrec-thumb', JSON.stringify(cache));
-                        return data
+                        return data;
                     } catch (e) {
-                        console.log(e)
-                        return {
-                            stamp: Date.now() / 1000,
-                            url: null
-                        }
+                        return { stamp: now, url: null };
                     }
-                })()
+                }
             },
-            async showSnapshot(event, modelName) {
-                const r = await this.fetchThumb(modelName)
-                this.snapshot = {
-                    visible: true,
-                    x: event.pageX,
-                    y: event.pageY,
-                    text: r.url
+            async mounted() {
+                // Load cache
+                try { this.snapshotcache = JSON.parse(localStorage.getItem("xhrec-thumb")) || {}; }
+                catch (_) { this.snapshotcache = {}; }
+
+                await this.fetchdata();
+
+                // Safe Polling
+                const pollData = async () => {
+                    await this.fetchdata();
+                    setTimeout(pollData, 1000); // Relaxed to 1s for smoother UI, update if 500ms is strictly needed
                 };
-            },
+                setTimeout(pollData, 1000);
 
-            hideTooltip() {
-                this.tooltip.visible = false;
-            },
-            hideSnapshot() {
-                this.snapshot.visible = false;
-            },
-        },
-        computed: {
-            roomDisplay() {
-                const list = Object.values(this.roomInfo)
-                list.sort((a, b) => {
-                    if (this.sort["Status"]) {
-                        if (a.status == "Recording" && b.status != "Recording") {
-                            return this.sort["Status"] == 1 ? -1 : 1
-                        }
-                        if (a.status != "Recording" && b.status == "Recording") {
-                            return this.sort["Status"] == 1 ? 1 : -1
-                        }
-                        if (a.status == "Listening" && b.status != "Listening") {
-                            return this.sort["Status"] == 1 ? -1 : 1
-                        }
-                        if (a.status != "Listening" && b.status == "Listening") {
-                            return this.sort["Status"] == 1 ? 1 : -1
-                        }
-                    }
-                    if (this.sort["Quality"]) {
-                        if (a.quality === "raw" && b.quality !== "raw") {
-                            return 1 * (this.sort["Quality"] === 1 ? 1 : -1)
-                        }
-                        if (a.quality !== "raw" && b.quality === "raw") {
-                            return -1 * (this.sort["Quality"] === 1 ? 1 : -1)
-                        }
-                        const res = parseInt(a.quality.split("p")[0]) - parseInt(b.quality.split("p")[0]) +
-                            (a.quality.includes("p") && a.quality.split("p")[1] ? parseInt(a.quality.split("p")[1]) / 60 : 0) - (b.quality.includes("p") && b.quality.split("p")[1] ? parseInt(b.quality.split("p")[1]) / 60 : 0)
-                        if (!isNaN(res))
-                            return this.sort["Quality"] === 1 ? res : -res
-                    }
-                    if (this.sort["AutoPay"]) {
-                        if (this.sort["AutoPay"] === 1 && a.autoPay !== b.autoPay)
-                            return a.autoPay && !b.autoPay ? 1 : -1
-                    }
-                    if (this.sort["ID"]) {
-                        if (a.id !== b.id)
-                            return this.sort["AutoPay"] === 1 ? a.id - b.id : b.id - a.id
-                    }
-                    if (this.sort["Size"]) {
-                        if (a.bytesWrite !== b.bytesWrite)
-                            return this.sort["Size"] === 1 ? (a.bytesWrite || 0) - (b.bytesWrite || 0) : (b.bytesWrite || 0) - (a.bytesWrite || 0)
-                    }
-                    if (this.sort["Room"]) {
-                        return this.sort["Room"] === 1 ? a.name.toLowerCase().localeCompare(b.name.toLowerCase()) : b.name.toLowerCase().localeCompare(a.name.toLowerCase())
-                    }
-                    return 0
-                })
-
-                return list
-            }
-        },
-
-        mounted() {
-            (async () => {
-                await this.fetchdata()
-                setInterval(async () => {
-                    this.fetchdata()
-                }, 500);
-                await this.fetchdata()
-                try {
-                    this.snapshotcache = JSON.parse(localStorage.getItem("xhrec-thumb")) || {}
-                } catch (_) {
-                }
-                for (let model of this.roomDisplay) {
-                    await this.fetchThumb(model.name)
-                }
-                setInterval(async () => {
+                // Thumbnail Polling
+                const pollThumbs = async () => {
                     for (let model of this.roomDisplay) {
-                        await this.fetchThumb(model.name)
+                        await this.fetchThumb(model.name);
                     }
-
-                }, 5 * 60 * 1000);
-            })()
-        },
-    }).mount('#app')
-</script>
+                };
+                await pollThumbs();
+                setInterval(pollThumbs, 5 * 60 * 1000);
+            },
+        }).mount('#app')
+    </script>
 </body>
 
 </html>
