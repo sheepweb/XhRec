@@ -11,9 +11,7 @@ import org.slf4j.LoggerFactory
 import java.util.*
 
 class Scheduler(
-    private val dest: String,
-    private val tmp: String,
-    private val listUpdate: suspend (self: Scheduler) -> Unit = {}
+    private val dest: String, private val tmp: String, private val listUpdate: suspend (self: Scheduler) -> Unit = {}
 ) {
     data class State(val room: Room, var listen: Boolean) {
         override fun hashCode(): Int {
@@ -66,32 +64,33 @@ class Scheduler(
     }
 
     suspend fun loop() = opLock.withLock {
-        sessions.onEach {
-        }.filterKeys { it.listen }.forEach { (k, v) ->
-            if (v.isActive) return@forEach
-            if (k.room.quality == "model already deleted") return@forEach
-            scope.launch {
-                try {
-                    if (v.testAndConfigure()) {
-                        logger.debug("start ${k.room.name}")
-                        v.start()
-                        logger.debug("stop ${k.room.name}")
-                        v.stop()
+        sessions.filterKeys {
+            it.listen && it.room.quality != "model already deleted" && it.room.quality != "model already renamed"
+        }.filterValues { !it.isActive }.forEach { (k, v) ->
+                scope.launch {
+                    try {
+                        if (v.testAndConfigure()) {
+                            logger.debug("start ${k.room.name}")
+                            v.start()
+                            logger.debug("stop ${k.room.name}")
+                            v.stop()
+                        }
+                    } catch (ex: RenameException) {
+                        logger.info("model {} renamed to {}", k.room.name, ex.newName)
+                        deactivate(k.room.name)
+                        k.room.quality = "model already renamed"
+                        add(k.room.copy(name = ex.newName), k.listen)
+                        listUpdate(this@Scheduler)
+                    } catch (e: DeletedException) {
+                        logger.info("model {} deleted", k.room.name)
+                        deactivate(k.room.name)
+                        k.room.quality = "model already deleted"
+                        listUpdate(this@Scheduler)
+                    } catch (e: Exception) {
+                        logger.error("session start failed", e)
                     }
-                } catch (ex: RenameException) {
-                    add(k.room.copy(name = ex.newName), k.listen)
-                    listUpdate(this@Scheduler)
-                    logger.info("model {} renamed to {}", k.room.name, ex.newName)
-                } catch (e: DeletedException) {
-                    logger.info("model {} deleted", e.name)
-                    deactivate(e.name)
-                    k.room.quality = "model already deleted"
-                    listUpdate(this@Scheduler)
-                } catch (e: Exception) {
-                    logger.error("session start failed", e)
                 }
             }
-        }
     }
 
     suspend fun add(room: Room, listen: Boolean) {
@@ -109,8 +108,8 @@ class Scheduler(
             val found = sessions.filter { it.key.room.name == roomName }.entries.singleOrNull()
             if (found != null) {
                 logger.info("remove {}", found.key.room.name)
-                found.value.stop()
                 sessions.remove(found.key)
+                scope.launch { found.value.stop() }
             }
         }
     }
@@ -122,10 +121,10 @@ class Scheduler(
         }
         opLock.withLock {
             logger.info("deactivate {}", entry.key.room.name)
+            entry.key.listen = false
             if (entry.value.isActive) {
                 scope.launch { entry.value.stop() }
             }
-            entry.key.listen = false
         }
     }
 
@@ -137,7 +136,7 @@ class Scheduler(
         opLock.withLock {
             logger.info("stop {}", entry.key.room.name)
             if (entry.value.isActive) {
-                entry.value.stop()
+                scope.launch { entry.value.stop() }
             }
         }
     }
@@ -154,14 +153,28 @@ class Scheduler(
 
     }
 
-    suspend fun cmdFinish(roomName:String, cmd: Event.CmdFinish) {
+    suspend fun cmdFinish(roomName: String, cmd: Event.CmdFinish) {
         val entry = sessions.filterKeys { it.room.name == roomName }.entries.singleOrNull()
         if (entry == null) {
             return
         }
         opLock.withLock {
-            logger.info("inject {} {}", entry.key.room.name,cmd::class.simpleName)
+            logger.info("inject {} {}", entry.key.room.name, cmd::class.simpleName)
             entry.value.cmdFinish()
+        }
+    }
+
+    suspend fun restartRecorder(roomName: String) {
+        val entry = sessions.filterKeys { it.room.name == roomName }.entries.singleOrNull()
+        if (entry == null) {
+            return
+        }
+        opLock.withLock {
+            logger.info("restart {}", entry.key.room.name)
+            scope.launch {
+                entry.value.stop()
+                entry.value.start()
+            }
         }
     }
 }

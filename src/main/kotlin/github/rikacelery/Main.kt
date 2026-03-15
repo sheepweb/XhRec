@@ -246,6 +246,15 @@ fun main(vararg args: String): Unit = runBlocking {
                 scheduler.cmdFinish(slug, Event.CmdFinish())
                 call.respond("OK.")
             }
+            get("/restart") {
+                val slug = call.request.queryParameters["slug"]
+                if (slug == null) {
+                    call.respond(HttpStatusCode.NotAcceptable, "slug not provided.")
+                    return@get
+                }
+                scheduler.restartRecorder(slug)
+                call.respond("OK.")
+            }
             get("/stop") {
                 scheduler.job?.cancel()
                 scheduler.job?.join()
@@ -336,7 +345,7 @@ fun main(vararg args: String): Unit = runBlocking {
                 val list = scheduler.sessions.map { (state, session) ->
                     async {
                         listOf(
-                            if (session.isOpen) "[*]" else "[ ]",
+                            session.status,
                             if (state.listen) "listening" else "         ",
                             if (session.isActive) "recording" else "         ",
                             state.room.name,
@@ -353,7 +362,7 @@ fun main(vararg args: String): Unit = runBlocking {
                     async {
                         buildJsonObject {
                             put("session", buildJsonObject {
-                                put("open", session.isOpen)
+                                put("status", session.status)
                                 put("active", session.isActive)
                             })
                             put("listening", state.listen)
