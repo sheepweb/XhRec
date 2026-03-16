@@ -282,13 +282,14 @@
                             </td>
                             <td class="px-4 py-3">
                                 <div class="flex items-center gap-2">
-                                    <span class="text-slate-500 w-6 text-right">{{room.limit}}</span>
+                                    <span class="text-slate-500 text-right">{{room.limit}}</span>
                                     <i class="fa-solid fa-arrow-right-long text-slate-300 text-xs"></i>
                                     <input v-model.number="editLimits[room.name]" type="number" min="0"
-                                        class="w-16 px-2 py-1 text-xs border border-slate-200 rounded bg-white focus:outline-none focus:border-indigo-500"
-                                        placeholder="New">
+                                           :style="{ width: Math.max(6, String(editLimits[room.name] || '').length + 3) + 'ch' }"
+                                           class="px-2 py-1 text-xs border border-slate-200 rounded bg-white focus:outline-none focus:border-indigo-500"
+                                           placeholder="New">
                                     <button @click="setLimit(room.name)" title="Apply Limit"
-                                        class="text-emerald-600 hover:text-emerald-800 transition-colors p-1">
+                                            class="text-emerald-600 hover:text-emerald-800 transition-colors p-1">
                                         <i class="fa-solid fa-check"></i>
                                     </button>
                                 </div>
