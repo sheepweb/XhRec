@@ -16,6 +16,7 @@ import kotlinx.serialization.json.jsonObject
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration.Companion.seconds
 
 object EventDispatcher {
@@ -23,7 +24,7 @@ object EventDispatcher {
     val logger = LoggerFactory.getLogger(EventDispatcher::class.java)
 
     @Volatile
-    var wssession: WebSocketSession? = null
+    var wssession: AtomicReference<WebSocketSession?> = AtomicReference(null)
         private set
 
     val flow = MutableSharedFlow<String>(replay = 0)
@@ -44,7 +45,7 @@ object EventDispatcher {
                 logger.info("Connecting to WebSocket...")
                 client.ws(WS_URL) {
                     reconnectDelay = 1.seconds
-                    wssession = this
+                    wssession.set(this)
                     logger.info("WebSocket connected. Session established.")
 
                     val connectMsg = """{"connect":{"token":"$AUTH_TOKEN","name":"js"},"id":${seq.incrementAndGet()}}"""
@@ -81,8 +82,8 @@ object EventDispatcher {
                     }
                 }
             } catch (e: Exception) {
-                wssession = null
-                logger.info("WebSocket connection lost or error: ${e.message}")
+                wssession.set(null)
+                logger.warn("WebSocket connection lost or error: ${e.message}")
                 logger.info("Reconnecting in ${reconnectDelay.inWholeSeconds}s...")
 
                 delay(reconnectDelay)
@@ -112,9 +113,9 @@ object EventDispatcher {
 {"subscribe":{"channel":"newChatMessage@$roomId"},"id":${seq.incrementAndGet()}}""".trimIndent()
         try {
             outgoing.send(Frame.Text(msg))
-            logger.info("Sent subscribe command for room $roomId")
+            logger.debug("Sent subscribe command for room $roomId")
         } catch (e: Exception) {
-            logger.info("Failed to send subscribe for room $roomId: ${e.message}")
+            logger.warn("Failed to send subscribe for room $roomId: ${e.message}")
         }
     }
 
@@ -139,9 +140,9 @@ object EventDispatcher {
 {"unsubscribe":{"channel":"newChatMessage@$roomId"},"id":${seq.incrementAndGet()}}""".trimIndent()
         try {
             outgoing.send(Frame.Text(msg))
-            logger.info("Sent unsubscribe command for room $roomId")
+            logger.debug("Sent unsubscribe command for room $roomId")
         } catch (e: Exception) {
-            logger.info("Failed to send unsubscribe for room $roomId: ${e.message}")
+            logger.warn("Failed to send unsubscribe for room $roomId: ${e.message}")
         }
     }
 
@@ -149,7 +150,7 @@ object EventDispatcher {
         val isNewSubscription = subscribedRooms.add(roomid)
 
         if (isNewSubscription) {
-            val session = wssession
+            val session = wssession.get()
             if (session != null) {
                 kotlinx.coroutines.GlobalScope.launch {
                     session.sendSubscribeCommand(roomid)
@@ -173,13 +174,13 @@ object EventDispatcher {
             return
         }
 
-        val session = wssession
+        val session = wssession.get()
         if (session != null) {
             kotlinx.coroutines.GlobalScope.launch {
                 session.sendUnsubscribeCommand(roomid)
             }
         } else {
-            logger.info("No active session. Room $roomid removed from queue (will not be resubscribed on reconnect).")
+            logger.debug("No active session. Room $roomid removed from queue (will not be resubscribed on reconnect).")
         }
     }
 

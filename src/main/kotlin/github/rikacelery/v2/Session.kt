@@ -380,7 +380,7 @@ class Session(
             generatorJob?.join()
             if (metric.data != null && metric.data!!.successDirect + metric.data!!.successProxied <= 1) {
                 logger.info(
-                    "[{}}] No valid segments downloaded({}/{}) since start. clean empty file",
+                    "[{}] No valid segments downloaded({}/{}) since start. clean empty file",
                     room.name,
                     metric.data!!.successDirect + metric.data!!.successProxied,
                     metric.data?.total
@@ -394,6 +394,7 @@ class Session(
             modelToken = null
             logger.info("[-] stop recording {}({}) q:{}(want {})", room.name, room.id, currentQuality, room.quality)
             Metric.removeMetric(room.id)
+            _isActive.set(false)
         }
     }
 
