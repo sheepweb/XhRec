@@ -387,6 +387,10 @@ fun main(vararg args: String): Unit = runBlocking {
                 }
             }
             get("/graceful-stop") {
+                if(scheduler.gracefulStop) {
+                    call.respond(HttpStatusCode.NotAcceptable, "Already graceful stopping.")
+                    return@get
+                }
 //                sc.cancel()
                 val sessions = scheduler.sessions.filter { it.value.isActive }
                 val latch = AtomicInteger(sessions.size)
@@ -418,6 +422,10 @@ fun main(vararg args: String): Unit = runBlocking {
                 engine?.stop()
             }
             get("/stop-server") {
+                if(scheduler.gracefulStop) {
+                    call.respond(HttpStatusCode.NotAcceptable, "Already graceful stopping.")
+                    return@get
+                }
 //                sc.cancel()
                 val sessions = scheduler.sessions.filter { it.value.isActive }
                 val latch = AtomicInteger(sessions.size)

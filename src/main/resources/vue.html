@@ -187,6 +187,11 @@
                         class="w-8 h-8 flex items-center justify-center rounded bg-red-100 text-red-700 hover:bg-red-600 hover:text-white transition-colors ml-2">
                         <i class="fa-solid fa-power-off text-sm"></i>
                     </button>
+                    <button @click="poweroffgracefully()" title="Power Off Server
+(Gracefully, wait all recorders stop)"
+                        class="w-8 h-8 flex items-center justify-center rounded bg-red-100 text-red-700 hover:bg-red-600 hover:text-white transition-colors">
+                        <i class="fa-solid fa-hourglass-start text-sm"></i>
+                    </button>
                 </div>
             </div>
         </div>
@@ -472,6 +477,9 @@
                 },
                 poweroff() {
                     window.open("/stop-server", "_blank");
+                },
+                poweroffgracefully() {
+                    window.open("/graceful-stop", "_blank");
                 },
                 sortToggle(by) {
                     this.sort[by] = this.sort[by] === 1 ? 2 : (this.sort[by] === 2 ? undefined : 1);
