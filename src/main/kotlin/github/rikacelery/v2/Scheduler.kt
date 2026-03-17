@@ -52,10 +52,20 @@ class Scheduler(
         opLock.withLock {
             if (job != null) return@withLock
             job = scope.launch {
-                while (currentCoroutineContext().isActive) {
-                    loop()
-                    delay(30_000)
-                }
+                listOf(launch {
+                    while (currentCoroutineContext().isActive) {
+                        looplisten()
+                        delay(30_000)
+                    }
+                }, launch {
+                    while (currentCoroutineContext().isActive) {
+                        //fixme data racing
+                        sessions
+                            .filterKeys { !it.listen }
+                            .forEach { it.value.updateInfo() }
+                        delay(10 * 60_000) // 10 minute
+                    }
+                }).joinAll()
             }
         }
         logger.info("scheduler started")
@@ -63,10 +73,14 @@ class Scheduler(
         return job
     }
 
-    suspend fun loop() = opLock.withLock {
-        sessions.filterKeys {
-            it.listen && it.room.quality != "model already deleted" && it.room.quality != "model already renamed"
-        }.filterValues { !it.isActive }.forEach { (k, v) ->
+    suspend fun looplisten() = opLock.withLock {
+        sessions
+            .filterKeys { it.listen }
+            .filterKeys {
+                it.room.quality != "model already deleted" && it.room.quality != "model already renamed"
+            }
+            .filterValues { !it.isActive }
+            .forEach { (k, v) ->
                 scope.launch {
                     try {
                         if (v.testAndConfigure()) {
@@ -91,6 +105,7 @@ class Scheduler(
                     }
                 }
             }
+
     }
 
     suspend fun add(room: Room, listen: Boolean) {

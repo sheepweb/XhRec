@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import okhttp3.internal.toLongOrDefault
 import org.slf4j.LoggerFactory
@@ -113,15 +114,17 @@ class Session(
                 })
         }
     }
-
+    suspend fun updateInfo(): JsonObject {
+        // fetch room info
+        val info = API.roomFetchBroadcastInfo(room)
+        val status = info.PathSingle("item.status").asString()
+        _status.set(status)
+        return info
+    }
     suspend fun testAndConfigure(): Boolean {
         try {
-            // fetch room info
-            val info = API.roomFetchBroadcastInfo(room)
-            val status = info.PathSingle("item.status").asString()
-
+            val info = updateInfo()
             // room status check
-            _status.set(status)
             when (status) {
                 "public" -> {}
                 "groupShow" -> {
