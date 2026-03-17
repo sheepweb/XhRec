@@ -70,8 +70,7 @@
             cursor: pointer;
         }
 
-        .thumb-container img:nth-child(1){
-        }
+        .thumb-container img:nth-child(1) {}
 
         .thumb-preview {
             visibility: hidden;
@@ -122,6 +121,7 @@
             -webkit-appearance: none;
             margin: 0;
         }
+
         input[type="number"] {
             -moz-appearance: textfield;
         }
@@ -285,11 +285,11 @@
                                     <span class="text-slate-500 text-right">{{room.limit}}</span>
                                     <i class="fa-solid fa-arrow-right-long text-slate-300 text-xs"></i>
                                     <input v-model.number="editLimits[room.name]" type="number" min="0"
-                                           :style="{ width: Math.max(6, String(editLimits[room.name] || '').length + 3) + 'ch' }"
-                                           class="px-2 py-1 text-xs border border-slate-200 rounded bg-white focus:outline-none focus:border-indigo-500"
-                                           placeholder="New">
+                                        :style="{ width: Math.max(6, String(editLimits[room.name] || '').length + 3) + 'ch' }"
+                                        class="px-2 py-1 text-xs border border-slate-200 rounded bg-white focus:outline-none focus:border-indigo-500"
+                                        placeholder="New">
                                     <button @click="setLimit(room.name)" title="Apply Limit"
-                                            class="text-emerald-600 hover:text-emerald-800 transition-colors p-1">
+                                        class="text-emerald-600 hover:text-emerald-800 transition-colors p-1">
                                         <i class="fa-solid fa-check"></i>
                                     </button>
                                 </div>
@@ -330,6 +330,8 @@
                                             class="fa-solid fa-check"></i>{{room.success || 0}}</span>
                                     <span class="text-red-600 flex items-center gap-1" title="Failed"><i
                                             class="fa-solid fa-xmark"></i>{{room.failed || 0}}</span>
+                                    <span class="text-yellow-600 flex items-center gap-1" title="Missing"><i
+                                            class="fa-solid fa-question"></i>{{room.segMissing || 0}}</span>
                                 </div>
                                 <span v-else class="text-slate-300 text-xs">-</span>
                             </td>
@@ -399,7 +401,7 @@
     <script type="module">
         import { createApp, defineComponent } from 'vue'
 
-        const HOST = ""
+        const HOST = "http://docker.local:8090"
 
         createApp({
             data() {
@@ -531,13 +533,14 @@
                 },
                 async fetchdata() {
                     try {
-                        const [r1, r2, r3] = await Promise.all([
+                        const [r1, r2, r3, r4] = await Promise.all([
                             fetch(`${HOST}/recorders`),
                             fetch(`${HOST}/status`),
-                            fetch(`${HOST}/listv2`)
+                            fetch(`${HOST}/listv2`),
+                            fetch(`${HOST}/metrics`)
                         ]);
 
-                        const [data1, data2, data3] = await Promise.all([r1.json(), r2.json(), r3.json()]);
+                        const [data1, data2, data3, data4] = await Promise.all([r1.json(), r2.json(), r3.json(), r4.text()]);
 
                         const newRoomInfo = {};
                         for (const room of data1) newRoomInfo[room.name] = room;
@@ -588,6 +591,15 @@
                             });
                         }
 
+                        for (const line of data4.split("\n")) {
+                            if (line.startsWith("rikacelery_v2_segment_missing_total")) {
+                                const [_, name, value] = /rikacelery_v2_segment_missing_total{name="(\S+)"} (\d+)/.exec(line)
+                                Object.assign(newRoomInfo[name], {
+                                    segMissing: parseInt(value)
+                                });
+                            }
+                        }
+
                         this.roomInfo = newRoomInfo;
                         this.allUrls = newAllUrls;
                     } catch (e) {
@@ -616,6 +628,12 @@
                     } catch (e) {
                         return { stamp: now, url: null };
                     }
+                },
+                async deleteThumb(modelName) {
+                    const cache = this.snapshotcache;
+                    const now = Date.now() / 1000;
+                    cache[modelName] = undefined;
+                    localStorage.setItem('xhrec-thumb', JSON.stringify(cache));
                 }
             },
             async mounted() {
@@ -635,11 +653,13 @@
                 // Thumbnail Polling
                 const pollThumbs = async () => {
                     for (let model of this.roomDisplay) {
-                        await this.fetchThumb(model.name);
+                        if (model.roomStatus != "off")
+                            await this.fetchThumb(model.name)
+
                     }
                 };
                 await pollThumbs();
-                setInterval(pollThumbs, 5 * 60 * 1000);
+                setInterval(pollThumbs, 60 * 1000);
             },
         }).mount('#app')
     </script>
