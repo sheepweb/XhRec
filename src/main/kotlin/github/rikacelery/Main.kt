@@ -399,14 +399,17 @@ fun main(vararg args: String): Unit = runBlocking {
                     lock.withLock {
                         write("Stopping server...\n")
                     }
+                    flush()
                     scheduler.gracefulStop=true
                     scheduler.job?.cancelAndJoin()
                     lock.withLock {
                         write("Canceled scheduler.\n")
                     }
+                    flush()
                     sessions.map {
                         lock.withLock {
                             write("Waiting ${it.key.room.name}.\n")
+                            flush()
                         }
                         scheduler.scope.launch {
                             it.value.join()
@@ -418,6 +421,7 @@ fun main(vararg args: String): Unit = runBlocking {
                         }
                     }.joinAll()
                     write("OK")
+                    flush()
                 }
                 engine?.stop()
             }
@@ -434,15 +438,18 @@ fun main(vararg args: String): Unit = runBlocking {
                     lock.withLock {
                         write("Stopping server...\n")
                     }
+                    flush()
                     scheduler.job?.cancel()
                     scheduler.job?.join()
                     lock.withLock {
                         write("Canceled scheduler.\n")
                     }
+                    flush()
                     sessions.map {
                         lock.withLock {
                             write("Cancelling ${it.key.room.name}.\n")
                         }
+                        flush()
                         scheduler.scope.launch {
                             it.value.stop()
                             lock.withLock {
@@ -452,6 +459,7 @@ fun main(vararg args: String): Unit = runBlocking {
                         }
                     }.joinAll()
                     write("OK")
+                    flush()
                 }
                 engine?.stop()
             }
