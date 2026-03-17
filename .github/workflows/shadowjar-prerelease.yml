@@ -40,6 +40,12 @@ jobs:
       - name: Pack browser extension
         run: tar -cvf extension.tar extension
 
+      - name: Delete existing Pre-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          gh release delete dev-build --cleanup-tag --yes || true
+
       - name: Update dev-build tag
         run: |
           git config user.name "github-actions[bot]"
@@ -61,20 +67,11 @@ jobs:
           tag_name: dev-build
           target_commitish: ${{ github.sha }}
           name: CI builds
-          body: |
-            Automated pre-release build from GitHub Actions.
-            
-            > **Note:** This release is automatically updated to the latest commit on main.
-            
-            - **Update Time:** ${{ env.CURRENT_TIME }}
-            - **Workflow Run:** [${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-            - **Commit:** [${{ github.sha }}](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
-            - **Branch:** ${{ github.ref_name }}
           draft: false
           prerelease: true
           files: |
             build/libs/*-all.jar
             extension.tar
-          generate_release_notes: false
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
