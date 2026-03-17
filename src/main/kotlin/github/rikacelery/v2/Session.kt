@@ -114,6 +114,7 @@ class Session(
                 })
         }
     }
+
     suspend fun updateInfo(): JsonObject {
         // fetch room info
         val info = API.roomFetchBroadcastInfo(room)
@@ -121,6 +122,7 @@ class Session(
         _status.set(status)
         return info
     }
+
     suspend fun testAndConfigure(): Boolean {
         try {
             val info = updateInfo()
@@ -401,8 +403,13 @@ class Session(
         }
     }
 
+    suspend fun join() {
+        generatorJob?.join()
+    }
+
     suspend fun stop() {
         if (_isActive.compareAndSet(true, false)) {
+            logger.info("Cancelling generator job.")
             generatorJob?.cancelAndJoin()
         }
         val file = writerReference.getAndSet(null)?.done()
@@ -489,7 +496,10 @@ class Session(
                                 }
                                 result.getOrThrow()
                             } catch (e: Exception) {
-                                logger.error("[ERROR] failed to decrypt $mouflon(${encrypted.reversed()}),rawm3u8=$rawList", e)
+                                logger.error(
+                                    "[ERROR] failed to decrypt $mouflon(${encrypted.reversed()}),rawm3u8=$rawList",
+                                    e
+                                )
                                 throw e
                             }
                             val dec = rawList[idx + 1].replace(
@@ -617,7 +627,7 @@ class Session(
             try {
                 line.substringAfter("URI=\"").substringBefore("\"")
             } catch (e: Exception) {
-                logger.error("Failed to parse segment URL from line: $line",e)
+                logger.error("Failed to parse segment URL from line: $line", e)
                 null
             }
         }

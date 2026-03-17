@@ -36,6 +36,7 @@ class Scheduler(
     })
     val opLock = Mutex()
     var job: Job? = null
+    var gracefulStop = false
 
     suspend fun stop() {
         logger.info("cancel job")
@@ -53,12 +54,12 @@ class Scheduler(
             if (job != null) return@withLock
             job = scope.launch {
                 listOf(launch {
-                    while (currentCoroutineContext().isActive) {
+                    while (currentCoroutineContext().isActive && gracefulStop) {
                         looplisten()
                         delay(30_000)
                     }
                 }, launch {
-                    while (currentCoroutineContext().isActive) {
+                    while (currentCoroutineContext().isActive && gracefulStop) {
                         //fixme data racing
                         sessions
                             .filterKeys { !it.listen }

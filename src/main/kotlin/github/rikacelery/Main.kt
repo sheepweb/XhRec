@@ -386,9 +386,41 @@ fun main(vararg args: String): Unit = runBlocking {
                     }
                 }
             }
+            get("/graceful-stop") {
+//                sc.cancel()
+                val sessions = scheduler.sessions.filter { it.value.isActive }
+                val latch = AtomicInteger(sessions.size)
+                val lock = Mutex()
+                call.respondTextWriter {
+                    lock.withLock {
+                        write("Stopping server...\n")
+                    }
+                    scheduler.gracefulStop=true
+                    scheduler.job?.cancelAndJoin()
+                    lock.withLock {
+                        write("Canceled scheduler.\n")
+                    }
+                    sessions.map {
+                        lock.withLock {
+                            write("Waiting ${it.key.room.name}.\n")
+                        }
+                        scheduler.scope.launch {
+                            it.value.join()
+                            it.value.stop()
+                            lock.withLock {
+                                write("Exited ${it.key.room.name}. remain: ${latch.decrementAndGet()}\n")
+                            }
+                            flush()
+                        }
+                    }.joinAll()
+                    write("OK")
+                }
+                engine?.stop()
+            }
             get("/stop-server") {
 //                sc.cancel()
-                val latch = AtomicInteger(scheduler.sessions.size)
+                val sessions = scheduler.sessions.filter { it.value.isActive }
+                val latch = AtomicInteger(sessions.size)
                 val lock = Mutex()
                 call.respondTextWriter {
                     lock.withLock {
@@ -399,7 +431,7 @@ fun main(vararg args: String): Unit = runBlocking {
                     lock.withLock {
                         write("Canceled scheduler.\n")
                     }
-                    scheduler.sessions.map {
+                    sessions.map {
                         lock.withLock {
                             write("Cancelling ${it.key.room.name}.\n")
                         }
