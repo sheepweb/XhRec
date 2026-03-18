@@ -249,9 +249,14 @@ class Session(
     }
 
     private fun segmentIDFromUrl(url: String): Int? {
-//        "https://media-hls.doppiocdn.org/b-hls-24/roomid/roomid_480p_h265_7970_XXXXXXXXXXX_timestamp.mp4"
+//        roomid_480p_h265_SEGMENTID_XXXXXXXXXXX_timestamp.mp4 transcended stream
+//        roomid_SEGMENTID_XXXXXXXXXXX_timestamp.mp4 raw stream
         val parts = url.substringAfterLast("/").split("_")
-        return parts[(parts.size - 3).coerceAtLeast(0)].toIntOrNull()
+        if (parts.size==6)
+            return parts[3].toIntOrNull()
+        else if (parts.size==4)
+            return parts[1].toIntOrNull()
+        return null
     }
 
     private var metric: MetricUpdater = Metric.newMetric(room.id, room.name)
@@ -521,21 +526,26 @@ class Session(
                 metric.updateRefreshLatency(System.currentTimeMillis() - ms)
                 ms = System.currentTimeMillis()
                 val initUrlCur = parseInitUrl(lines)
-                if (initUrl.isEmpty()) initUrl = initUrlCur
-                if (initUrlCur != initUrl) {
-                    logger.warn("[${room.name}] Init segment changed, exiting...")
-                    break
+                if (initUrl.isNotBlank() && initUrlCur != initUrl) {
+                    logger.warn("[${room.name}] Init segment changed, splitting file...")
+                    send(Event.CmdFinish())
+                    // reset state
+                    initSent = false
+                    initUrl = ""
+                    startTime = System.currentTimeMillis()
+                    continue
                 }
-                val videos = parseSegmentUrl(lines)
+                initUrl = initUrlCur
+                val segmentUrls = parseSegmentUrl(lines)
+                if (segmentUrls.isEmpty()) {
+                    logger.warn("[{}] Got 0 videos from playlist, maybe decode failed!", room.name)
+                }
 
                 if (!initSent) {
                     initSent = true
-                    send(Event.LiveSegmentInit(initUrlCur))
+                    send(Event.LiveSegmentInit(initUrl))
                 }
-                if (videos.isEmpty()) {
-                    logger.warn("[{}] Got 0 videos from playlist, maybe decode failed!", room.name)
-                }
-                for (url in videos) {
+                for (url in segmentUrls) {
                     // record time limit
                     if (System.currentTimeMillis() - startTime > room.limit.inWholeMilliseconds && !cache.contains(url)) {
                         send(Event.CmdFinish())
@@ -556,7 +566,7 @@ class Session(
                         break
                     }
                     // normal segments
-                    if (currentCoroutineContext().isActive && !cache.contains(url)) {
+                    if (!cache.contains(url)) {
                         cache.add(url)
                         send(Event.LiveSegmentData(url))
                     }
