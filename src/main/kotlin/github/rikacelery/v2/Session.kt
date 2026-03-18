@@ -65,6 +65,7 @@ class Session(
         private val logger = LoggerFactory.getLogger(Session::class.java)
     }
 
+    private var shouldStop = false
     private val scope =
         CoroutineScope(dispatcher + SupervisorJob() + CoroutineExceptionHandler { coroutineContext, throwable ->
             logger.error("Exception in {}", coroutineContext, throwable)
@@ -252,9 +253,9 @@ class Session(
 //        roomid_480p_h265_SEGMENTID_XXXXXXXXXXX_timestamp.mp4 transcended stream
 //        roomid_SEGMENTID_XXXXXXXXXXX_timestamp.mp4 raw stream
         val parts = url.substringAfterLast("/").split("_")
-        if (parts.size==6)
+        if (parts.size == 6)
             return parts[3].toIntOrNull()
-        else if (parts.size==4)
+        else if (parts.size == 4)
             return parts[1].toIntOrNull()
         return null
     }
@@ -272,14 +273,14 @@ class Session(
             room.quality,
             status
         )
-
-        val writer = Writer(room.name, dest, tmp).apply { init() }
-        writerReference.set(writer)
+        shouldStop = false
+        writerReference.set(Writer(room.name, dest, tmp).apply { init() })
         val counter = createDiscontinuityCounter()
         metric = Metric.newMetric(room.id, room.name)
 
         try {
             generatorJob = scope.launch {
+                var lastInitSegment = byteArrayOf()
                 segmentGenerator()
                     .map { event ->
                         if (event is Event.CmdFinish) {
@@ -345,14 +346,16 @@ class Session(
                             result.first::class.simpleName,
                             result.first.url()
                         )
+                        val writer = writerReference.get()
+                        if (writer == null) return@collect
                         when (result.first) {
                             is Event.WSEvent -> {
-                                writerReference.get()!!.appendEvent((result.first as Event.WSEvent).data)
+                                writer.appendEvent((result.first as Event.WSEvent).data)
                             }
 
                             is Event.CmdFinish -> {
                                 try {
-                                    val file = writerReference.get()!!.done()
+                                    val file = writer.done()
                                     requireNotNull(file)
                                     scope.launch(NonCancellable) {
                                         runCatching {
@@ -378,8 +381,42 @@ class Session(
                                 metric.doneIncrement()
                                 if (bytes.isSuccess) {
                                     val data = bytes.getOrThrow()
+                                    if (result.first is Event.LiveSegmentInit)
+                                        lastInitSegment = data
                                     metric.bytesWriteIncrement(data.size.toLong())
-                                    writerReference.get()?.append(data)
+                                    writerReference.get()?.let { writer ->
+                                        val total = writer.append(data)
+                                        if (room.sizeLimit != 0L && total >= room.sizeLimit) {
+                                            try {
+                                                val file = writer.done()
+                                                requireNotNull(file)
+                                                scope.launch(NonCancellable) {
+                                                    runCatching {
+                                                        PostProcessor.process(
+                                                            file.first,
+                                                            ProcessorCtx(
+                                                                room,
+                                                                file.second,
+                                                                Date(),
+                                                                file.third,
+                                                                currentQuality
+                                                            )
+                                                        )
+                                                    }.onFailure {
+                                                        logger.error("[{}] Postprocess failed", room.name, it)
+                                                    }
+                                                }
+
+                                            } catch (e: Exception) {
+                                                logger.error("[${room.name}] Failed to postprocess", e)
+                                            } finally {
+                                                writer.init()
+                                                writer.append(lastInitSegment)
+                                                metric.reset()
+                                            }
+
+                                        }
+                                    }
                                 } else {
                                     metric.failedIncrement()
                                 }
@@ -467,7 +504,7 @@ class Session(
                 send(Event.WSEvent(it))
             }
         }
-        while (currentCoroutineContext().isActive) {
+        while (currentCoroutineContext().isActive && !shouldStop) {
             retry++
             try {
                 val lines = withTimeout(5_000) {
@@ -547,7 +584,10 @@ class Session(
                 }
                 for (url in segmentUrls) {
                     // record time limit
-                    if (System.currentTimeMillis() - startTime > room.limit.inWholeMilliseconds && !cache.contains(url)) {
+                    if (System.currentTimeMillis() - startTime > room.timeLimit.inWholeMilliseconds && !cache.contains(
+                            url
+                        )
+                    ) {
                         send(Event.CmdFinish())
                         // reset state
                         initSent = false

@@ -26,6 +26,7 @@ import kotlinx.coroutines.internal.synchronized
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.apache.commons.cli.*
@@ -119,6 +120,7 @@ fun main(vararg args: String): Unit = runBlocking {
         val url = match.groupValues[2]
         val quality = extract(match.groupValues[3], "q:(\\S+)".toRegex(), "720p")
         val timeLimit = extract(match.groupValues[3], "limit:(\\d+)".toRegex(), "0")
+        val sizeLimit = extract(match.groupValues[3], "size:(\\S+)".toRegex(), "0")
         val autopay = extract(match.groupValues[3], "(autopay)".toRegex(), "") == "autopay"
         rootLogger.info("loads: ${if (active) "[active]" else "[      ]"} quality:$quality limit:$timeLimit${if (autopay) " autopay " else " "}url:$url")
         async {
@@ -129,8 +131,9 @@ fun main(vararg args: String): Unit = runBlocking {
                 return@async null
             }
             if (timeLimit.toLong() > 0) {
-                room.limit = timeLimit.toLong().seconds
+                room.timeLimit = timeLimit.toLong().seconds
             }
+            room.sizeLimit = Json.decodeFromString(SizeStrSerializer,"\"$sizeLimit\"")
             room.autoPay = autopay
             rootLogger.info("Got new room {}.", room)
             room to active
@@ -195,6 +198,7 @@ fun main(vararg args: String): Unit = runBlocking {
                 val active = call.request.queryParameters["active"].toBoolean()
                 val slug = call.request.queryParameters["slug"]
                 val limit = call.request.queryParameters["limit"]?.toLongOrNull() ?: 0L
+                val sizeLimit = call.request.queryParameters["size"]?.toLongOrNull() ?: 0L
                 if (slug == null) {
                     call.respond(HttpStatusCode.NotAcceptable, "slug not provided.")
                     return@get
@@ -215,8 +219,9 @@ fun main(vararg args: String): Unit = runBlocking {
                     return@get
                 }
                 if (limit > 0) {
-                    room.limit = limit.seconds
+                    room.timeLimit = limit.seconds
                 }
+                room.sizeLimit = sizeLimit
                 println(room)
                 scheduler.add(room, active)
                 saveJobFile(jobFile, scheduler)
@@ -326,7 +331,33 @@ fun main(vararg args: String): Unit = runBlocking {
                     call.respond(HttpStatusCode.NotAcceptable, "Room $slug not found.")
                     return@get
                 }
-                room.limit = if (limit == 0L) Duration.INFINITE else limit.seconds
+                room.timeLimit = if (limit == 0L) Duration.INFINITE else limit.seconds
+                saveJobFile(jobFile, scheduler)
+                call.respond(room)
+            }
+            get("/sizelimit") {
+                val slug = call.request.queryParameters["slug"]
+                if (slug == null) {
+                    call.respond(HttpStatusCode.NotAcceptable, "slug not provided.")
+                    return@get
+                }
+                val sizelimit = call.request.queryParameters["size"]
+                if (sizelimit == null) {
+                    call.respond(HttpStatusCode.NotAcceptable, "size not provided.")
+                    return@get
+                }
+                val sizeLong = try {
+                    Json.decodeFromString(SizeStrSerializer, JsonPrimitive(sizelimit).toString())
+                } catch (e: Exception) {
+                    call.respond(HttpStatusCode.NotAcceptable, "size not valid.")
+                    throw e
+                }
+                val room = scheduler.sessions.keys.find { it.room.name.equals(slug, true) }?.room
+                if (room == null) {
+                    call.respond(HttpStatusCode.NotAcceptable, "Room $slug not found.")
+                    return@get
+                }
+                room.sizeLimit = sizeLong
                 saveJobFile(jobFile, scheduler)
                 call.respond(room)
             }
@@ -351,7 +382,7 @@ fun main(vararg args: String): Unit = runBlocking {
                             state.room.name,
                             state.room.id.toString(),
                             state.room.quality,
-                            if (state.room.limit.isFinite()) state.room.limit.inWholeSeconds.toString() else "0",
+                            if (state.room.timeLimit.isFinite()) state.room.timeLimit.inWholeSeconds.toString() else "0",
                         )
                     }
                 }.awaitAll()
@@ -426,10 +457,6 @@ fun main(vararg args: String): Unit = runBlocking {
                 engine?.stop()
             }
             get("/stop-server") {
-                if(scheduler.gracefulStop) {
-                    call.respond(HttpStatusCode.NotAcceptable, "Already graceful stopping.")
-                    return@get
-                }
 //                sc.cancel()
                 val sessions = scheduler.sessions.filter { it.value.isActive }
                 val latch = AtomicInteger(sessions.size)
@@ -487,7 +514,8 @@ private fun saveJobFile(jobFile: File, scheduler: Scheduler) {
     synchronized(jobFile) {
         jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
             "${if (it.listen) "" else "#"}https://$HOST/${it.room.name} q:${it.room.quality} " +
-                    (if (it.room.limit.isFinite()) " limit:${it.room.limit.inWholeSeconds} " else " ") +
+                    (if (it.room.timeLimit.isFinite()) " limit:${it.room.timeLimit.inWholeSeconds} " else " ") +
+                    (if (it.room.sizeLimit!=0L) " size:${Json.encodeToString(SizeStrSerializer,it.room.sizeLimit).removeSurrounding("")} " else " ") +
                     (if (it.room.autoPay) " autopay " else " ")
         })
     }
