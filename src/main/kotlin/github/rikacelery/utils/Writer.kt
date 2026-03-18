@@ -11,6 +11,7 @@ class Writer(private val name: String, private val destFolder: String, private v
     private lateinit var bufferedWriter: BufferedOutputStream
     private lateinit var timeStarted: Date
     private var isInit = false
+    private var total = 0L
     private val ext = "mp4"
 
 
@@ -18,6 +19,7 @@ class Writer(private val name: String, private val destFolder: String, private v
         timeStarted = Date()
         file = File(tmpfolder, "${name}-${formatedStartTime()}-init.${ext}")
         bufferedWriter = file.outputStream().buffered()
+        total = 0L
         isInit = true
         if (File(tmpfolder).exists().not()) {
             File(tmpfolder).mkdirs()
@@ -39,9 +41,11 @@ class Writer(private val name: String, private val destFolder: String, private v
         }
     }
 
-    fun append(data: ByteArray) {
+    fun append(data: ByteArray): Long {
         if (!isInit) throw Exception("Writer not initialized yet.")
         bufferedWriter.write(data)
+        total+=data.size
+        return total
     }
 
     fun appendEvent(data: JsonObject) {
@@ -66,7 +70,10 @@ class Writer(private val name: String, private val destFolder: String, private v
     }
 
     fun dispose() {
+        if (!isInit) return
+        isInit = false
         bufferedWriter.close()
         file.delete()
+        file.parentFile.resolve(file.nameWithoutExtension + ".event").delete()
     }
 }

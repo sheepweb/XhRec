@@ -165,7 +165,12 @@
                 <div class="relative flex items-center">
                     <i class="fa-regular fa-clock absolute left-3 text-slate-400"></i>
                     <input v-model.number="timeLimit" type="number" min="0" placeholder="Limit"
-                        class="pl-9 pr-2 py-1.5 text-sm bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 w-24 transition-all">
+                           class="pl-9 pr-2 py-1.5 text-sm bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 w-24 transition-all">
+                </div>
+                <div class="relative flex items-center">
+                    <i class="fa-regular fa-clock absolute left-3 text-slate-400"></i>
+                    <input v-model="sizeLimit" type="text"  placeholder="Size"
+                           class="pl-9 pr-2 py-1.5 text-sm bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 w-24 transition-all">
                 </div>
 
                 <select v-model="addQuality"
@@ -223,6 +228,11 @@
                                 @click="sortToggle('Limit')">
                                 Time Limit <i class="fa-solid ml-1"
                                     :class="!sort['Limit'] ? 'fa-sort text-slate-300' : (sort['Limit'] === 1 ? 'fa-sort-down text-indigo-500' : 'fa-sort-up text-indigo-500')"></i>
+                            </th>
+                            <th class="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                                @click="sortToggle('SizeLimit')">
+                                Size Limit <i class="fa-solid ml-1"
+                                    :class="!sort['SizeLimit'] ? 'fa-sort text-slate-300' : (sort['SizeLimit'] === 1 ? 'fa-sort-down text-indigo-500' : 'fa-sort-up text-indigo-500')"></i>
                             </th>
                             <th class="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors select-none"
                                 @click="sortToggle('Status')">
@@ -287,13 +297,27 @@
                             </td>
                             <td class="px-4 py-3">
                                 <div class="flex items-center gap-2">
-                                    <span class="text-slate-500 text-right">{{room.limit}}</span>
+                                    <span class="text-slate-500 text-right">{{room.timeLimit}}</span>
                                     <i class="fa-solid fa-arrow-right-long text-slate-300 text-xs"></i>
                                     <input v-model.number="editLimits[room.name]" type="number" min="0"
                                         :style="{ width: Math.max(6, String(editLimits[room.name] || '').length + 3) + 'ch' }"
                                         class="px-2 py-1 text-xs border border-slate-200 rounded bg-white focus:outline-none focus:border-indigo-500"
                                         placeholder="New">
                                     <button @click="setLimit(room.name)" title="Apply Limit"
+                                        class="text-emerald-600 hover:text-emerald-800 transition-colors p-1">
+                                        <i class="fa-solid fa-check"></i>
+                                    </button>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-slate-500 text-right">{{room.sizeLimit}}</span>
+                                    <i class="fa-solid fa-arrow-right-long text-slate-300 text-xs"></i>
+                                    <input v-model="editSizeLimits[room.name]" type="text"
+                                        :style="{ width: Math.max(6, String(editSizeLimits[room.name] || '').length + 3) + 'ch' }"
+                                        class="px-2 py-1 text-xs border border-slate-200 rounded bg-white focus:outline-none focus:border-indigo-500"
+                                        placeholder="New">
+                                    <button @click="setSizeLimit(room.name)" title="Apply Limit"
                                         class="text-emerald-600 hover:text-emerald-800 transition-colors p-1">
                                         <i class="fa-solid fa-check"></i>
                                     </button>
@@ -419,6 +443,7 @@
                     sort: { "Room": 1, "Status": 1 },
                     roomInfo: {},
                     editLimits: {}, // Cache for limits inputs to prevent overlap with polling
+                    editSizeLimits: {}, // Cache for size limits inputs to prevent overlap with polling
                     allUrls: [],
                     snapshotcache: {},
                 }
@@ -511,6 +536,18 @@
                     }
                     try {
                         const r1 = await fetch(`${HOST}/limit?slug=${roomName}&limit=${newLimit}`);
+                        this.showToast(await r1.text());
+                        this.editLimits[roomName] = null; // Clear input after success
+                    } catch (e) { this.showToast("Network Error", "error"); }
+                },
+                async setSizeLimit(roomName) {
+                    const newLimit = this.editSizeLimits[roomName];
+                    if (newLimit === undefined || newLimit === null || newLimit < 0) {
+                        this.showToast(`Invalid limit value`, "error");
+                        return;
+                    }
+                    try {
+                        const r1 = await fetch(`${HOST}/sizelimit?slug=${roomName}&size=${newLimit}`);
                         this.showToast(await r1.text());
                         this.editLimits[roomName] = null; // Clear input after success
                     } catch (e) { this.showToast("Network Error", "error"); }
