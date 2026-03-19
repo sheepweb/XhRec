@@ -515,7 +515,7 @@ private fun saveJobFile(jobFile: File, scheduler: Scheduler) {
         jobFile.writeText(scheduler.sessions.keys.joinToString("\n") {
             "${if (it.listen) "" else "#"}https://$HOST/${it.room.name} q:${it.room.quality} " +
                     (if (it.room.timeLimit.isFinite()) " limit:${it.room.timeLimit.inWholeSeconds} " else " ") +
-                    (if (it.room.sizeLimit!=0L) " size:${Json.encodeToString(SizeStrSerializer,it.room.sizeLimit).removeSurrounding("")} " else " ") +
+                    (if (it.room.sizeLimit!=0L) " size:${Json.encodeToString(SizeStrSerializer,it.room.sizeLimit).removeSurrounding("\"")} " else " ") +
                     (if (it.room.autoPay) " autopay " else " ")
         })
     }
