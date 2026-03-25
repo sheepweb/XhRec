@@ -196,19 +196,31 @@ class Session(
             val presets = info.PathSingle("item.settings.presets").jsonArray
             val qualities = presets.map { element -> element.asString() }
                 .filterNot { it.contains("blurred") }
-            val q = qualities.lastOrNull { it == room.quality } ?: qualities.minByOrNull {
-                val split = it.split("p").filterNot(String::isEmpty)
-                val split1 = room.quality.split("p").filterNot(String::isEmpty)
-                if (split1.size == 2) {
-                    // 尝试获取帧率和清晰度都接近的
-                    abs(split[0].toInt() - split1[0].toInt()) + abs(split1[1].toInt() - split.getOrElse(1) { "30" }
-                        .toInt())
-                } else {
-                    // 只判断清晰度，选到什么纯看运气
-                    abs(split[0].toInt() - split1[0].toInt())
+            val qualityPattern = Regex("^(\\d+)p(?:(\\d+))?$")
+            fun parseQuality(value: String): Pair<Int, Int>? {
+                val match = qualityPattern.matchEntire(value) ?: return null
+                val resolution = match.groupValues[1].toIntOrNull() ?: return null
+                val fps = match.groupValues.getOrNull(2)?.takeIf { it.isNotEmpty() }?.toIntOrNull() ?: 30
+                return resolution to fps
+            }
+
+            val requestedQuality = parseQuality(room.quality)
+            val q = qualities.lastOrNull { it == room.quality } ?: when {
+                requestedQuality != null -> qualities
+                    .mapNotNull { quality ->
+                        parseQuality(quality)?.let { parsed -> quality to parsed }
+                    }
+                    .minByOrNull { (_, parsed) ->
+                        abs(parsed.first - requestedQuality.first) + abs(parsed.second - requestedQuality.second)
+                    }
+                    ?.first
+
+                else -> {
+                    logger.warn("[{}] invalid quality setting '{}', fallback to available presets {}", room.name, room.quality, qualities)
+                    null
                 }
             }
-            val new = q ?: "raw" // 只有一种清晰度的
+            val new = q ?: qualities.lastOrNull() ?: "raw"
             logger.trace("[{}] select {} from {} (want {})", room.name, new, qualities, room.quality)
             if (currentQuality != new && !isActive) {
                 logger.info("[{}] quality changed to {} (want {})", room.name, new, room.quality)

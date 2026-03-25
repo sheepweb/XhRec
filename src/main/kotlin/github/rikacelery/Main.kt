@@ -49,7 +49,24 @@ private fun extract(text: String, regex: Regex, default: String): String {
     return regex.find(text)?.groupValues?.get(1)?.ifBlank { default } ?: default
 }
 
+private val qualityPattern = Regex("^(\\d+)p(?:(\\d+))?$")
+
+private fun normalizeQuality(rawQuality: String, default: String = "720p"): String? {
+    val quality = rawQuality.trim()
+    return when {
+        quality.equals("raw", ignoreCase = true) -> "raw"
+        qualityPattern.matches(quality) -> quality
+        quality.isBlank() -> default
+        else -> null
+    }
+}
+
 val rootLogger: Logger = LoggerFactory.getLogger("github.rikacelery.MainKt")
+
+private fun printCommandLineHelp(options: Options) {
+    org.apache.commons.cli.help.HelpFormatter.builder().get()
+        .printHelp("CommandLineParameters", null, options, null, false)
+}
 
 @OptIn(InternalCoroutinesApi::class)
 fun main(vararg args: String): Unit = runBlocking {
@@ -81,13 +98,11 @@ fun main(vararg args: String): Unit = runBlocking {
     val commandLine: CommandLine = try {
         parser.parse(options, args)
     } catch (_: ParseException) {
-        val formatter = HelpFormatter()
-        formatter.printHelp("CommandLineParameters", options)
+        printCommandLineHelp(options)
         return@runBlocking
     }
     if (commandLine.hasOption("h")) {
-        val formatter = HelpFormatter()
-        formatter.printHelp("CommandLineParameters", options)
+        printCommandLineHelp(options)
     }
 
 
@@ -118,8 +133,12 @@ fun main(vararg args: String): Unit = runBlocking {
         val match = regex.find(it) ?: return@map null
         val active = match.groupValues[1].isBlank()
         val url = match.groupValues[2]
-        val quality = extract(match.groupValues[3], "q:(\\S+)".toRegex(), "720p")
-        val timeLimit = extract(match.groupValues[3], "limit:(\\d+)".toRegex(), "0")
+        val rawQuality = extract(match.groupValues[3], "q:(\\S+)".toRegex(), "720p")
+        val quality = normalizeQuality(rawQuality) ?: run {
+            rootLogger.warn("invalid quality '{}' in job file for {}, fallback to 720p", rawQuality, url)
+            "720p"
+        }
+        val timeLimit = extract(match.groupValues[3], "limit:(\\d+)".toRegex(), "0").toLongOrNull() ?: 0L
         val sizeLimit = extract(match.groupValues[3], "size:(\\S+)".toRegex(), "0")
         val autopay = extract(match.groupValues[3], "(autopay)".toRegex(), "") == "autopay"
         rootLogger.info("loads: ${if (active) "[active]" else "[      ]"} quality:$quality limit:$timeLimit${if (autopay) " autopay " else " "}url:$url")
@@ -130,8 +149,8 @@ fun main(vararg args: String): Unit = runBlocking {
                 rootLogger.warn("failed: {}", url)
                 return@async null
             }
-            if (timeLimit.toLong() > 0) {
-                room.timeLimit = timeLimit.toLong().seconds
+            if (timeLimit > 0) {
+                room.timeLimit = timeLimit.seconds
             }
             room.sizeLimit = Json.decodeFromString(SizeStrSerializer,"\"$sizeLimit\"")
             room.autoPay = autopay
@@ -176,11 +195,16 @@ fun main(vararg args: String): Unit = runBlocking {
 
     println("-".repeat(10) + "DONE" + "-".repeat(10))
 
+    val port = commandLine.getOptionValue("p", "8090").toIntOrNull() ?: run {
+        rootLogger.warn("invalid port '{}', fallback to 8090", commandLine.getOptionValue("p", "8090"))
+        8090
+    }
+
     // web server
     var engine: EmbeddedServer<CIOApplicationEngine, CIOApplicationEngine.Configuration>? = null
     engine = embeddedServer(
         CIO,
-        port = commandLine.getOptionValue("p", "8090").toInt(),
+        port = port,
         host = "0.0.0.0"
 
     ) {
@@ -204,7 +228,12 @@ fun main(vararg args: String): Unit = runBlocking {
                     return@get
                 }
                 val url = "https://$HOST/${slug.substringAfterLast("/").substringBefore("#")}"
-                val q = call.request.queryParameters["quality"] ?: "720p"
+                val rawQuality = call.request.queryParameters["quality"] ?: "720p"
+                val q = normalizeQuality(rawQuality)
+                if (q == null) {
+                    call.respond(HttpStatusCode.NotAcceptable, "quality not valid.")
+                    return@get
+                }
                 println("${if (active) "[+]" else "[X]"} $q $slug")
                 val room = withRetryOrNull(5, { it.message?.contains("404") == true }) {
                     API.getRoomFromUrlOrSlug(url, q)
@@ -286,12 +315,17 @@ fun main(vararg args: String): Unit = runBlocking {
                     call.respond(HttpStatusCode.NotAcceptable, "quality not provided.")
                     return@get
                 }
+                val normalizedQuality = normalizeQuality(q)
+                if (normalizedQuality == null) {
+                    call.respond(HttpStatusCode.NotAcceptable, "quality not valid.")
+                    return@get
+                }
                 val room = scheduler.sessions.keys.find { it.room.name.equals(slug, true) }?.room
                 if (room == null) {
                     call.respond(HttpStatusCode.NotAcceptable, "Room $slug not found.")
                     return@get
                 }
-                room.quality = q
+                room.quality = normalizedQuality
                 saveJobFile(jobFile, scheduler)
                 call.respond(room)
             }

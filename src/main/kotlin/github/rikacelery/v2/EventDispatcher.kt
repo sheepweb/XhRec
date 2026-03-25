@@ -3,6 +3,7 @@ package github.rikacelery.v2
 import github.rikacelery.utils.ClientManager
 import io.ktor.client.plugins.websocket.*
 import io.ktor.websocket.*
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -83,6 +84,11 @@ object EventDispatcher {
                 }
             } catch (e: Exception) {
                 wssession.set(null)
+                if (e is CancellationException) {
+                    logger.info("WebSocket dispatcher cancelled: ${e.message}")
+                    throw e
+                }
+
                 logger.warn("WebSocket connection lost or error: ${e.message}")
                 logger.info("Reconnecting in ${reconnectDelay.inWholeSeconds}s...")
 
