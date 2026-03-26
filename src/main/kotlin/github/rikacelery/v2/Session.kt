@@ -273,6 +273,7 @@ class Session(
     }
 
     private var metric: MetricUpdater = Metric.newMetric(room.id, room.name)
+    private val perf = PerfStats("session", "${room.name}(${room.id})", logger)
     suspend fun start() {
         if (!_isActive.compareAndSet(false, true)) {
             throw IllegalStateException("Session is already active")
@@ -309,31 +310,44 @@ class Session(
                         (event to scope.async {
                             metric.downloadingIncrement()
                             metric.totalIncrement()
+                            perf.inc("downloadAttempt")
                             val ms = System.currentTimeMillis()
                             val result = runCatching {
                                 synchronized(runningUrl) {
                                     runningUrl[event.url()] = UrlInfo(ClientType.DIRECT, System.currentTimeMillis())
                                 }
+                                val directStart = System.currentTimeMillis()
                                 tryDownload(event).await()?.also {
                                     metric.successDirectIncrement()
+                                    perf.inc("downloadDirectSuccess")
+                                    perf.observe("downloadDirectLatency", System.currentTimeMillis() - directStart)
                                 } ?: run {
+                                    perf.inc("downloadFallbackToProxy")
                                     synchronized(runningUrl) {
                                         runningUrl[event.url()] = UrlInfo(ClientType.PROXY, System.currentTimeMillis())
                                     }
+                                    val proxyStart = System.currentTimeMillis()
+                                    perf.inc("proxyRetryInvocation")
                                     withRetry(2) {
+                                        perf.inc("proxyRetryAttempt")
                                         ClientManager.getProxiedClient(room.name).get(
                                             event.url()
                                         ).readBytes().also {
                                             metric.successProxiedIncrement()
+                                            perf.inc("downloadProxySuccess")
                                         }
+                                    }.also {
+                                        perf.observe("downloadProxyLatency", System.currentTimeMillis() - proxyStart)
                                     }
                                 }
                             }
                             metric.updateLatency(System.currentTimeMillis() - ms)
+                            perf.observe("downloadTotalLatency", System.currentTimeMillis() - ms)
                             synchronized(runningUrl) {
                                 runningUrl.remove(event.url())
                             }
                             result.onFailure {
+                                perf.inc("downloadFailure")
                                 if (event is Event.LiveSegmentInit) {
                                     logger.error("failed to download init segment {}, download stopped", event.url())
                                     throw InitSegmentDownloadFiledException(it)
@@ -349,6 +363,8 @@ class Session(
                                     )
                                 }
                             }
+                            perf.maybeLog(mapOf("running" to runningUrl.size))
+                            result
                         })
                     }
                     .buffer(Channel.UNLIMITED)
@@ -519,6 +535,8 @@ class Session(
         while (currentCoroutineContext().isActive && !shouldStop) {
             retry++
             try {
+                perf.inc("playlistPoll")
+                val pollStart = System.currentTimeMillis()
                 val lines = withTimeout(5_000) {
                     val rawList = (ClientManager.getProxiedClient(room.name)).get(
                         streamUrl
@@ -568,14 +586,17 @@ class Session(
 
                     newList.filterNot { it.contains("media.mp4") }
                 }
+                perf.observe("playlistPollLatency", System.currentTimeMillis() - pollStart)
 
                 if (logger.isTraceEnabled) {
                     File("${room.name}.decoded.m3u8").writeText(lines.joinToString("\n"))
                 }
                 metric.updateRefreshLatency(System.currentTimeMillis() - ms)
                 ms = System.currentTimeMillis()
+                val parseStart = System.currentTimeMillis()
                 val initUrlCur = parseInitUrl(lines)
                 if (initUrl.isNotBlank() && initUrlCur != initUrl) {
+                    perf.inc("initSegmentChanged")
                     logger.warn("[${room.name}] Init segment changed, splitting file...")
                     send(Event.CmdFinish())
                     // reset state
@@ -586,12 +607,16 @@ class Session(
                 }
                 initUrl = initUrlCur
                 val segmentUrls = parseSegmentUrl(lines)
+                perf.observe("playlistParseLatency", System.currentTimeMillis() - parseStart)
+                perf.inc("playlistSegmentCount", segmentUrls.size.toLong())
                 if (segmentUrls.isEmpty()) {
+                    perf.inc("playlistEmpty")
                     logger.warn("[{}] Got 0 videos from playlist, maybe decode failed!", room.name)
                 }
 
                 if (!initSent) {
                     initSent = true
+                    perf.inc("initSegmentSent")
                     send(Event.LiveSegmentInit(initUrl))
                 }
                 for (url in segmentUrls) {
@@ -620,11 +645,15 @@ class Session(
                     // normal segments
                     if (!cache.contains(url)) {
                         cache.add(url)
+                        perf.inc("newSegment")
                         send(Event.LiveSegmentData(url))
+                    } else {
+                        perf.inc("duplicateSegmentSkip")
                     }
                 }
                 retry = 0
             } catch (_: TimeoutCancellationException) {
+                perf.inc("playlistTimeout")
                 logger.warn("[${room.name}] Refresh list timeout {}, trys={}", streamUrl, retry)
                 if (!runCatching { testAndConfigure() }.getOrElse { false }) {
                     logger.info("[STOP] [{}] Room off or non-public", room.name)
@@ -661,6 +690,7 @@ class Session(
                     }
                 }
             } catch (e: CombinedException) {
+                perf.inc("playlistCombinedError")
                 if (e.exceptions.any(shouldStop())) {
                     scope.launch { stop() }
                     break
@@ -670,6 +700,7 @@ class Session(
             } catch (_: CancellationException) {
                 break
             } catch (e: Exception) {
+                perf.inc("playlistUnexpectedError")
                 logger.error("[{}] Unexpected error in segment generator", room.name, e)
                 if (!runCatching { testAndConfigure() }.getOrElse { false }) {
                     logger.error("[STOP] [{}] Room off or non-public:", room.name)
@@ -677,6 +708,7 @@ class Session(
                 }
             }
 
+            perf.maybeLog(mapOf("running" to runningUrl.size))
             delay(500)
         }
         logger.debug("[${room.name}] Segment generator exited.")
@@ -721,11 +753,16 @@ class Session(
                 .toLongOrDefault(0))
         val diff = System.currentTimeMillis() / 1000 - created
         val wait = (20L - diff) * 1000
+        perf.inc("downloadWaitWindowComputed")
+        perf.observe("downloadWaitWindow", if (wait > 0) wait else 0)
+        perf.inc("downloadRetryInvocation")
         withTimeoutOrNull(if (wait > 0) wait else 0) {
             withRetry(25) { attempt ->
+                perf.inc("downloadRetryAttempt")
                 try {
                     c.get(event.url()).readBytes()
                 } catch (_: TimeoutCancellationException) {
+                    perf.inc("downloadTimeout")
                     null
                 } catch (e: CancellationException) {
                     throw e

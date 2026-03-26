@@ -1,5 +1,6 @@
 package github.rikacelery.v2
 
+import github.rikacelery.utils.PerfStats
 import github.rikacelery.utils.ClientManager
 import io.ktor.client.plugins.websocket.*
 import io.ktor.websocket.*
@@ -23,6 +24,7 @@ import kotlin.time.Duration.Companion.seconds
 object EventDispatcher {
     val client = ClientManager.getProxiedClient("EventDispatcher")
     val logger = LoggerFactory.getLogger(EventDispatcher::class.java)
+    private val perf = PerfStats("ws", "dispatcher", logger)
 
     @Volatile
     var wssession: AtomicReference<WebSocketSession?> = AtomicReference(null)
@@ -43,10 +45,12 @@ object EventDispatcher {
 
         while (true) {
             try {
+                perf.inc("connectAttempt")
                 logger.info("Connecting to WebSocket...")
                 client.ws(WS_URL) {
                     reconnectDelay = 1.seconds
                     wssession.set(this)
+                    perf.inc("connectSuccess")
                     logger.info("WebSocket connected. Session established.")
 
                     val connectMsg = """{"connect":{"token":"$AUTH_TOKEN","name":"js"},"id":${seq.incrementAndGet()}}"""
@@ -65,19 +69,28 @@ object EventDispatcher {
                                 if (frame !is Frame.Text) return@onReceive
 
                                 val data = frame.data.toString(Charsets.UTF_8)
+                                perf.inc("wsFrameText")
+                                perf.inc("wsFrameBytes", data.toByteArray(Charsets.UTF_8).size.toLong())
                                 when (data) {
                                     "{}" -> {
+                                        perf.inc("wsHeartbeat")
                                         outgoing.send(Frame.Text("{}"))
                                     }
 
                                     else -> {
-                                        data.lines().filter {
+                                        val emitStart = System.currentTimeMillis()
+                                        val pushLines = data.lines().filter {
                                             it.startsWith("{\"push\"")
-                                        }.forEach {
-                                            flow.emit(it )
                                         }
+                                        perf.inc("wsPushLine", pushLines.size.toLong())
+                                        pushLines.forEach {
+                                            flow.emit(it)
+                                            perf.inc("wsPushEmit")
+                                        }
+                                        perf.observe("wsEmitBatchLatency", System.currentTimeMillis() - emitStart)
                                     }
                                 }
+                                perf.maybeLog(mapOf("subscribedRooms" to subscribedRooms.size))
                             }
                         }
                     }
@@ -85,12 +98,15 @@ object EventDispatcher {
             } catch (e: Exception) {
                 wssession.set(null)
                 if (e is CancellationException) {
+                    perf.inc("cancelled")
                     logger.info("WebSocket dispatcher cancelled: ${e.message}")
                     throw e
                 }
 
+                perf.inc("wsReconnect")
                 logger.warn("WebSocket connection lost or error: ${e.message}")
                 logger.info("Reconnecting in ${reconnectDelay.inWholeSeconds}s...")
+                perf.maybeLog(mapOf("subscribedRooms" to subscribedRooms.size))
 
                 delay(reconnectDelay)
                 reconnectDelay = (reconnectDelay + 5.seconds).coerceAtMost(30.seconds)
@@ -156,6 +172,7 @@ object EventDispatcher {
         val isNewSubscription = subscribedRooms.add(roomid)
 
         if (isNewSubscription) {
+            perf.inc("subscribeAdd")
             val session = wssession.get()
             if (session != null) {
                 kotlinx.coroutines.GlobalScope.launch {
@@ -167,9 +184,19 @@ object EventDispatcher {
         }
 
         return flow.filter { data ->
-            data.contains("@$roomid")
+            perf.inc("roomFilterCheck")
+            data.contains("@$roomid").also { matched ->
+                if (matched) {
+                    perf.inc("roomFilterMatch")
+                }
+            }
         }.map { data ->
-            Json.Default.parseToJsonElement(data).jsonObject
+            val parseStart = System.currentTimeMillis()
+            Json.Default.parseToJsonElement(data).jsonObject.also {
+                perf.inc("roomJsonParse")
+                perf.observe("roomJsonParseLatency", System.currentTimeMillis() - parseStart)
+                perf.maybeLog(mapOf("subscribedRooms" to subscribedRooms.size))
+            }
         }
     }
 
@@ -179,6 +206,8 @@ object EventDispatcher {
             logger.info("Room $roomid was not subscribed.")
             return
         }
+
+        perf.inc("unsubscribe")
 
         val session = wssession.get()
         if (session != null) {
