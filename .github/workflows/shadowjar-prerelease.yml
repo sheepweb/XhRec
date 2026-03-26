@@ -40,25 +40,12 @@ jobs:
       - name: Pack browser extension
         run: tar -cvf extension.tar extension
 
-      - name: Delete existing Pre-release
-        env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-        run: |
-          gh release delete dev-build --cleanup-tag --yes || true
-
       - name: Update dev-build tag
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # remove old tag
-          git tag -d dev-build || true
-          git push origin :refs/tags/dev-build || true
-          # pointer tag to new commit
-          git tag dev-build
-          git push origin dev-build
-
-      - name: Get current time
-        run: echo "CURRENT_TIME=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_ENV
+          git tag -fa dev-build -m "CI prerelease tag"
+          git push --force origin refs/tags/dev-build
 
       - name: Create Pre-release and Upload Asset
         uses: softprops/action-gh-release@v2
@@ -72,6 +59,7 @@ jobs:
           files: |
             build/libs/*-all.jar
             extension.tar
+          overwrite_files: true
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
