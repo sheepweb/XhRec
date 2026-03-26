@@ -522,6 +522,7 @@ class Session(
         val scope = CoroutineScope(currentCoroutineContext())
         var initSent = false
         var initUrl = ""
+        var lastProcessedUrl = ""
         val cache = CircleCache(100)
         var retry = 0
         var ms = System.currentTimeMillis()
@@ -602,6 +603,7 @@ class Session(
                     // reset state
                     initSent = false
                     initUrl = ""
+                    lastProcessedUrl = ""
                     startTime = System.currentTimeMillis()
                     continue
                 }
@@ -609,6 +611,24 @@ class Session(
                 val segmentUrls = parseSegmentUrl(lines)
                 perf.observe("playlistParseLatency", System.currentTimeMillis() - parseStart)
                 perf.inc("playlistSegmentCount", segmentUrls.size.toLong())
+                val segmentUrlsToScan = if (segmentUrls.isEmpty()) {
+                    emptyList()
+                } else {
+                    val anchorIndex = lastProcessedUrl.takeIf { it.isNotBlank() }?.let { lastUrl ->
+                        segmentUrls.lastIndexOf(lastUrl)
+                    } ?: -1
+                    if (anchorIndex >= 0) {
+                        perf.inc("playlistTailReuseHit")
+                        segmentUrls.drop(anchorIndex + 1)
+                    } else {
+                        if (lastProcessedUrl.isNotBlank()) {
+                            perf.inc("playlistTailReuseMiss")
+                        }
+                        perf.inc("playlistFullScanFallback")
+                        segmentUrls
+                    }
+                }
+                perf.inc("playlistScanCount", segmentUrlsToScan.size.toLong())
                 if (segmentUrls.isEmpty()) {
                     perf.inc("playlistEmpty")
                     logger.warn("[{}] Got 0 videos from playlist, maybe decode failed!", room.name)
@@ -619,7 +639,7 @@ class Session(
                     perf.inc("initSegmentSent")
                     send(Event.LiveSegmentInit(initUrl))
                 }
-                for (url in segmentUrls) {
+                for (url in segmentUrlsToScan) {
                     // record time limit
                     if (System.currentTimeMillis() - startTime > room.timeLimit.inWholeMilliseconds && !cache.contains(
                             url
@@ -629,6 +649,7 @@ class Session(
                         // reset state
                         initSent = false
                         initUrl = ""
+                        lastProcessedUrl = ""
                         startTime = System.currentTimeMillis()
                         break
                     }
@@ -639,12 +660,14 @@ class Session(
                         // reset state
                         initSent = false
                         initUrl = ""
+                        lastProcessedUrl = ""
                         startTime = System.currentTimeMillis()
                         break
                     }
                     // normal segments
                     if (!cache.contains(url)) {
                         cache.add(url)
+                        lastProcessedUrl = url
                         perf.inc("newSegment")
                         send(Event.LiveSegmentData(url))
                     } else {
