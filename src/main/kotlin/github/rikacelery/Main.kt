@@ -1,6 +1,8 @@
 package github.rikacelery
 
 import github.rikacelery.utils.ClientManager
+import github.rikacelery.utils.getAppZoneId
+import github.rikacelery.utils.setAppZoneId
 import github.rikacelery.utils.withRetryOrNull
 import github.rikacelery.v2.API
 import github.rikacelery.v2.EventDispatcher
@@ -33,6 +35,7 @@ import org.apache.commons.cli.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.time.ZoneId
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -94,6 +97,7 @@ fun main(vararg args: String): Unit = runBlocking {
     options.addOption("t", "tmp", true, "Temp Dir [default: tmp]")
     options.addOption("p", "port", true, "Server Port [default: 8090]")
     options.addOption("u", "users", true, "Configuration File, one cookie per line [default: users.txt]")
+    options.addOption(null, "timezone", true, "Timezone ID [default: system default, e.g. Asia/Shanghai]")
 
     val commandLine: CommandLine = try {
         parser.parse(options, args)
@@ -104,6 +108,17 @@ fun main(vararg args: String): Unit = runBlocking {
     if (commandLine.hasOption("h")) {
         printCommandLineHelp(options)
     }
+
+    val timezone = commandLine.getOptionValue("timezone")?.trim()?.takeIf { it.isNotBlank() }?.let {
+        try {
+            ZoneId.of(it)
+        } catch (e: Exception) {
+            rootLogger.error("invalid timezone '{}'. expected a valid ZoneId like Asia/Shanghai", it, e)
+            return@runBlocking
+        }
+    }
+    setAppZoneId(timezone)
+    rootLogger.info("timezone: {}", getAppZoneId())
 
 
     val file = File(commandLine.getOptionValue("post", "postprocessor.json"))

@@ -3,7 +3,16 @@ package github.rikacelery.utils
 import kotlinx.coroutines.delay
 import java.time.LocalDateTime
 import java.time.ZoneId
+import java.util.concurrent.atomic.AtomicReference
 import java.util.*
+
+private val appZoneIdRef = AtomicReference<ZoneId?>(null)
+
+fun setAppZoneId(zoneId: ZoneId?) {
+    appZoneIdRef.set(zoneId)
+}
+
+fun getAppZoneId(): ZoneId = appZoneIdRef.get() ?: ZoneId.systemDefault()
 
 suspend fun <R, T> R.withMeasureTime(block: suspend R.() -> T): T {
     val start = System.currentTimeMillis()
@@ -68,7 +77,7 @@ fun Long.chunked(chunkSize: Int): List<LongRange> {
     return result
 }
 
-fun Date.toLocalDateTime(): LocalDateTime = LocalDateTime.ofInstant(toInstant(), ZoneId.systemDefault())
+fun Date.toLocalDateTime(): LocalDateTime = LocalDateTime.ofInstant(toInstant(), getAppZoneId())
 
 
 @Suppress("unused")
