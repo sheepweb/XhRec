@@ -12,7 +12,10 @@ import org.slf4j.LoggerFactory
 import java.util.*
 
 class Scheduler(
-    private val dest: String, private val tmp: String, private val listUpdate: suspend (self: Scheduler) -> Unit = {}
+    private val dest: String,
+    private val tmp: String,
+    private val listUpdate: suspend (self: Scheduler) -> Unit = {},
+    private val inactiveSessionRefresh: suspend (Session) -> Unit = { it.updateInfo() },
 ) {
     data class State(val room: Room, var listen: Boolean) {
         override fun hashCode(): Int {
@@ -42,9 +45,14 @@ class Scheduler(
 
     suspend fun stop() {
         val start = System.currentTimeMillis()
+        val activeJob = opLock.withLock {
+            val currentJob = job
+            job = null
+            currentJob
+        }
         logger.info("cancel job")
-        job?.cancel()
-        job?.join()
+        activeJob?.cancel()
+        activeJob?.join()
         logger.info("stop sessions")
         sessions.values.map {
             scope.launch { it.stop() }
@@ -57,11 +65,19 @@ class Scheduler(
 
     suspend fun start(wait: Boolean = true): Job? {
         val lockWaitStart = System.currentTimeMillis()
-        opLock.withLock {
+        val activeJob = opLock.withLock {
             perf.observe("schedulerOpLockWaitLatency", System.currentTimeMillis() - lockWaitStart)
             val holdStart = System.currentTimeMillis()
-            if (job != null) return@withLock
-            job = scope.launch {
+            val existingJob = job
+            if (existingJob?.isActive == true) {
+                perf.observe("schedulerOpLockHoldLatency", System.currentTimeMillis() - holdStart)
+                return@withLock existingJob
+            }
+            if (existingJob?.isCompleted == true || existingJob?.isCancelled == true) {
+                job = null
+            }
+            gracefulStop = false
+            val newJob = scope.launch {
                 listOf(launch {
                     while (currentCoroutineContext().isActive && !gracefulStop) {
                         looplisten()
@@ -70,10 +86,13 @@ class Scheduler(
                 }, launch {
                     while (currentCoroutineContext().isActive && !gracefulStop) {
                         //fixme data racing
-                        sessions
-                            .filterKeys { !it.listen }
-                            .forEach { it.value.updateInfo() }
-                        perf.inc("schedulerUpdateInfoCount", sessions.keys.count { !it.listen }.toLong())
+                        val inactiveSessions = sessions.filterKeys { !it.listen }
+                        inactiveSessions.forEach {
+                            runCatching { inactiveSessionRefresh(it.value) }.onFailure { error ->
+                                logger.warn("inactive session refresh failed for {}", it.key.room.name, error)
+                            }
+                        }
+                        perf.inc("schedulerUpdateInfoCount", inactiveSessions.size.toLong())
                         perf.maybeLog(mapOf("trackedRooms" to sessions.size, "activeSessions" to sessions.values.count { it.isActive }))
                         delay(10 * 60_000) // 10 minute
                     }
@@ -81,11 +100,13 @@ class Scheduler(
             }
             perf.inc("schedulerStartCount")
             perf.observe("schedulerOpLockHoldLatency", System.currentTimeMillis() - holdStart)
+            job = newJob
+            newJob
         }
         perf.maybeLog(mapOf("trackedRooms" to sessions.size, "activeSessions" to sessions.values.count { it.isActive }))
         logger.info("scheduler started")
-        if (wait) job?.join()
-        return job
+        if (wait) activeJob.join()
+        return activeJob
     }
 
     suspend fun looplisten() {

@@ -178,12 +178,11 @@ fun main(vararg args: String): Unit = runBlocking {
     File(commandLine.getOptionValue("t", "tmp")).mkdirs()
     val scheduler =
         Scheduler(
-            commandLine.getOptionValue("o", "out"),
-            commandLine.getOptionValue("t", "tmp"),
-
-            ) { scheduler ->
+            dest = commandLine.getOptionValue("o", "out"),
+            tmp = commandLine.getOptionValue("t", "tmp"),
+            listUpdate = { scheduler ->
             saveJobFile(jobFile, scheduler)
-        }
+        })
     rooms.forEach {
         File("screenshot/${it.first.name}").mkdir()
         scheduler.add(it.first, it.second)

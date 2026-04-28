@@ -96,6 +96,34 @@ class Session(
         val total: Int, val success: Int, val failed: Int, val bytesWrite: Long, val running: Map<String, UrlInfo>
     )
 
+    internal enum class PlaylistFailureAction {
+        RETRY_CURRENT_SESSION,
+        STOP_CURRENT_SESSION,
+        FALLBACK_QUALITY_AND_STOP
+    }
+
+    internal fun playlistFailureAction(
+        statusCode: Int,
+        roomStillRecordable: Boolean,
+        currentQuality: String,
+    ): PlaylistFailureAction {
+        if (!roomStillRecordable) {
+            return PlaylistFailureAction.STOP_CURRENT_SESSION
+        }
+        return when (statusCode) {
+            404 -> PlaylistFailureAction.RETRY_CURRENT_SESSION
+            403 -> {
+                if (currentQuality == "raw") {
+                    PlaylistFailureAction.FALLBACK_QUALITY_AND_STOP
+                } else {
+                    PlaylistFailureAction.RETRY_CURRENT_SESSION
+                }
+            }
+
+            else -> PlaylistFailureAction.STOP_CURRENT_SESSION
+        }
+    }
+
     fun status(): Status {
         synchronized(runningUrl) {
             val data = metric.data ?: MetricItem()
@@ -684,32 +712,33 @@ class Session(
                 }
                 continue
             } catch (e: ClientRequestException) {
-                if (e.response.status.value == 404) {
-                    logger.info(
-                        "[STOP] [{}] Stream url returns 404, this is caused by model's network connection issue",
-                        room.name
-                    )
-                    break
-                }
-                if (e.response.status.value == 403) {
-                    if (!runCatching { testAndConfigure() }.getOrElse { false }) {
-                        logger.info("[STOP] [{}] Room off or non-public (403)", room.name)
-                        break
-                    } else if (currentQuality == "raw") {
-                        // https://github.com/RikaCelery/XhRec/issues/2
-                        logger.warn(
-                            "[{}] Unable to use 'raw' quality, try using the highest one. Room will stop record now",
-                            room.name
-                        )
-                        room.quality = "2560p60" // try selecting the highest quality
-                        break
-                    } else {
-                        logger.error(
-                            "[STOP] [{}] Refresh list error {}. Stop recording",
-                            room.name,
-                            e.response.status.value
-                        )
-                        break
+                if (e.response.status.value == 404 || e.response.status.value == 403) {
+                    val roomStillRecordable = runCatching { testAndConfigure() }.getOrElse { false }
+                    when (playlistFailureAction(e.response.status.value, roomStillRecordable, currentQuality)) {
+                        PlaylistFailureAction.RETRY_CURRENT_SESSION -> {
+                            logger.warn(
+                                "[RETRY] [{}] Refresh list error {} but room is still available. Keep current session alive.",
+                                room.name,
+                                e.response.status.value
+                            )
+                            delay(1_000)
+                            continue
+                        }
+
+                        PlaylistFailureAction.STOP_CURRENT_SESSION -> {
+                            logger.info("[STOP] [{}] Room off or non-public ({})", room.name, e.response.status.value)
+                            break
+                        }
+
+                        PlaylistFailureAction.FALLBACK_QUALITY_AND_STOP -> {
+                            // https://github.com/RikaCelery/XhRec/issues/2
+                            logger.warn(
+                                "[{}] Unable to use 'raw' quality, try using the highest one. Room will restart with fallback quality.",
+                                room.name
+                            )
+                            room.quality = "2560p60" // try selecting the highest quality
+                            break
+                        }
                     }
                 }
             } catch (e: CombinedException) {
