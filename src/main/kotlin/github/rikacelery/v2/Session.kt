@@ -120,6 +120,8 @@ class Session(
                 }
             }
 
+            in 500..599 -> PlaylistFailureAction.RETRY_CURRENT_SESSION
+
             else -> PlaylistFailureAction.STOP_CURRENT_SESSION
         }
     }
@@ -711,34 +713,33 @@ class Session(
                     break
                 }
                 continue
-            } catch (e: ClientRequestException) {
-                if (e.response.status.value == 404 || e.response.status.value == 403) {
-                    val roomStillRecordable = runCatching { testAndConfigure() }.getOrElse { false }
-                    when (playlistFailureAction(e.response.status.value, roomStillRecordable, currentQuality)) {
-                        PlaylistFailureAction.RETRY_CURRENT_SESSION -> {
-                            logger.warn(
-                                "[RETRY] [{}] Refresh list error {} but room is still available. Keep current session alive.",
-                                room.name,
-                                e.response.status.value
-                            )
-                            delay(1_000)
-                            continue
-                        }
+            } catch (e: ResponseException) {
+                val statusCode = e.response.status.value
+                val roomStillRecordable = runCatching { testAndConfigure() }.getOrElse { false }
+                when (playlistFailureAction(statusCode, roomStillRecordable, currentQuality)) {
+                    PlaylistFailureAction.RETRY_CURRENT_SESSION -> {
+                        logger.warn(
+                            "[RETRY] [{}] Refresh list error {} but room is still available. Keep current session alive.",
+                            room.name,
+                            statusCode
+                        )
+                        delay(1_000)
+                        continue
+                    }
 
-                        PlaylistFailureAction.STOP_CURRENT_SESSION -> {
-                            logger.info("[STOP] [{}] Room off or non-public ({})", room.name, e.response.status.value)
-                            break
-                        }
+                    PlaylistFailureAction.STOP_CURRENT_SESSION -> {
+                        logger.info("[STOP] [{}] Room off or non-public ({})", room.name, statusCode)
+                        break
+                    }
 
-                        PlaylistFailureAction.FALLBACK_QUALITY_AND_STOP -> {
-                            // https://github.com/RikaCelery/XhRec/issues/2
-                            logger.warn(
-                                "[{}] Unable to use 'raw' quality, try using the highest one. Room will restart with fallback quality.",
-                                room.name
-                            )
-                            room.quality = "2560p60" // try selecting the highest quality
-                            break
-                        }
+                    PlaylistFailureAction.FALLBACK_QUALITY_AND_STOP -> {
+                        // https://github.com/RikaCelery/XhRec/issues/2
+                        logger.warn(
+                            "[{}] Unable to use 'raw' quality, try using the highest one. Room will restart with fallback quality.",
+                            room.name
+                        )
+                        room.quality = "2560p60" // try selecting the highest quality
+                        break
                     }
                 }
             } catch (e: CombinedException) {

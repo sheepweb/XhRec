@@ -62,4 +62,17 @@ class SessionTest {
 
         assertEquals(Session.PlaylistFailureAction.STOP_CURRENT_SESSION, action)
     }
+
+    @Test
+    fun `504 keeps current session alive when room is still recordable`() {
+        val session = newSession()
+
+        val action = session.playlistFailureAction(
+            statusCode = 504,
+            roomStillRecordable = true,
+            currentQuality = "720p",
+        )
+
+        assertEquals(Session.PlaylistFailureAction.RETRY_CURRENT_SESSION, action)
+    }
 }
