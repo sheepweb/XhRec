@@ -126,6 +126,46 @@ class Session(
         }
     }
 
+    internal fun selectPlaybackQuality(
+        requestedQuality: String,
+        availableQualities: List<String>,
+    ): String {
+        if (requestedQuality == "raw") {
+            return "raw"
+        }
+
+        val qualities = availableQualities.filterNot { it.contains("blurred") }
+        val qualityPattern = Regex("^(\\d+)p(?:(\\d+))?$")
+        fun parseQuality(value: String): Pair<Int, Int>? {
+            val match = qualityPattern.matchEntire(value) ?: return null
+            val resolution = match.groupValues[1].toIntOrNull() ?: return null
+            val fps = match.groupValues.getOrNull(2)?.takeIf { it.isNotEmpty() }?.toIntOrNull() ?: 30
+            return resolution to fps
+        }
+
+        val parsedQualities = qualities.mapNotNull { quality ->
+            parseQuality(quality)?.let { parsed -> quality to parsed }
+        }
+        val requested = parseQuality(requestedQuality)
+
+        if (requested != null && parsedQualities.isNotEmpty() && parsedQualities.maxOf { it.second.first } < requested.first) {
+            return "raw"
+        }
+
+        return qualities.lastOrNull { it == requestedQuality } ?: when {
+            requested != null -> parsedQualities
+                .minByOrNull { (_, parsed) ->
+                    abs(parsed.first - requested.first) + abs(parsed.second - requested.second)
+                }
+                ?.first
+
+            else -> {
+                logger.warn("[{}] invalid quality setting '{}', fallback to available presets {}", room.name, requestedQuality, qualities)
+                null
+            }
+        } ?: qualities.lastOrNull() ?: "raw"
+    }
+
     fun status(): Status {
         synchronized(runningUrl) {
             val data = metric.data ?: MetricItem()
@@ -225,32 +265,7 @@ class Session(
 
             val presets = info.PathSingle("item.settings.presets").jsonArray
             val qualities = presets.map { element -> element.asString() }
-                .filterNot { it.contains("blurred") }
-            val qualityPattern = Regex("^(\\d+)p(?:(\\d+))?$")
-            fun parseQuality(value: String): Pair<Int, Int>? {
-                val match = qualityPattern.matchEntire(value) ?: return null
-                val resolution = match.groupValues[1].toIntOrNull() ?: return null
-                val fps = match.groupValues.getOrNull(2)?.takeIf { it.isNotEmpty() }?.toIntOrNull() ?: 30
-                return resolution to fps
-            }
-
-            val requestedQuality = parseQuality(room.quality)
-            val q = qualities.lastOrNull { it == room.quality } ?: when {
-                requestedQuality != null -> qualities
-                    .mapNotNull { quality ->
-                        parseQuality(quality)?.let { parsed -> quality to parsed }
-                    }
-                    .minByOrNull { (_, parsed) ->
-                        abs(parsed.first - requestedQuality.first) + abs(parsed.second - requestedQuality.second)
-                    }
-                    ?.first
-
-                else -> {
-                    logger.warn("[{}] invalid quality setting '{}', fallback to available presets {}", room.name, room.quality, qualities)
-                    null
-                }
-            }
-            val new = q ?: qualities.lastOrNull() ?: "raw"
+            val new = selectPlaybackQuality(room.quality, qualities)
             logger.trace("[{}] select {} from {} (want {})", room.name, new, qualities, room.quality)
             if (currentQuality != new && !isActive) {
                 logger.info("[{}] quality changed to {} (want {})", room.name, new, room.quality)

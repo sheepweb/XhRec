@@ -49,3 +49,5 @@ bin/
 /list.conf
 /list.txt
 ./logback.xml
+/.gradle-home/
+/logs/

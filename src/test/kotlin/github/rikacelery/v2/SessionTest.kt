@@ -75,4 +75,28 @@ class SessionTest {
 
         assertEquals(Session.PlaylistFailureAction.RETRY_CURRENT_SESSION, action)
     }
+
+    @Test
+    fun `low quality presets fall back to raw`() {
+        val session = newSession()
+
+        val selected = session.selectPlaybackQuality(
+            requestedQuality = "720p",
+            availableQualities = listOf("480p", "240p", "160p"),
+        )
+
+        assertEquals("raw", selected)
+    }
+
+    @Test
+    fun `requested quality is preserved when presets include matching quality family`() {
+        val session = newSession()
+
+        val selected = session.selectPlaybackQuality(
+            requestedQuality = "720p",
+            availableQualities = listOf("1080p", "720p", "480p"),
+        )
+
+        assertEquals("720p", selected)
+    }
 }
