@@ -101,12 +101,58 @@ class SessionTest {
     }
 
     @Test
-    fun `stream buckets rotate in fixed order`() {
+    fun `master playlist selects requested named variant before source fallback`() {
         val session = newSession()
 
-        assertEquals(18, session.nextStreamBucket())
-        assertEquals(12, session.nextStreamBucket())
-        assertEquals(13, session.nextStreamBucket())
-        assertEquals(18, session.nextStreamBucket())
+        val selected = session.selectVariantFromMasterPlaylist(
+            requestedQuality = "720p",
+            lines = listOf(
+                "#EXTM3U",
+                "#EXT-X-STREAM-INF:BANDWIDTH=3009740,NAME=\"source\"",
+                "https://media-hls.doppiocdn.org/b-hls-18/1/1.m3u8?playlistType=lowLatency",
+                "#EXT-X-STREAM-INF:BANDWIDTH=1000000,NAME=\"480p\"",
+                "https://media-hls.doppiocdn.org/b-hls-18/1/1_240p.m3u8",
+                "#EXT-X-STREAM-INF:BANDWIDTH=2500000,NAME=\"720p\"",
+                "https://media-hls.doppiocdn.org/b-hls-18/1/1_720p.m3u8",
+            ),
+        )
+
+        assertEquals("https://media-hls.doppiocdn.org/b-hls-18/1/1_720p.m3u8", selected)
+    }
+
+    @Test
+    fun `master playlist falls back to source when requested quality is unavailable`() {
+        val session = newSession()
+
+        val selected = session.selectVariantFromMasterPlaylist(
+            requestedQuality = "720p",
+            lines = listOf(
+                "#EXTM3U",
+                "#EXT-X-STREAM-INF:BANDWIDTH=3009740,NAME=\"source\"",
+                "https://media-hls.doppiocdn.org/b-hls-18/1/1.m3u8?playlistType=lowLatency",
+                "#EXT-X-STREAM-INF:BANDWIDTH=1000000,NAME=\"480p\"",
+                "https://media-hls.doppiocdn.org/b-hls-18/1/1_240p.m3u8",
+            ),
+        )
+
+        assertEquals("https://media-hls.doppiocdn.org/b-hls-18/1/1.m3u8?playlistType=lowLatency", selected)
+    }
+
+    @Test
+    fun `master playlist selects source for raw requests`() {
+        val session = newSession()
+
+        val selected = session.selectVariantFromMasterPlaylist(
+            requestedQuality = "raw",
+            lines = listOf(
+                "#EXTM3U",
+                "#EXT-X-STREAM-INF:BANDWIDTH=3009740,NAME=\"source\"",
+                "https://media-hls.doppiocdn.org/b-hls-18/1/1.m3u8?playlistType=lowLatency",
+                "#EXT-X-STREAM-INF:BANDWIDTH=1000000,NAME=\"480p\"",
+                "https://media-hls.doppiocdn.org/b-hls-18/1/1_480p.m3u8",
+            ),
+        )
+
+        assertEquals("https://media-hls.doppiocdn.org/b-hls-18/1/1.m3u8?playlistType=lowLatency", selected)
     }
 }

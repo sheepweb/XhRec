@@ -166,6 +166,49 @@ class Session(
         } ?: qualities.lastOrNull() ?: "raw"
     }
 
+    private data class StreamVariant(
+        val name: String,
+        val url: String,
+    )
+
+    private fun parseMasterVariants(lines: List<String>): List<StreamVariant> {
+        val namePattern = Regex("""NAME="([^"]+)"""")
+        return lines.mapIndexedNotNull { index, line ->
+            if (!line.startsWith("#EXT-X-STREAM-INF")) {
+                return@mapIndexedNotNull null
+            }
+            val url = lines.getOrNull(index + 1)?.takeIf { it.startsWith("https://") } ?: return@mapIndexedNotNull null
+            val name = namePattern.find(line)?.groupValues?.getOrNull(1) ?: return@mapIndexedNotNull null
+            StreamVariant(name = name, url = url)
+        }
+    }
+
+    internal fun selectVariantFromMasterPlaylist(
+        requestedQuality: String,
+        lines: List<String>,
+    ): String? {
+        val variants = parseMasterVariants(lines)
+        if (variants.isEmpty()) {
+            return null
+        }
+        return if (requestedQuality == "raw") {
+            variants.firstOrNull { it.name == "source" }?.url
+                ?: variants.firstOrNull()?.url
+        } else {
+            variants.firstOrNull { it.name == requestedQuality }?.url
+                ?: variants.firstOrNull { it.name == "source" }?.url
+                ?: variants.firstOrNull()?.url
+        }
+    }
+
+    private suspend fun resolveVariantPlaylistUrl(client: io.ktor.client.HttpClient): String {
+        return withRetry(3, stopIf = shouldStop()) {
+            val masterLines = client.get(masterPlaylistUrl).bodyAsText().lines()
+            selectVariantFromMasterPlaylist(room.quality, masterLines)
+                ?: throw IllegalArgumentException("No playable variants found in master playlist")
+        }
+    }
+
     fun status(): Status {
         synchronized(runningUrl) {
             val data = metric.data ?: MetricItem()
@@ -542,27 +585,14 @@ class Session(
     }
 
     private var modelToken: String? = null
-    private val streamBuckets = intArrayOf(18, 12, 13)
-    private var streamBucketIndex = 0
-    internal fun nextStreamBucket(): Int = streamBuckets[streamBucketIndex].also {
-        streamBucketIndex = (streamBucketIndex + 1) % streamBuckets.size
-    }
 
-    private val streamUrl: String
+    private val masterPlaylistUrl: String
         get() = buildUrl {
-            val token = modelToken
-            val bucket = nextStreamBucket()
             protocol = URLProtocol.HTTPS
-            host = "media-hls.doppiocdn.org"
-            encodedPath =
-                if (currentQuality != "raw" && currentQuality.isNotBlank()) "b-hls-%d/%d/%d_%s.m3u8".format(
-                    bucket, room.id, room.id, currentQuality
-                ) else "b-hls-%d/%d/%d.m3u8".format(
-                    bucket, room.id, room.id
-                )
-            if (token != null) {
-                parameters["aclAuth"] = token
-            }
+            host = "edge-hls.doppiocdn.org"
+            encodedPath = "hls/${room.id}/master/${room.id}_auto.m3u8"
+            parameters["minHeight"] = "240"
+            parameters["playlistType"] = "lowLatency"
         }.toString()
 
     private val eventFinish = LinkedBlockingQueue<Event>()
@@ -591,15 +621,9 @@ class Session(
                 perf.inc("playlistPoll")
                 val pollStart = System.currentTimeMillis()
                 val lines = withTimeout(5_000) {
-                    val rawList = (ClientManager.getProxiedClient(room.name)).get(
-                        streamUrl
-                    ) {
-//                        parameter("psch", "v1")
-//                        parameter("pkey", AUTH_KEY)
-                        parameter("psch", "v2")
-                        parameter("pkey", AUTH_KEY_V2)
-                        parameter("preferredVideoCodec", "H265")
-                    }.bodyAsText().lines()
+                    val client = ClientManager.getProxiedClient(room.name)
+                    val playlistUrl = resolveVariantPlaylistUrl(client)
+                    val rawList = client.get(playlistUrl).bodyAsText().lines()
                     if (logger.isTraceEnabled) {
                         File("${room.name}.m3u8").writeText(rawList.joinToString("\n"))
                     }
@@ -729,7 +753,7 @@ class Session(
                 retry = 0
             } catch (_: TimeoutCancellationException) {
                 perf.inc("playlistTimeout")
-                logger.warn("[${room.name}] Refresh list timeout {}, trys={}", streamUrl, retry)
+                logger.warn("[${room.name}] Refresh list timeout {}, trys={}", masterPlaylistUrl, retry)
                 if (!runCatching { testAndConfigure() }.getOrElse { false }) {
                     logger.info("[STOP] [{}] Room off or non-public", room.name)
                     break
