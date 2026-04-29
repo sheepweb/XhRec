@@ -99,4 +99,14 @@ class SessionTest {
 
         assertEquals("720p", selected)
     }
+
+    @Test
+    fun `stream buckets rotate in fixed order`() {
+        val session = newSession()
+
+        assertEquals(18, session.nextStreamBucket())
+        assertEquals(12, session.nextStreamBucket())
+        assertEquals(13, session.nextStreamBucket())
+        assertEquals(18, session.nextStreamBucket())
+    }
 }

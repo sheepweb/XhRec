@@ -542,16 +542,23 @@ class Session(
     }
 
     private var modelToken: String? = null
+    private val streamBuckets = intArrayOf(18, 12, 13)
+    private var streamBucketIndex = 0
+    internal fun nextStreamBucket(): Int = streamBuckets[streamBucketIndex].also {
+        streamBucketIndex = (streamBucketIndex + 1) % streamBuckets.size
+    }
+
     private val streamUrl: String
         get() = buildUrl {
             val token = modelToken
+            val bucket = nextStreamBucket()
             protocol = URLProtocol.HTTPS
             host = "media-hls.doppiocdn.org"
             encodedPath =
                 if (currentQuality != "raw" && currentQuality.isNotBlank()) "b-hls-%d/%d/%d_%s.m3u8".format(
-                    Random().nextInt(12, 13), room.id, room.id, currentQuality
+                    bucket, room.id, room.id, currentQuality
                 ) else "b-hls-%d/%d/%d.m3u8".format(
-                    Random().nextInt(12, 13), room.id, room.id
+                    bucket, room.id, room.id
                 )
             if (token != null) {
                 parameters["aclAuth"] = token
