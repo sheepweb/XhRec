@@ -201,10 +201,19 @@ class Session(
         }
     }
 
+    internal fun appendPlaylistQueryParams(url: String): String {
+        return URLBuilder(url).apply {
+            parameters["psch"] = "v2"
+            parameters["pkey"] = AUTH_KEY_V2
+            parameters["preferredVideoCodec"] = "H265"
+        }.buildString()
+    }
+
     private suspend fun resolveVariantPlaylistUrl(client: io.ktor.client.HttpClient): String {
         return withRetry(3, stopIf = shouldStop()) {
             val masterLines = client.get(masterPlaylistUrl).bodyAsText().lines()
             selectVariantFromMasterPlaylist(room.quality, masterLines)
+                ?.let(::appendPlaylistQueryParams)
                 ?: throw IllegalArgumentException("No playable variants found in master playlist")
         }
     }

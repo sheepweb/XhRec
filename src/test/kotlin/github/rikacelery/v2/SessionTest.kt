@@ -155,4 +155,18 @@ class SessionTest {
 
         assertEquals("https://media-hls.doppiocdn.org/b-hls-18/1/1.m3u8?playlistType=lowLatency", selected)
     }
+
+    @Test
+    fun `playlist url keeps existing query and appends program auth params`() {
+        val session = newSession()
+
+        val normalized = session.appendPlaylistQueryParams(
+            "https://media-hls.doppiocdn.org/b-hls-18/1/1.m3u8?playlistType=lowLatency",
+        )
+
+        assertEquals(
+            "https://media-hls.doppiocdn.org/b-hls-18/1/1.m3u8?playlistType=lowLatency&psch=v2&pkey=${Session.AUTH_KEY_V2}&preferredVideoCodec=H265",
+            normalized,
+        )
+    }
 }
