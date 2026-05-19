@@ -13,7 +13,7 @@ sealed interface SchedulerMsg
 data class OnSchedulerEvent(val event: Any) : SchedulerMsg
 data class SchedulerHandleCommand(val env: CommandEnvelope) : SchedulerMsg
 object LoopListen : SchedulerMsg
-private data class RoomAddedMsg(val ori: RoomAdded): SchedulerMsg
+
 data class ArmedRoom(val roomId: Long, val roomName: String, val quality: String)
 
 class SchedulerComponent(
@@ -33,7 +33,6 @@ class SchedulerComponent(
         subscribe<WriterFatal>(WriterFatal::class)
         subscribe<AuthExpired>(AuthExpired::class)
         subscribe<CommandEnvelope>(CommandEnvelope::class)
-        subscribe<RoomAdded>(RoomAdded::class)
 
         scope.launch {
             while (isActive) {
@@ -49,7 +48,6 @@ class SchedulerComponent(
         is WriterFatal -> OnSchedulerEvent(event)
         is AuthExpired -> OnSchedulerEvent(event)
         is CommandEnvelope -> SchedulerHandleCommand(event)
-        is RoomAdded -> RoomAddedMsg(event)
         else -> null
     }
 
@@ -59,17 +57,7 @@ class SchedulerComponent(
             is SchedulerHandleCommand -> {
                 handleCommand(msg.env)
             }
-            is RoomAddedMsg ->{
 
-                val add = msg.ori
-                try {
-                    val name = add.name
-                    val config = requestBus.request<RoomConfigResponse>(GetRoomConfig(add.roomId))
-                    armed[add.roomId] = ArmedRoom(add.roomId, name, config.quality)
-                } catch (e: Exception) { /* room offline, armed and waiting */
-                    e.printStackTrace()
-                }
-            }
             is LoopListen -> loopListen()
         }
     }
@@ -92,8 +80,7 @@ class SchedulerComponent(
             }
 
             is RecordingStopped -> {
-                logger.debug("Recording stopped for room {}, removing from armed", event.roomId)
-                armed.remove(event.roomId)
+                logger.debug("Recording stopped for room {}", event.roomId)
             }
 
             is DownloadError -> logger.warn("Download error room ${event.roomId}: ${event.reason}")
@@ -108,6 +95,7 @@ class SchedulerComponent(
 
     fun internalAdd(room: Long, name1: String, quality: String, isArmed: Boolean) {
         armed[room] = ArmedRoom(room, name1, quality)
+        if (isArmed) logger.info("Room {} ({}) armed and waiting", name1, room)
     }
 
     private suspend fun handleCommand(env: CommandEnvelope) {
@@ -133,6 +121,7 @@ class SchedulerComponent(
                     val name = requestBus.request<RoomNameResponse>(GetRoomName(env.command.roomId)).name
                     val config = requestBus.request<RoomConfigResponse>(GetRoomConfig(env.command.roomId))
                     armed[env.command.roomId] = ArmedRoom(env.command.roomId, name, config.quality)
+                    logger.info("Room {} ({}) activated (armed)", name, env.command.roomId)
                 } catch (_: Exception) {
                 }
                 OkResponse
@@ -140,6 +129,7 @@ class SchedulerComponent(
 
             is DeactivateCmd -> {
                 armed.remove(env.command.roomId)
+                logger.info("Room {} deactivated", env.command.roomId)
                 sessionComponent.tell(DoStop(env.command.roomId))
                 OkResponse
             }
@@ -149,9 +139,9 @@ class SchedulerComponent(
                 OkResponse
             }
 
+            is GetArmedRoomIds -> armed.keys().toList()
             is ShutdownCmd -> {
                 gracefulStop = true
-                eventBus.publish("ServerShutdown")
                 OkResponse
             }
 

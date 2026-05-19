@@ -20,6 +20,7 @@ object M3u8Parser {
         }
     }
 
+    // TODO: handle #EXT-X-PART low-latency segments (v2 fallback: plain https://*.mp4 URLs)
     suspend fun parse(m3u8Text: String, decryptKey: String): ParsedPlaylist {
         val rawList = m3u8Text.lines()
         val segments = mutableListOf<Segment>()
@@ -58,7 +59,7 @@ object M3u8Parser {
     }
 
 
-    private fun segmentIDFromUrl(url: String): Int? {
+    fun segmentIDFromUrl(url: String): Int? {
 //        roomid_480p_h265_SEGMENTID_XXXXXXXXXXX_timestamp.mp4 transcended stream
 //        roomid_SEGMENTID_XXXXXXXXXXX_timestamp.mp4 raw stream
         val parts = url.substringAfterLast("/").split("_")

@@ -6,6 +6,7 @@ import github.rikacelery.v3.core.EventBus
 import github.rikacelery.v3.data.*
 import github.rikacelery.v3.events.EndReason
 import github.rikacelery.v3.events.FileReady
+import github.rikacelery.v3.events.WriterFatal
 import github.rikacelery.v3.hooks.WriterHook
 import kotlinx.coroutines.*
 import java.io.File
@@ -29,14 +30,8 @@ data class ActiveFile(
     var bytesWritten: Long = 0
 ) {
     fun dispose() {
-        try {
-            fos.close()
-        } catch (_: Exception) {
-        }
-        try {
-            eventFos.close()
-        } catch (_: Exception) {
-        }
+        try { fos.close() } catch (_: Exception) {}
+        try { eventFos.close() } catch (_: Exception) {}
         file.delete()
         eventFile.delete()
     }
@@ -48,8 +43,7 @@ class WriterComponent(
     private val tmpDir: File,
     private val hooks: List<WriterHook> = emptyList(),
     eventBus: EventBus,
-    parentScope: CoroutineScope,
-    private val metricComponent: MetricComponent? = null
+    parentScope: CoroutineScope
 ) : Actor<WriterMsg>("WriterComponent", eventBus, parentScope) {
 
     private val files = ConcurrentHashMap<Long, ActiveFile>()
@@ -74,60 +68,81 @@ class WriterComponent(
     private suspend fun handleStreamStart(msg: StreamStart) {
         val timestamp = timeFormatter.format(msg.startTime)
         var path = "${tmpDir.absolutePath}/${msg.roomName}-$timestamp-init.mp4"
-        hooks.forEach { path = it.beforeFileOpen(msg.roomId, path) }
+        try {
+            hooks.forEach { path = it.beforeFileOpen(msg.roomId, path) }
 
-        val file = File(path)
-        file.parentFile?.mkdirs()
-        val eventFile = File("$path.event")
+            val file = File(path)
+            file.parentFile?.mkdirs()
+            val eventFile = File("$path.event")
 
-        files[msg.roomId] = ActiveFile(
-            file = file, eventFile = eventFile,
-            fos = FileOutputStream(file), eventFos = FileOutputStream(eventFile),
-            roomId = msg.roomId, roomName = msg.roomName, startTime = msg.startTime
-        )
-        logger.info("Opened file: $path")
+            files[msg.roomId] = ActiveFile(
+                file = file, eventFile = eventFile,
+                fos = FileOutputStream(file), eventFos = FileOutputStream(eventFile),
+                roomId = msg.roomId, roomName = msg.roomName, startTime = msg.startTime
+            )
+            logger.info("Opened file: $path")
+        } catch (e: Exception) {
+            logger.error("Failed to open file for room ${msg.roomId}: ${e.message}", e)
+            eventBus.publish(WriterFatal(msg.roomId, e.message ?: "Unknown error"))
+            files.remove(msg.roomId)?.dispose()
+        }
     }
 
     private suspend fun handleStreamData(msg: StreamData) {
-        val active = files[msg.roomId] ?: run {
-            logger.info("drop {} {}", msg.roomId, msg.meta.url)
-            return
+        val active = files[msg.roomId] ?: return
+        try {
+            var data = msg.data
+            hooks.forEach { data = it.beforeWrite(msg.roomId, data) }
+            logger.trace("Receive {} {}",msg.roomId,msg.meta.url)
+            active.fos.write(data)
+            active.bytesWritten += data.size
+        } catch (e: Exception) {
+            logger.error("Failed to write data for room ${msg.roomId}: ${e.message}", e)
+            eventBus.publish(WriterFatal(msg.roomId, e.message ?: "Unknown error"))
+            files.remove(msg.roomId)?.dispose()
         }
-        var data = msg.data
-        hooks.forEach { data = it.beforeWrite(msg.roomId, data) }
-        active.fos.write(data)
-        active.bytesWritten += data.size
-        metricComponent?.addBytes(msg.roomId, data.size.toLong())
     }
 
     private suspend fun handleStreamEnd(msg: StreamEnd) {
         val active = files.remove(msg.roomId) ?: return
-        if (active.bytesWritten < 1024) {
-            // Too few bytes — dispose and don't publish FileReady
+        try {
+            if (active.bytesWritten < 1024) {
+                // Too few bytes — dispose and don't publish FileReady
+                active.dispose()
+                return
+            }
+            active.fos.close()
+            active.eventFos.close()
+
+            val endTime = Instant.now()
+            val durationMs = java.time.Duration.between(active.startTime, endTime).toMillis()
+            val durFmt = formatDurationHM(durationMs)
+            val finalName = "${active.roomName}-${timeFormatter.format(active.startTime)}-${durFmt}.mp4"
+            val finalFile = File(outputDir, finalName)
+            active.file.renameTo(finalFile)
+
+            val finalEvent = File(outputDir, "$finalName.event")
+            active.eventFile.renameTo(finalEvent)
+
+            hooks.forEach { it.afterFileClosed(msg.roomId, finalFile) }
+            eventBus.publish(FileReady(msg.roomId, finalFile, msg.reason))
+            logger.info("Closed file: ${finalFile.absolutePath}, reason=${msg.reason}")
+        } catch (e: Exception) {
+            logger.error("Failed to close file for room ${msg.roomId}: ${e.message}", e)
+            eventBus.publish(WriterFatal(msg.roomId, e.message ?: "Unknown error"))
             active.dispose()
-            return
         }
-        active.fos.close()
-        active.eventFos.close()
-
-        val endTime = Instant.now()
-        val durationMs = java.time.Duration.between(active.startTime, endTime).toMillis()
-        val durFmt = formatDurationHM(durationMs)
-        val finalName = "${active.roomName}-${timeFormatter.format(active.startTime)}-${durFmt}.mp4"
-        val finalFile = File(outputDir, finalName)
-        active.file.renameTo(finalFile)
-
-        val finalEvent = File(outputDir, "$finalName.event")
-        active.eventFile.renameTo(finalEvent)
-
-        hooks.forEach { it.afterFileClosed(msg.roomId, finalFile) }
-        eventBus.publish(FileReady(msg.roomId, finalFile, msg.reason))
-        logger.info("Closed file: ${finalFile.absolutePath}, reason=${msg.reason}")
     }
 
     private suspend fun handleStreamEvent(msg: StreamEvent) {
         val active = files[msg.roomId] ?: return
-        active.eventFos.write((msg.eventJson + "\n").toByteArray())
+        try {
+            active.eventFos.write((msg.eventJson + "\n").toByteArray())
+        } catch (e: Exception) {
+            logger.error("Failed to write event for room ${msg.roomId}: ${e.message}", e)
+            eventBus.publish(WriterFatal(msg.roomId, e.message ?: "Unknown error"))
+            files.remove(msg.roomId)?.dispose()
+        }
     }
 
     private fun formatDurationHM(ms: Long): String {

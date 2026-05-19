@@ -1,6 +1,5 @@
 package github.rikacelery.v3.core
 
-import github.rikacelery.rootLogger
 import github.rikacelery.v3.data.*
 import github.rikacelery.v3.events.EndReason
 import java.time.Instant
@@ -24,9 +23,11 @@ class OrderedEmitter(
         buffer[idx] = result
         drain()
     }
+
     suspend fun acquire(): Long {
         return 0L
     }
+
     fun signalCut(index: Int, roomName: String, startTime: Instant, reason: EndReason) {
         cutPending = CutState(index.toLong(), roomName, startTime, reason)
     }
@@ -42,6 +43,7 @@ class OrderedEmitter(
             val result = buffer.remove(nextIndex)!!
             emitIfSuccess(nextIndex, result)
             nextIndex++
+
         }
     }
 
@@ -67,7 +69,8 @@ class OrderedEmitter(
             is DownloadResult.CutPoint -> {
                 val cut = result.cut
                 output(StreamEnd(roomId, cut.reason))
-                output(StreamStart(roomId, cut.roomName, cut.startTime))
+                if (cut.reason != EndReason.UserStop)
+                    output(StreamStart(roomId, cut.roomName, cut.startTime))
             }
         }
     }

@@ -24,6 +24,12 @@ class MoveProcessor(
         dir.mkdirs()
         val dest = File(dir, input.name)
         input.copyTo(dest, overwrite = true)
+
+        val eventFile = input.parentFile.resolve(input.nameWithoutExtension + ".event")
+        if (eventFile.exists()) {
+            val destEvent = File(dir, dest.nameWithoutExtension + ".event")
+            eventFile.copyTo(destEvent, overwrite = true)
+        }
         return listOf(dest)
     }
 

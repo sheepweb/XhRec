@@ -7,20 +7,34 @@ import github.rikacelery.v3.core.*
 import github.rikacelery.v3.data.SystemConfig
 import github.rikacelery.v3.m3u8.M3u8Parser
 import kotlinx.coroutines.*
+import org.apache.commons.cli.*
 import java.io.File
 
-fun main(vararg args: String): Unit = runBlocking {
+fun main(vararg args: String): Unit {
+    val cliOptions = Options()
+        .addOption("f", "file", true, "list.conf path")
+        .addOption("o", "output", true, "output directory")
+        .addOption("t", "tmp", true, "temp directory")
+        .addOption("p", "port", true, "HTTP port")
+        .addOption("u", "users", true, "users.txt path")
+        .addOption("post", true, "postprocessor.json path")
+    val cli = try { DefaultParser().parse(cliOptions, args.toList().toTypedArray()) }
+        catch (_: ParseException) { return }
+
+    runBlocking {
     coroutineScope {
         val appScope = this
 
         val config = SystemConfig(
-            outputDir = File("out"),
-            tmpDir = File("tmp"),
-            port = 8090,
+            outputDir = File(cli.getOptionValue("output", "out")),
+            tmpDir = File(cli.getOptionValue("tmp", "tmp")),
+            port = cli.getOptionValue("port", "8090").toInt(),
             proxy = System.getenv("http_proxy"),
             decryptKeys = mapOf("v2" to "YzWScuyQRGAGcxx1KIJmiQ7BY9Vi35ftwLqUOVO8uoo="),
+            streamAuthKey = "Fq6m2TO2ZeBkRPm9", // old:"Ook7quaiNgiyuhai",
             authToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiItMTA4MSIsImluZm8iOnsiaXNHdWVzdCI6dHJ1ZSwidXNlcklkIjotMTA4MX19.IXF36-UfCEmOPGvhl2a19rgLsh2rDCdXNJ3su9LkA9Y",
-            platformHost = "stripchat.com"
+            platformHost = "stripchat.com",
+            listConfPath = cli.getOptionValue("file", "list.conf")
         )
 
         // 1. Core infrastructure
@@ -29,10 +43,10 @@ fun main(vararg args: String): Unit = runBlocking {
         val dataChannel = DataChannel()
 
         // 2. Components
-        val metricComponent = MetricComponent(eventBus, appScope,requestBus)
+        val metricComponent = MetricComponent(eventBus, appScope)
         val configComponent = ConfigComponent(config, eventBus, appScope)
-        val authComponent = AuthComponent(eventBus, appScope)
-        val roomComponent = RoomComponent(ApiClient, eventBus, appScope)
+        val authComponent = AuthComponent(cli.getOptionValue("users", "users.txt"), eventBus, appScope)
+        val roomComponent = RoomComponent(ApiClient, config.listConfPath, config.platformHost, requestBus, eventBus, appScope)
         val liveEventSource = LiveEventSource(config.authToken, eventBus, appScope)
 
         val downloaderComponent = DownloaderComponent(
@@ -40,15 +54,16 @@ fun main(vararg args: String): Unit = runBlocking {
         )
         val writerComponent = WriterComponent(
             dataChannel, config.outputDir, config.tmpDir,
-            eventBus = eventBus, parentScope = appScope, metricComponent = metricComponent
+            eventBus = eventBus, parentScope = appScope
         )
         val postProcessorComponent = PostProcessorComponent(eventBus = eventBus, parentScope = appScope)
-        val sessionComponent = SessionComponent(dataChannel, downloaderComponent, M3u8Parser, requestBus, ApiClient, eventBus, appScope)
+        val sessionComponent = SessionComponent(dataChannel, downloaderComponent, M3u8Parser, requestBus, ApiClient, config.streamAuthKey, eventBus, appScope)
         val schedulerComponent = SchedulerComponent(requestBus, sessionComponent, eventBus, appScope)
 
         val httpServer = HttpServerComponent(config.port, eventBus, requestBus, metricComponent, appScope)
 
-        // 4. Start all Actors
+
+        // 3. Start all Actors
         configComponent.start()
         authComponent.start()
         roomComponent.start()
@@ -60,8 +75,8 @@ fun main(vararg args: String): Unit = runBlocking {
         sessionComponent.start()
         schedulerComponent.start()
 
-        // 3. Bootstrap: load users, processors, rooms from config files
-        val bootstrap = Bootstrap(ApiClient, roomComponent, authComponent, postProcessorComponent,schedulerComponent,requestBus)
+        // 4. Bootstrap: load users, processors, rooms from config files
+        val bootstrap = Bootstrap(ApiClient, roomComponent, authComponent, postProcessorComponent,schedulerComponent)
         bootstrap.initialize(args.toList())
 
         // 5. Start HTTP server
@@ -92,5 +107,6 @@ fun main(vararg args: String): Unit = runBlocking {
             dataChannel.close()
             println("XhRec v3 shut down")
         }
+    }
     }
 }

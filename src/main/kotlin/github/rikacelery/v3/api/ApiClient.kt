@@ -1,19 +1,11 @@
 package github.rikacelery.v3.api
 
-import github.rikacelery.utils.ClientManager
-import github.rikacelery.utils.Long
-import github.rikacelery.utils.PathSingle
-import github.rikacelery.utils.String
-import github.rikacelery.utils.asLong
-import github.rikacelery.utils.asString
-import github.rikacelery.utils.withRetry
+import github.rikacelery.utils.*
 import github.rikacelery.v3.data.User
-import io.ktor.client.plugins.expectSuccess
+import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
-import io.ktor.http.ContentType
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.contentType
+import io.ktor.http.*
 import kotlinx.serialization.json.*
 
 object ApiClient {
@@ -56,10 +48,10 @@ object ApiClient {
         return Json.parseToJsonElement(response.bodyAsText()).jsonObject
     }
 
-    suspend fun roomFetchCamInfo(roomId: Long, cookie: String): JsonObject {
+    suspend fun roomFetchCamInfo(roomName: String, cookie: String): JsonObject {
         val client = ClientManager.getClient("api")
         val response = withRetry(3) {
-            client.get("https://stripchat.com/api/front/v2/models/username/$roomId/cam") {
+            client.get("https://stripchat.com/api/front/v2/models/username/$roomName/cam") {
                 header("Cookie", cookie)
                 expectSuccess = true
             }
@@ -67,8 +59,8 @@ object ApiClient {
         return Json.parseToJsonElement(response.bodyAsText()).jsonObject
     }
 
-    suspend fun roomFetchModelToken(roomId: Long, user: User): String? {
-        val info = roomFetchCamInfo(roomId, user.cookie)
+    suspend fun roomFetchModelToken(roomName: String, user: User): String? {
+        val info = roomFetchCamInfo(roomName, user.cookie)
         return info.PathSingle("cam.modelToken").asString().ifBlank { null }
     }
 
@@ -86,6 +78,20 @@ object ApiClient {
             }
         }
         return response.status.value in 200..299
+    }
+
+    suspend fun roomQualities(roomName: String): List<String> {
+        val info = roomFetchBroadcastInfo(roomName)
+        val presetElem = info.PathSingleOrNull("item.settings.presets") ?: run {
+            return emptyList()
+        }
+        val qualities = presetElem.jsonArray.map { it.jsonPrimitive.content }.toMutableList()
+        val fps = info.PathSingle("item.settings.fps").asInt().toString()
+        val height = info.PathSingle("item.settings.height").asInt().toString()
+        val raw = height + "p" + (if (fps != "30") fps else "")
+        if (qualities.contains(raw).not())
+            qualities.add(0, raw)
+        return qualities
     }
 
     suspend fun roomFetchBroadcastInfo(roomName: String): JsonObject {

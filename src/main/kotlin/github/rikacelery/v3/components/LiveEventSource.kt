@@ -7,7 +7,10 @@ import io.ktor.client.*
 import io.ktor.client.plugins.websocket.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.*
-import kotlinx.serialization.json.*
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -33,7 +36,14 @@ class LiveEventSource(
         "newChatMessage", "newTip", "userJoined", "userLeft",
         "broadcastStarted", "broadcastStopped", "broadcastSettingsChanged",
         "modelShowed", "modelChanged", "moodChanged", "goalUpdated",
-        "lovenseLevelChanged", "lovenseStatus", "modelAwayChanged"
+        "lovenseLevelChanged", "lovenseStatus", "modelAwayChanged",
+        "groupShow",
+        // channels from v2 not yet in v3
+        "modelDiscountActivated", "modelStatusChanged", "topicChanged",
+        "tipMenuUpdated", "goalChanged", "userUpdated",
+        "interactiveToyStatusChanged", "deleteChatMessages",
+        "tipMenuLanguageDetected", "fanClubUpdated", "modelAppUpdated",
+        "newKing"
     )
 
     override suspend fun onStart(scope: CoroutineScope) {
@@ -97,12 +107,12 @@ class LiveEventSource(
     }
 
     private fun subscribeFrame(roomId: Long): String {
-        val chans = channels.joinToString("\",\"") { "room:${roomId}:$it" }
+        val chans = channels.joinToString("\",\"") { "$it@${roomId}" }
         return """{"subscribe":{"channel":"$chans"},"id":${seq.incrementAndGet()}}"""
     }
 
     private fun unsubscribeFrame(roomId: Long): String {
-        val chans = channels.joinToString("\",\"") { "room:${roomId}:$it" }
+        val chans = channels.joinToString("\",\"") { "$it@${roomId}" }
         return """{"unsubscribe":{"channel":"$chans"},"id":${seq.incrementAndGet()}}"""
     }
 
@@ -154,32 +164,30 @@ class LiveEventSource(
 
                 val type = data["type"]?.jsonPrimitive?.content ?: return
                 val channel = data["channel"]?.jsonPrimitive?.content ?: return
-                val roomId = channel.substringAfter("room:").substringBefore(":").toLongOrNull() ?: return
+                val roomId = channel.substringAfter("@").toLongOrNull() ?: return
 
-                when (type) {
-                    "broadcastChanged", "streamChanged" -> {
-                        val bc = data["broadcast"]?.jsonObject
-                        val status = bc?.get("status")?.jsonPrimitive?.content ?: "offline"
-                        val oldStatus = roomStatuses[roomId] ?: ""
-                        logger.debug("WS event: type={}, roomId={}, status={}", type, roomId, status)
-                        roomStatuses[roomId] = status
-                        eventBus.publish(RoomStatusChanged(roomId, oldStatus, status))
+                // Special handling: broadcastChanged / streamChanged carry status + qualities
+                if (type == "broadcastChanged" || type == "streamChanged") {
+                    val bc = data["broadcast"]?.jsonObject
+                    val status = bc?.get("status")?.jsonPrimitive?.content ?: "offline"
+                    val oldStatus = roomStatuses[roomId] ?: ""
+                    logger.debug("WS event: type={}, roomId={}, status={}", type, roomId, status)
+                    roomStatuses[roomId] = status
+                    eventBus.publish(RoomStatusChanged(roomId, oldStatus, status))
 
-                        if (type == "streamChanged") {
-                            val qualities = bc?.get("qualities")?.jsonArray?.mapNotNull {
-                                it.jsonObject["id"]?.jsonPrimitive?.content
-                            } ?: emptyList()
-                            if (qualities.isNotEmpty()) {
-                                logger.debug("WS qualities: roomId={}, qualities={}", roomId, qualities)
-                                eventBus.publish(QualitiesAvailable(roomId, qualities))
-                            }
+                    if (type == "streamChanged") {
+                        val qualities = bc?.get("qualities")?.jsonArray?.mapNotNull {
+                            it.jsonObject["id"]?.jsonPrimitive?.content
+                        } ?: emptyList()
+                        if (qualities.isNotEmpty()) {
+                            logger.debug("WS qualities: roomId={}, qualities={}", roomId, qualities)
+                            eventBus.publish(QualitiesAvailable(roomId, qualities))
                         }
                     }
-
-                    "newChatMessage", "newTip", "lovenseLevelChanged", "lovenseStatus" -> {
-                        eventBus.publish(LiveMessage(roomId, type, data))
-                    }
                 }
+
+                // Forward ALL events to the event log (matching v2 behavior)
+                eventBus.publish(LiveMessage(roomId, type, data))
             } catch (_: Exception) { /* ignore malformed messages */
             }
     }

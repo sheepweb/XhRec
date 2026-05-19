@@ -8,8 +8,10 @@ data class SystemConfig(
     val port: Int,
     val proxy: String?,
     val decryptKeys: Map<String, String>,
+    val streamAuthKey: String,
     val authToken: String,
-    val platformHost: String
+    val platformHost: String,
+    val listConfPath: String = "list.conf"
 )
 
 data class ProcessorConfig(

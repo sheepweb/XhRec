@@ -1,23 +1,26 @@
 package github.rikacelery.v3.components
 
-import github.rikacelery.utils.ClientManager
-import github.rikacelery.utils.withRetry
+import github.rikacelery.utils.*
 import github.rikacelery.v3.api.ApiClient
-import github.rikacelery.v3.core.*
-import github.rikacelery.v3.data.*
+import github.rikacelery.v3.core.Actor
+import github.rikacelery.v3.core.DataChannel
+import github.rikacelery.v3.core.EventBus
+import github.rikacelery.v3.core.RequestBus
+import github.rikacelery.v3.data.StreamEvent
+import github.rikacelery.v3.data.StreamStart
+import github.rikacelery.v3.data.User
 import github.rikacelery.v3.events.*
 import github.rikacelery.v3.m3u8.M3u8Parser
+import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
-import io.ktor.http.URLProtocol
-import io.ktor.http.buildUrl
-import io.ktor.http.encodedPath
-import io.ktor.http.parameters
+import io.ktor.http.*
 import kotlinx.coroutines.*
 import java.time.Duration
 import java.time.Instant
-import java.util.Random
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.math.abs
+import kotlin.time.Duration.Companion.seconds
 
 sealed interface SessionMsg
 data class OnSessionEvent(val event: Any) : SessionMsg
@@ -33,6 +36,7 @@ data class RoomSession(
     val roomId: Long,
     var roomName: String,
     var quality: String,
+    var targetquality: String,
     var state: SessionState = SessionState.Idle,
     var playlistUrl: String = "",
     var initUrl: String? = null,
@@ -43,7 +47,8 @@ data class RoomSession(
     var totalBytes: Long = 0,
     var timeLimitMs: Long = 0,
     var sizeLimitBytes: Long = 0,
-    var pollingJob: Job? = null
+    var pollingJob: Job? = null,
+    var lastSegmentId: Int? = null
 )
 
 class CircleCache(private val capacity: Int) {
@@ -55,6 +60,7 @@ class CircleCache(private val capacity: Int) {
         return set.add(url)
     }
 
+    fun remove(url: String) = set.remove(url)
     fun clear() = set.clear()
 }
 
@@ -64,6 +70,7 @@ class SessionComponent(
     private val m3u8Parser: M3u8Parser,
     private val requestBus: RequestBus,
     private val apiClient: ApiClient,
+    private val streamAuthKey: String,
     eventBus: EventBus,
     parentScope: CoroutineScope
 ) : Actor<SessionMsg>("SessionComponent", eventBus, parentScope) {
@@ -74,13 +81,24 @@ class SessionComponent(
         subscribe<RoomStatusChanged>(RoomStatusChanged::class)
         subscribe<LiveMessage>(LiveMessage::class)
         subscribe<QualitiesAvailable>(QualitiesAvailable::class)
+        subscribe<SegmentDownloaded>(SegmentDownloaded::class)
         subscribe<CommandEnvelope>(CommandEnvelope::class)
+        subscribe<QualityChangeRequested>(QualityChangeRequested::class)
+
+        scope.launch {
+            while (isActive) {
+                delay(30.seconds)
+                pollQualities()
+            }
+        }
     }
 
     override suspend fun wrapEvent(event: Any): SessionMsg? = when (event) {
         is RoomStatusChanged -> OnSessionEvent(event)
         is LiveMessage -> OnSessionEvent(event)
         is QualitiesAvailable -> OnSessionEvent(event)
+        is SegmentDownloaded -> OnSessionEvent(event)
+        is QualityChangeRequested -> OnSessionEvent(event)
         is CommandEnvelope -> HandleSessionCommand(event)
         else -> null
     }
@@ -101,6 +119,8 @@ class SessionComponent(
                     )
                     rs.startTime = Instant.now()
                     rs.totalBytes = 0
+                    rs.segmentIndex = 0
+                    rs.initUrl?.let { rs.circleCache.remove(it) }
                 }
             }
 
@@ -120,20 +140,30 @@ class SessionComponent(
         eventBus.publish(CommandAck(env.id, ack))
     }
 
-    private suspend fun startSession(roomId: Long, name: String, quality: String) {
+    private suspend fun startSession(roomId: Long, name: String, quality: String, reconfigure: Boolean = true) {
         if (sessions.containsKey(roomId) && (sessions[roomId]!!.state == SessionState.Fetching ||
                     sessions[roomId]!!.state == SessionState.Recording)
         ) {
             return
         }
-        logger.info("Session starting: roomId={}, name={}, quality={}", roomId, name, quality)
-        val rs = RoomSession(roomId, name, quality)
+        var token: String? = null
+        if (reconfigure) {
+            token = configureSession(roomId, name) ?: run {
+                logger.info("[{}] Session not started: configure returned false", name)
+                return
+            }
+        }
+        val qualities = apiClient.roomQualities(name)
+        val selectedQuality = selectQuality(qualities, quality)
+        logger.info("Session starting: roomId={}, name={}, quality={}", roomId, name, selectedQuality)
+        val rs = RoomSession(roomId, name,selectedQuality, selectedQuality)
         sessions[roomId] = rs
+        rs.token = token.takeIf { !it.isNullOrEmpty() }
         rs.state = SessionState.Fetching
         rs.startTime = Instant.now()
         dataChannel.send(StreamStart(roomId, name, rs.startTime))
         rs.pollingJob = scope.launch { pollingLoop(rs) }
-        rs.playlistUrl = buildPlaylistUrl(roomId, quality)
+        rs.playlistUrl = buildPlaylistUrl(roomId, rs.quality, rs.token)
     }
 
     private suspend fun stopSession(roomId: Long) {
@@ -141,9 +171,7 @@ class SessionComponent(
         logger.info("Session stopping: roomId={}, name={}, state={}", roomId, rs.roomName, rs.state)
         rs.state = SessionState.Closing
         rs.pollingJob?.cancel()
-        downloader.tell(DoStopFetch(
-            roomId
-        ))
+        downloader.tell(DoCutPoint(CutPoint(roomId, rs.segmentIndex, rs.roomName, Instant.now(), EndReason.UserStop)))
     }
 
     private suspend fun handleEvent(event: Any) {
@@ -159,8 +187,10 @@ class SessionComponent(
                         rs.state = SessionState.Closing
                         rs.pollingJob?.cancel()
                         downloader.tell(
-                            DoStopFetch(
-                                event.roomId
+                            DoCutPoint(
+                                CutPoint(
+                                    event.roomId, rs.segmentIndex, rs.roomName, Instant.now(), EndReason.StreamEnd
+                                )
                             )
                         )
                     }
@@ -174,10 +204,57 @@ class SessionComponent(
             is QualitiesAvailable -> {
                 val rs = sessions[event.roomId] ?: return
                 if (rs.state != SessionState.Recording) return
-                val newQuality = selectQuality(event.qualities, rs.quality)
+                var newQuality = selectQuality(event.qualities, rs.targetquality)
                 if (newQuality != rs.quality) {
+                    logger.info(
+                        "Quality switched for {}: {} -> {} (available: {})",
+                        rs.roomName,
+                        rs.quality,
+                        newQuality,
+                        event.qualities
+                    )
                     rs.quality = newQuality
-                    rs.playlistUrl = buildPlaylistUrl(event.roomId, newQuality)
+                    rs.playlistUrl = buildPlaylistUrl(event.roomId, newQuality, rs.token)
+                } else {
+                    logger.debug(
+                        "Quality unchanged for {}: {} (available: {})",
+                        rs.roomName,
+                        rs.quality,
+                        event.qualities
+                    )
+                }
+            }
+
+            is QualityChangeRequested -> {
+                val rs = sessions[event.roomId] ?: return
+                logger.info("Quality change requested for {}: {} -> {}", rs.roomName, rs.quality, event.newQuality)
+                rs.targetquality = event.newQuality
+                if (rs.state == SessionState.Recording||rs.state==SessionState.Fetching) {
+                    pollQualityForRoom(rs)
+                }
+            }
+
+            is SegmentDownloaded -> {
+                val rs = sessions[event.roomId] ?: return
+                rs.totalBytes += event.bytes
+            }
+
+            is NewSegments -> {
+                val rs = sessions[event.roomId] ?: return
+                event.urls.forEach { url ->
+                    val segId = m3u8Parser.segmentIDFromUrl(url.url)
+                    if (segId != null) {
+                        val prev = rs.lastSegmentId
+                        if (prev != null) {
+                            val gap = segId - prev - 1
+                            if (gap > 0) {
+                                eventBus.publish(SegmentGapDetected(event.roomId, gap))
+                            }
+                        }
+                        if (prev == null || segId > prev) {
+                            rs.lastSegmentId = segId
+                        }
+                    }
                 }
             }
 
@@ -187,86 +264,215 @@ class SessionComponent(
 
     private fun selectQuality(available: List<String>, requested: String): String {
         if (requested == "raw") return "raw"
-        if (requested in available) return requested
-        return available.lastOrNull { it <= requested } ?: available.firstOrNull() ?: requested
+        val clean = available.filterNot { it.contains("blurred") }
+        if (clean.isEmpty()) return "raw"
+        if (requested == available[0])
+            return "raw"
+        if (requested in available)
+            return requested
+        val reqParts = requested.split("p").filterNot(String::isEmpty)
+        val final = clean.minByOrNull { q ->
+            val qParts = q.split("p").filterNot(String::isEmpty)
+            if (reqParts.size == 2) {
+                abs((qParts[0].toIntOrNull() ?: 0) - (reqParts[0].toIntOrNull() ?: 0)) +
+                        abs((reqParts[1].toIntOrNull() ?: 30) - (qParts.getOrElse(1) { "30" }.toIntOrNull() ?: 30))
+            } else {
+                abs((qParts[0].toIntOrNull() ?: 0) - (reqParts[0].toIntOrNull() ?: 0))
+            }
+        } ?: requested
+        if (final == available[0])
+            return "raw"
+        return final
+    }
+
+    private suspend fun pollQualities() {
+        for (rs in sessions.values) {
+            if (rs.state != SessionState.Recording) continue
+            pollQualityForRoom(rs)
+        }
+    }
+
+    private suspend fun pollQualityForRoom(rs: RoomSession) {
+        try {
+            val qualities = apiClient.roomQualities(rs.roomName)
+//            logger.debug("Available qualities for {}: {}", rs.roomName, qualities)
+            if (qualities.isNotEmpty()) {
+                eventBus.publish(QualitiesAvailable(rs.roomId, qualities))
+            }
+        } catch (_: Exception) {
+            // quality polling is best-effort; ignore transient errors
+        }
+    }
+
+    /** Returns model token for groupShow, empty string for public, null if can't record */
+    private suspend fun configureSession(roomId: Long, roomName: String): String? {
+        try {
+            val info = apiClient.roomFetchBroadcastInfo(roomName)
+            val status = info.PathSingle("item.status").asString()
+            when (status) {
+                "public" -> return ""
+                "groupShow" -> {
+                    val config = requestBus.request<RoomConfigResponse>(GetRoomConfig(roomId))
+                    if (!config.autoPay) {
+                        logger.warn("[{}] Room not enable autopay", roomName)
+                        return null
+                    }
+                    val camInfo = apiClient.roomFetchCamInfo(roomName, "")
+                    val price = camInfo.PathSingle("user.user.ticketRate").asInt()
+                    val users = requestBus.request<List<User>>(GetValidPaymentAccount(price.toLong()))
+                    val u = users.firstOrNull()
+                    if (u == null) {
+                        logger.warn("[{}] No account to pay. price={}", roomName, price)
+                        return null
+                    }
+                    var token = apiClient.roomFetchModelToken(roomName, u)
+                    if (token == null) {
+                        apiClient.roomRequestGroupShow(roomId, u)
+                        requestBus.request<OkResponse>(DeductCoins(u.userId, price.toLong()))
+                        delay(1.seconds)
+                        token = apiClient.roomFetchModelToken(roomName, u)
+                    }
+                    if (token == null) {
+                        logger.warn("[{}] Failed to get model token", roomName)
+                        return null
+                    }
+                    return token
+                }
+
+                else -> {
+                    logger.trace("[{}] -> false, status={}", roomName, status)
+                    return null
+                }
+            }
+        } catch (e: ClientRequestException) {
+            logger.warn("Room configure failed for {}: {}", roomName, e.message)
+        } catch (e: Exception) {
+            logger.warn("Room configure failed for {}: {}", roomName, e.message)
+        }
+
+        return null
     }
 
     private fun buildPlaylistUrl(roomId: Long, quality: String, token: String? = null): String = buildUrl {
         protocol = URLProtocol.HTTPS
         host = "media-hls.doppiocdn.org"
         encodedPath = if (quality != "raw" && quality.isNotBlank()) "b-hls-%d/%d/%d_%s.m3u8".format(
-            Random().nextInt(12, 13), roomId, roomId, quality
+            22, roomId, roomId, quality
         ) else "b-hls-%d/%d/%d.m3u8".format(
-            Random().nextInt(12, 13), roomId, roomId
+            22, roomId, roomId
         )
         parameters["psch"] = "v2"
-        parameters["pkey"] = "Fq6m2TO2ZeBkRPm9"
+        parameters["pkey"] = streamAuthKey
+        parameters["preferredVideoCodec"] = "H265"
         if (token != null) {
             parameters["aclAuth"] = token
         }
     }.toString()
 
     private suspend fun CoroutineScope.pollingLoop(rs: RoomSession) {
-        while (isActive && (rs.state == SessionState.Fetching || rs.state == SessionState.Recording)) {
-            delay(500)
-            try {
-                val client = ClientManager.getProxiedClient("m3u8_${rs.roomId}")
-                val response = withRetry(3) { client.get(rs.playlistUrl) }
-                val text = response.bodyAsText()
+        try {
+            while (isActive && (rs.state == SessionState.Fetching || rs.state == SessionState.Recording)) {
+                delay(2.seconds)
+                try {
+                    val client = ClientManager.getProxiedClient("m3u8_${rs.roomId}")
+                    val response = withRetry(3) {
+                        client.get(rs.playlistUrl)
+                    }
+                    val text = response.bodyAsText()
 
-                val key = (requestBus.request<ConfigResponse>(GetDecryptKey("v2")).value as? String) ?: run {
-                    logger.error("No decrypt key for room ${rs.roomId}")
-                    delay(5000)
-                    continue
-                }
-                val parsed = m3u8Parser.parse(text, key)
-                requireNotNull(parsed.initUrl)
+                    val key = (requestBus.request<ConfigResponse>(GetDecryptKey("v2")).value as? String) ?: run {
+                        logger.error("No decrypt key for room ${rs.roomId}")
+                        delay(5.seconds)
+                        continue
+                    }
+                    val parsed = m3u8Parser.parse(text, key)
+                    requireNotNull(parsed.initUrl)
 
-                if (parsed.initUrl != rs.initUrl) {
-                    downloader.tell(
-                        DoCutPoint(
-                            CutPoint(
-                                rs.roomId, rs.segmentIndex - 1, rs.roomName, Instant.now(), EndReason.NewInit
+                    if (parsed.initUrl != rs.initUrl) {
+                        downloader.tell(
+                            DoCutPoint(
+                                CutPoint(
+                                    rs.roomId, rs.segmentIndex - 1, rs.roomName, Instant.now(), EndReason.NewInit
+                                )
                             )
                         )
-                    )
-                    rs.segmentIndex = 0
-                    rs.circleCache.clear()
-                    rs.initUrl = parsed.initUrl
-                }
-                if (rs.circleCache.add(parsed.initUrl)) {
-                    downloader.tell(DoDownload(Download(rs.roomId, listOf(Segment(parsed.initUrl,-1)), rs.segmentIndex)))
-                    rs.segmentIndex +=1
-                }
-                val unseen = parsed.segments.filter { rs.circleCache.add(it.url) }
-                if (unseen.isNotEmpty()) {
-                    eventBus.publish(NewSegments(rs.roomId, unseen))
-                    downloader.tell(DoDownload(Download(rs.roomId, unseen, rs.segmentIndex)))
-                    rs.segmentIndex += unseen.size
-                }
-
-                val limit = if (rs.timeLimitMs > 0) rs.timeLimitMs else Long.MAX_VALUE
-                val elapsed = Duration.between(rs.startTime, Instant.now()).toMillis()
-                if (elapsed >= limit || (rs.sizeLimitBytes > 0 && rs.totalBytes >= rs.sizeLimitBytes)) {
-                    downloader.tell(
-                        DoCutPoint(
-                            CutPoint(
-                                rs.roomId, rs.segmentIndex - 1, rs.roomName, Instant.now(), EndReason.SizeLimit
+                        rs.segmentIndex = 0
+                        rs.circleCache.clear()
+                        rs.initUrl = parsed.initUrl
+                    }
+                    if (rs.circleCache.add(parsed.initUrl)) {
+                        downloader.tell(
+                            DoDownload(
+                                Download(
+                                    rs.roomId,
+                                    listOf(Segment(parsed.initUrl, -1)),
+                                    rs.segmentIndex
+                                )
                             )
                         )
-                    )
-                    rs.startTime = Instant.now()
-                    rs.totalBytes = 0
+                        rs.segmentIndex += 1
+                    }
+                    val unseen = parsed.segments.filter { rs.circleCache.add(it.url) }
+                    if (unseen.isNotEmpty()) {
+                        eventBus.publish(NewSegments(rs.roomId, unseen))
+                        downloader.tell(DoDownload(Download(rs.roomId, unseen, rs.segmentIndex)))
+                        rs.segmentIndex += unseen.size
+                    }
+
+                    val limit = if (rs.timeLimitMs > 0) rs.timeLimitMs else Long.MAX_VALUE
+                    val elapsed = Duration.between(rs.startTime, Instant.now()).toMillis()
+                    if (elapsed >= limit || (rs.sizeLimitBytes > 0 && rs.totalBytes >= rs.sizeLimitBytes)) {
+                        val reason = if (elapsed >= limit) EndReason.TimeLimit else EndReason.SizeLimit
+                        downloader.tell(
+                            DoCutPoint(
+                                CutPoint(
+                                    rs.roomId, rs.segmentIndex - 1, rs.roomName, Instant.now(), reason
+                                )
+                            )
+                        )
+                        rs.startTime = Instant.now()
+                        rs.totalBytes = 0
+                        rs.segmentIndex = 0
+                        rs.circleCache.remove(parsed.initUrl)
+                    }
+
+                    if (rs.state == SessionState.Fetching) rs.state = SessionState.Recording
+
+                } catch (e: CancellationException) {
+                    if (e is TimeoutCancellationException) {
+                        logger.warn("[{}] Refresh list timeout", rs.roomName)
+                        if (configureSession(rs.roomId, rs.roomName) == null) {
+                            logger.info("[STOP] [{}] Room off or non-public after timeout", rs.roomName)
+                        }
+                        rs.playlistUrl = buildPlaylistUrl(rs.roomId, rs.quality, rs.token)
+                        continue
+                    }
+                    throw e
+                } catch (e: ClientRequestException) {
+                    if (e.response.status == HttpStatusCode.Forbidden) {
+                        val token = configureSession(rs.roomId, rs.roomName)
+                        if (token != null) {
+                            rs.token = token.takeIf { it.isNotEmpty() }
+                            rs.playlistUrl = buildPlaylistUrl(rs.roomId, rs.quality, rs.token)
+                            continue
+                        }
+                        logger.info("[STOP] [{}] Room off or non-public (403)", rs.roomName)
+                    }
+                    if (e.response.status == HttpStatusCode.NotFound) {
+                        logger.info("[STOP] [{}] Stream url returns 404", rs.roomName)
+                    }
+                    logger.error("Polling error room ${rs.roomId}: ${e.message}")
+                    eventBus.publish(DownloadError(rs.roomId, null, null, e.message))
+                } catch (e: Exception) {
+                    logger.error("[{}] Unexpected error in polling", rs.roomName, e)
+                    if (configureSession(rs.roomId, rs.roomName) == null) {
+                        logger.info("[STOP] [{}] Room off or non-public", rs.roomName)
+                    }
+                    rs.playlistUrl = buildPlaylistUrl(rs.roomId, rs.quality, rs.token)
                 }
-
-                if (rs.state == SessionState.Fetching) rs.state = SessionState.Recording
-
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                logger.error("Polling error room ${rs.roomId}: ${e.message}")
-                eventBus.publish(DownloadError(rs.roomId, null, null, e.message ?: "poll error"))
             }
+        } finally {
+            eventBus.publish(RecordingStopped(rs.roomId))
         }
     }
 

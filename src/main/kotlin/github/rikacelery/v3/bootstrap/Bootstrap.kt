@@ -2,10 +2,6 @@ package github.rikacelery.v3.bootstrap
 
 import github.rikacelery.v3.api.ApiClient
 import github.rikacelery.v3.components.*
-import github.rikacelery.v3.core.EventBus
-import github.rikacelery.v3.core.RequestBus
-import github.rikacelery.v3.events.AddRoom
-import github.rikacelery.v3.events.RoomNameResponse
 import github.rikacelery.v3.exceptions.RenameException
 import github.rikacelery.v3.postprocessors.*
 import kotlinx.coroutines.*
@@ -14,7 +10,6 @@ import kotlinx.serialization.json.jsonObject
 import org.apache.commons.cli.*
 import org.slf4j.LoggerFactory
 import java.io.File
-import kotlin.time.Duration.Companion.seconds
 
 class Bootstrap(
     private val apiClient: ApiClient,
@@ -22,7 +17,6 @@ class Bootstrap(
     private val authComponent: AuthComponent,
     private val postProcessorComponent: PostProcessorComponent,
     private val schedulerComponent: SchedulerComponent,
-    private val requestBus: RequestBus,
 ) {
     private val logger = LoggerFactory.getLogger("v3.Bootstrap")
 
@@ -70,7 +64,7 @@ class Bootstrap(
         if (!file.exists()) {
             logger.warn("users.txt not found"); return
         }
-        val cookies = file.readLines().filter { it.isNotBlank() && !it.startsWith("#") }
+        val cookies = file.readLines().filter { it.isNotBlank() && !it.startsWith("#") && !it.startsWith(";") }
         val users = cookies.mapNotNull { cookie ->
             try {
                 apiClient.getUserFromCookie(cookie.trim())
@@ -99,32 +93,30 @@ class Bootstrap(
         requireNotNull(arr)
         for (elem in arr) {
             val obj = elem.jsonObject
-            val name = obj["name"]?.jsonPrimitive?.content ?: continue
-            val cfg = obj["config"]?.jsonObject ?: kotlinx.serialization.json.JsonObject(emptyMap())
-            processors.add(
-                when (name) {
-                    "FixStamp" -> FixStampProcessor(outputDir)
-                    "Move" -> MoveProcessor(
-                        cfg["template"]?.jsonPrimitive?.content ?: "{{ROOM_NAME}}", outputDir
-                    )
-
-                    "Shell" -> ShellProcessor(
-                        cfg["cmd"]?.jsonArray?.map { it.jsonPrimitive.content } ?: listOf("echo"),
-                        cfg["noreturn"]?.jsonPrimitive?.boolean ?: false,
-                        cfg["remove_input"]?.jsonPrimitive?.boolean ?: false)
-
-                    "Slice" -> SliceProcessor(
-                        java.time.Duration.ofSeconds(cfg["duration"]?.jsonPrimitive?.content?.toLongOrNull() ?: 3600),
-                        outputDir
-                    )
-
-                    else -> {
-                        logger.warn("Unknown processor: $name"); continue
-                    }
-                })
+            val type = obj["type"]?.jsonPrimitive?.content ?: continue
+            processors.add(when (type) {
+                "fix_stamp" -> FixStampProcessor(outputFile(obj, outputDir))
+                "move" -> MoveProcessor(
+                    obj["template"]?.jsonPrimitive?.content ?: "{{ROOM_NAME}}",
+                    outputFile(obj, outputDir)
+                )
+                "shell" -> ShellProcessor(
+                    obj["cmd"]?.jsonArray?.map { it.jsonPrimitive.content } ?: listOf("echo"),
+                    obj["noreturn"]?.jsonPrimitive?.boolean ?: true,
+                    obj["remove_input"]?.jsonPrimitive?.boolean ?: false
+                )
+                "slice" -> SliceProcessor(
+                    java.time.Duration.ofSeconds(obj["duration"]?.jsonPrimitive?.content?.toLongOrNull() ?: 3600),
+                    outputFile(obj, outputDir)
+                )
+                else -> { logger.warn("Unknown processor: $type"); continue }
+            })
         }
         return processors
     }
+
+    private fun outputFile(obj: JsonObject, fallback: File): File =
+        obj["output"]?.jsonPrimitive?.content?.let { File(it) } ?: fallback
 
     data class ListConfLine(
         val url: String, val quality: String = "720p",
@@ -136,20 +128,20 @@ class Bootstrap(
         if (!file.exists()) {
             logger.warn("list.conf not found"); return
         }
-        val lines = file.readLines().filter { it.isNotBlank() }
+        val lines = file.readLines().filter { it.isNotBlank() && !it.trimStart().startsWith(";") }
         coroutineScope {
             lines.map { line ->
                 async {
                     val parsed = parseListConfLine(line) ?: return@async
                     try {
                         val (id, name) = apiClient.getRoomFromUrlOrSlug(parsed.url, parsed.quality)
-                        requestBus.request<RoomNameResponse>(AddRoom(name, parsed.quality,parsed.armed),30.seconds.inWholeMilliseconds)
+                        addRoomFromParsed(id, name, parsed)
                     } catch (e: RenameException) {
                         try {
                             val (id, name) = apiClient.getRoomFromUrlOrSlug(e.newName, parsed.quality)
-                            requestBus.request<RoomNameResponse>(AddRoom(name, parsed.quality,parsed.armed),30.seconds.inWholeMilliseconds)
-                        } catch (e: Exception) {
-                            logger.warn("Failed to load room from '$line': ${e.message}", e)
+                            addRoomFromParsed(id, name, parsed)
+                        } catch (ex: Exception) {
+                            logger.warn("Failed to load room from '$line': ${ex.message}", ex)
                         }
                     } catch (e: Exception) {
                         logger.warn("Failed to load room from '$line': ${e.message}", e)
@@ -158,6 +150,13 @@ class Bootstrap(
             }.awaitAll()
         }
         logger.info("Loaded rooms from list.conf")
+    }
+
+    private fun addRoomFromParsed(id: Long, name: String, parsed: ListConfLine) {
+        roomComponent.internalAdd(id, name, parsed.quality, parsed.timeLimit, parsed.sizeLimit, parsed.autoPay)
+        if (parsed.armed) {
+            schedulerComponent.internalAdd(id, name, parsed.quality, parsed.armed)
+        }
     }
 
     private fun parseListConfLine(line: String): ListConfLine? {
@@ -176,7 +175,8 @@ class Bootstrap(
                 parts[i] == "autopay" -> autoPay = true
             }
         }
-        return ListConfLine(url, quality, timeLimit, sizeLimit, autoPay, armed = !line.trim().startsWith("#"))
+        val trimmed = line.trim()
+        return ListConfLine(url, quality, timeLimit, sizeLimit, autoPay, armed = !trimmed.startsWith("#") && !trimmed.startsWith(";"))
     }
 
     private fun parseSize(s: String): Long {

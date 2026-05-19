@@ -168,7 +168,7 @@
                            class="pl-9 pr-2 py-1.5 text-sm bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 w-24 transition-all">
                 </div>
                 <div class="relative flex items-center">
-                    <i class="fa-regular fa-clock absolute left-3 text-slate-400"></i>
+                    <i class="fa-solid fa-weight-hanging absolute left-3 text-slate-400"></i>
                     <input v-model="sizeLimit" type="text"  placeholder="Size"
                            class="pl-9 pr-2 py-1.5 text-sm bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 w-24 transition-all">
                 </div>
@@ -272,7 +272,7 @@
                                 </a>
                             </td>
                             <td class="px-4 py-2 text-center">
-                                {{room.status}}
+                                {{room.roomStatus}}
                             </td>
                             <td class="px-4 py-2 text-center">
                                 <div class="thumb-container">
@@ -297,7 +297,7 @@
                             </td>
                             <td class="px-4 py-3">
                                 <div class="flex items-center gap-2">
-                                    <span class="text-slate-500 text-right">{{room.timeLimit}}</span>
+                                    <span class="text-slate-500 text-right">{{room.timeLimitMs > 0 ? (room.timeLimitMs / 1000) : 0}}</span>
                                     <i class="fa-solid fa-arrow-right-long text-slate-300 text-xs"></i>
                                     <input v-model.number="editLimits[room.id]" type="number" min="0"
                                         :style="{ width: Math.max(6, String(editLimits[room.id] || '').length + 3) + 'ch' }"
@@ -311,7 +311,7 @@
                             </td>
                             <td class="px-4 py-3">
                                 <div class="flex items-center gap-2">
-                                    <span class="text-slate-500 text-right">{{room.sizeLimit}}</span>
+                                    <span class="text-slate-500 text-right">{{room.sizeLimitBytes > 0 ? formatBytes(room.sizeLimitBytes) : 0}}</span>
                                     <i class="fa-solid fa-arrow-right-long text-slate-300 text-xs"></i>
                                     <input v-model="editSizeLimits[room.id]" type="text"
                                         :style="{ width: Math.max(6, String(editSizeLimits[room.id] || '').length + 3) + 'ch' }"
@@ -438,6 +438,7 @@
                     toasts: [],
                     toastId: 0,
                     timeLimit: null,
+                    sizeLimit: null,
                     addInput: "",
                     addQuality: "720p",
                     sort: { "Room": 1, "Status": 1 },
@@ -479,8 +480,8 @@
                         if (this.sort["ID"] && a.id !== b.id) {
                             return this.sort["ID"] === 1 ? b.id - a.id : a.id - b.id;
                         }
-                        if (this.sort["Limit"] && a.limit !== b.limit) {
-                            return this.sort["Limit"] === 1 ? (b.limit || 0) - (a.limit || 0) : (a.limit || 0) - (b.limit || 0);
+                        if (this.sort["Limit"] && a.timeLimitMs !== b.timeLimitMs) {
+                            return this.sort["Limit"] === 1 ? (b.timeLimitMs || 0) - (a.timeLimitMs || 0) : (a.timeLimitMs || 0) - (b.timeLimitMs || 0);
                         }
                         if (this.sort["Size"] && a.bytesWrite !== b.bytesWrite) {
                             return this.sort["Size"] === 1 ? (a.bytesWrite || 0) - (b.bytesWrite || 0) : (b.bytesWrite || 0) - (a.bytesWrite || 0);
@@ -537,24 +538,24 @@
                     try {
                         const r1 = await fetch(`${HOST}/limit?id=${roomId}&v=${newLimit}`);
                         this.showToast(await r1.text());
-                        this.editLimits[roomId] = null; // Clear input after success
+                        this.editLimits[roomId] = null;
                     } catch (e) { this.showToast("Network Error", "error"); }
                 },
                 async setSizeLimit(roomId) {
                     const newLimit = this.editSizeLimits[roomId];
-                    if (newLimit === undefined || newLimit === null) {
+                    if (!newLimit) {
                         this.showToast(`Invalid limit value`, "error");
                         return;
                     }
                     try {
                         const r1 = await fetch(`${HOST}/sizelimit?id=${roomId}&v=${newLimit}`);
                         this.showToast(await r1.text());
-                        this.editSizeLimits[roomId] = null; // Clear input after success
+                        this.editSizeLimits[roomId] = null;
                     } catch (e) { this.showToast("Network Error", "error"); }
                 },
-                async action(actionType, roomName) {
+                async action(actionType, roomId) {
                     try {
-                        const r1 = await fetch(`${HOST}/${actionType}?id=${roomName}`);
+                        const r1 = await fetch(`${HOST}/${actionType}?id=${roomId}`);
                         this.showToast(await r1.text());
                     } catch (e) { this.showToast("Network Error", "error"); }
                 },
@@ -565,12 +566,16 @@
                         return;
                     }
                     const limit = this.timeLimit || 0;
+                    const size = this.sizeLimit || '';
                     try {
-                        const r1 = await fetch(`${HOST}/add?name=${name}&active=${active}&quality=${this.addQuality}&limit=${limit}`);
-                        if (r1.status === 404 || r1.status === 200) {
+                        const params = new URLSearchParams({ name, quality: this.addQuality, active, limit });
+                        if (size) params.append('size', size);
+                        const r1 = await fetch(`${HOST}/add?${params}`);
+                        if (r1.ok) {
                             this.showToast("Room added successfully");
                             this.addInput = "";
                             this.timeLimit = null;
+                            this.sizeLimit = null;
                         } else {
                             this.showToast(await r1.text(), "error");
                         }
@@ -630,25 +635,27 @@
                         for (const room of data3) {
                             if (!newRoomInfo[room.room.name]) newRoomInfo[room.room.name] = {};
                             Object.assign(newRoomInfo[room.room.name], {
-                                status: room.session.active ? "Recording" : (room.listening ? "Listening" : ""),
                                 sessionStatus: room.session.status,
+                                roomStatus: room.room.status,
                                 ...room.room,
                             });
                         }
 
+                        // Parse v3 xhrec metrics
                         for (const line of data4.split("\n")) {
-                            if (line.startsWith("rikacelery_v2_segment_missing_total")) {
-                                const [_, name, value] = /rikacelery_v2_segment_missing_total{name="(\S+)"} (\d+)/.exec(line)
-                                Object.assign(newRoomInfo[name], {
-                                    segMissing: parseInt(value)
-                                });
+                            const segMatch = /xhrec_segment_missing_total\{roomId="(\d+)"\}\s+(\d+)/.exec(line);
+                            if (segMatch) {
+                                const roomId = segMatch[1];
+                                const value = parseInt(segMatch[2]);
+                                const room = Object.values(newRoomInfo).find(r => r.id == roomId);
+                                if (room) room.segMissing = value;
                             }
                         }
 
                         this.roomInfo = newRoomInfo;
                         this.allUrls = newAllUrls;
                     } catch (e) {
-                        console.log(e);
+                        // Suppress polling error logs to keep console clean
                     }
                 },
                 async fetchThumb(modelName) {
@@ -698,7 +705,7 @@
                 // Thumbnail Polling
                 const pollThumbs = async () => {
                     for (let model of this.roomDisplay) {
-                        if (model.status != "off")
+                        if (model.roomStatus != "off")
                             await this.fetchThumb(model.name)
 
                     }

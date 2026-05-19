@@ -30,11 +30,7 @@ class ConfigComponent(
 
     private suspend fun handleQuery(env: CommandEnvelope) {
         val ack = when (env.command) {
-            is GetOutputDir -> ConfigResponse(config.outputDir)
-            is GetTmpDir -> ConfigResponse(config.tmpDir)
-            is GetProxy -> ConfigResponse(config.proxy)
             is GetDecryptKey -> ConfigResponse(config.decryptKeys[env.command.keyName])
-            is GetPlatformHost -> ConfigResponse(config.platformHost)
             else -> return
         }
         eventBus.publish(CommandAck(env.id, ack))

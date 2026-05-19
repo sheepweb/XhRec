@@ -18,7 +18,7 @@ object ClientManager {
     private val logger = LoggerFactory.getLogger(ClientManager::class.java)
     private fun clientDirect(key: String): HttpClient {
         val pool = ConnectionPool(16, 5, TimeUnit.MINUTES)
-        logger.info("create direct client key={}", key)
+        logger.debug("create direct client key={}", key)
         return HttpClient(OkHttp) {
             configureClient()
             engine {

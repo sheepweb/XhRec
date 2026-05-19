@@ -24,18 +24,16 @@ import kotlin.random.Random
 sealed interface DownloaderMsg
 data class DoDownload(val cmd: Download) : DownloaderMsg
 data class DoCutPoint(val cut: CutPoint) : DownloaderMsg
-data class DoStopFetch(val roomId: Long) : DownloaderMsg
 data class SetConcurrency(val limit: Int) : DownloaderMsg
-data class HandleDownloaderCommand(val env: CommandEnvelope) : DownloaderMsg
 
 data class ActiveDownload(
     val emitter: OrderedEmitter,
     val semaphore: Semaphore,
     val runningJobs: MutableSet<Job>,
     var concurrency: Int = 16,
-    var active: Boolean = true,
+
     var idx: AtomicInteger = AtomicInteger(-1),
-    val runningUrls: ConcurrentHashMap<String, Long> = ConcurrentHashMap()
+    var active: Boolean = true
 )
 
 class DownloaderComponent(
@@ -51,36 +49,12 @@ class DownloaderComponent(
         parentScope.coroutineContext + SupervisorJob() + CoroutineName("downloader-worker")
     )
 
-    override suspend fun onStart(scope: CoroutineScope) {
-        subscribe<CommandEnvelope>(CommandEnvelope::class)
-    }
-    override suspend fun wrapEvent(event: Any): DownloaderMsg? = when (event) {
-        is CommandEnvelope -> HandleDownloaderCommand(event)
-        else -> null
-    }
     override suspend fun handle(msg: DownloaderMsg) {
         when (msg) {
             is DoDownload -> handleDownload(msg.cmd)
             is DoCutPoint -> handleCutPoint(msg.cut)
-            is DoStopFetch -> rooms.remove(msg.roomId)?.also { it.active = false }
             is SetConcurrency -> rooms.values.forEach { it.concurrency = msg.limit }
-            is HandleDownloaderCommand -> handleCommand(msg.env)
         }
-    }
-
-    private suspend fun handleCommand(env: CommandEnvelope) {
-        val ack = when (env.command) {
-            is GetActiveDownloads -> {
-                val result = rooms.mapValues { (_, ad) ->
-                    ad.runningUrls.map { (url, startAt) ->
-                        ActiveDownloadInfo(url, "DIRECT", startAt)
-                    }
-                }.filterValues { it.isNotEmpty() }
-                ActiveDownloadsResponse(result)
-            }
-            else -> return
-        }
-        eventBus.publish(CommandAck(env.id, ack))
     }
 
     private suspend fun handleDownload(cmd: Download) {
@@ -98,21 +72,17 @@ class DownloaderComponent(
             var url = seg.url
             hooks.forEach { url = it.beforeDownload(url) }
 
-            val finalUrl = url
-            val startAt = System.currentTimeMillis()
-            active.runningUrls[finalUrl] = startAt
-
             val job = workerScope.launch {
                 active.semaphore.withPermit {
-                    val result = downloadSegment(finalUrl, idx)
+                    eventBus.publish(DownloadStarted(cmd.roomId, idx, url, System.currentTimeMillis()))
+                    val result = downloadSegment(url, idx)
                     val hooked = hooks.fold(result) { acc, hook -> hook.onDownloadResult(cmd.roomId, acc) }
                     active.emitter.complete(idx.toLong(), hooked)
-                    active.runningUrls.remove(finalUrl)
 
                     when (result) {
                         is DownloadResult.Success -> {
                             eventBus.publish(SegmentDownloaded(cmd.roomId, idx, seg.url,
-                                result.meta.fetchDurationMs, result.meta.proxied))
+                                result.meta.fetchDurationMs, result.meta.proxied, result.data.size))
                         }
                         is DownloadResult.Failed -> {
                             eventBus.publish(DownloadError(cmd.roomId, idx, seg.url, result.reason))
@@ -130,6 +100,7 @@ class DownloaderComponent(
     private suspend fun handleCutPoint(cut: CutPoint) {
         val active = rooms[cut.roomId] ?: return
         val idx = active.idx.incrementAndGet().toLong()
+        logger.info("CutPoint roomId={}, index={}, reason={}", cut.roomId, cut.index, cut.reason)
         active.emitter.complete(idx,  DownloadResult.CutPoint(cut))
     }
 
@@ -149,6 +120,7 @@ class DownloaderComponent(
                 return directResult.copy(meta = directResult.meta.copy(fetchDurationMs = dur, proxied = false))
             }
 
+            logger.debug("Direct download slow/failed for idx={}, falling back to proxy race", idx)
             // Phase 2: proxy joins the race
             val proxyDeferred = scope.async {
                 downloadWithClient(ClientManager.getProxiedClient("px_$idx"), url, idx, true)
