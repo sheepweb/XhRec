@@ -11,7 +11,8 @@ data class SystemConfig(
     val streamAuthKey: String,
     val authToken: String,
     val platformHost: String,
-    val listConfPath: String = "list.conf"
+    val listConfPath: String = "list.conf",
+    val configPath: String = "xhrec.json"
 )
 
 data class ProcessorConfig(

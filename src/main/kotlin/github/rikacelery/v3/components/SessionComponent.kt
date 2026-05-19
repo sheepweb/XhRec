@@ -24,7 +24,7 @@ import kotlin.time.Duration.Companion.seconds
 
 sealed interface SessionMsg
 data class OnSessionEvent(val event: Any) : SessionMsg
-data class DoStart(val roomId: Long, val roomName: String, val quality: String) : SessionMsg
+data class DoStart(val roomId: Long, val roomName: String, val quality: String, val pkey: String = "") : SessionMsg
 data class DoStop(val roomId: Long) : SessionMsg
 data class DoBreak(val roomId: Long) : SessionMsg
 data class DoCutPointDone(val roomId: Long) : SessionMsg
@@ -41,6 +41,7 @@ data class RoomSession(
     var playlistUrl: String = "",
     var initUrl: String? = null,
     var token: String? = null,
+    var pkey: String = "",
     var segmentIndex: Int = 0,
     val circleCache: CircleCache = CircleCache(100),
     var startTime: Instant = Instant.now(),
@@ -105,7 +106,7 @@ class SessionComponent(
 
     override suspend fun handle(msg: SessionMsg) {
         when (msg) {
-            is DoStart -> startSession(msg.roomId, msg.roomName, msg.quality)
+            is DoStart -> startSession(msg.roomId, msg.roomName, msg.quality, msg.pkey)
             is DoStop -> stopSession(msg.roomId)
             is DoBreak -> {
                 val rs = sessions[msg.roomId] ?: return
@@ -140,7 +141,7 @@ class SessionComponent(
         eventBus.publish(CommandAck(env.id, ack))
     }
 
-    private suspend fun startSession(roomId: Long, name: String, quality: String, reconfigure: Boolean = true) {
+    private suspend fun startSession(roomId: Long, name: String, quality: String, pkey: String = "", reconfigure: Boolean = true) {
         if (sessions.containsKey(roomId) && (sessions[roomId]!!.state == SessionState.Fetching ||
                     sessions[roomId]!!.state == SessionState.Recording)
         ) {
@@ -153,17 +154,18 @@ class SessionComponent(
                 return
             }
         }
+        val resolvedPkey = pkey.ifBlank { streamAuthKey }
         val qualities = apiClient.roomQualities(name)
         val selectedQuality = selectQuality(qualities, quality)
         logger.info("Session starting: roomId={}, name={}, quality={}", roomId, name, selectedQuality)
-        val rs = RoomSession(roomId, name,selectedQuality, selectedQuality)
+        val rs = RoomSession(roomId, name, selectedQuality, selectedQuality, pkey = resolvedPkey)
         sessions[roomId] = rs
         rs.token = token.takeIf { !it.isNullOrEmpty() }
         rs.state = SessionState.Fetching
         rs.startTime = Instant.now()
         dataChannel.send(StreamStart(roomId, name, rs.startTime))
         rs.pollingJob = scope.launch { pollingLoop(rs) }
-        rs.playlistUrl = buildPlaylistUrl(roomId, rs.quality, rs.token)
+        rs.playlistUrl = buildPlaylistUrl(roomId, rs.quality, rs.pkey, rs.token)
     }
 
     private suspend fun stopSession(roomId: Long) {
@@ -180,7 +182,7 @@ class SessionComponent(
                 val rs = sessions[event.roomId] ?: return
                 if (event.newStatus == "public" || event.newStatus == "groupShow") {
                     if (rs.state == SessionState.Armed) {
-                        startSession(event.roomId, rs.roomName, rs.quality)
+                        startSession(event.roomId, rs.roomName, rs.quality, rs.pkey)
                     }
                 } else if (event.newStatus == "offline" || event.newStatus == "private") {
                     if (rs.state == SessionState.Recording) {
@@ -214,7 +216,7 @@ class SessionComponent(
                         event.qualities
                     )
                     rs.quality = newQuality
-                    rs.playlistUrl = buildPlaylistUrl(event.roomId, newQuality, rs.token)
+                    rs.playlistUrl = buildPlaylistUrl(event.roomId, newQuality, rs.pkey, rs.token)
                 } else {
                     logger.debug(
                         "Quality unchanged for {}: {} (available: {})",
@@ -353,7 +355,7 @@ class SessionComponent(
         return null
     }
 
-    private fun buildPlaylistUrl(roomId: Long, quality: String, token: String? = null): String = buildUrl {
+    private fun buildPlaylistUrl(roomId: Long, quality: String, pkey: String, token: String? = null): String = buildUrl {
         protocol = URLProtocol.HTTPS
         host = "media-hls.doppiocdn.org"
         encodedPath = if (quality != "raw" && quality.isNotBlank()) "b-hls-%d/%d/%d_%s.m3u8".format(
@@ -362,7 +364,7 @@ class SessionComponent(
             22, roomId, roomId
         )
         parameters["psch"] = "v2"
-        parameters["pkey"] = streamAuthKey
+        parameters["pkey"] = pkey
         parameters["preferredVideoCodec"] = "H265"
         if (token != null) {
             parameters["aclAuth"] = token
@@ -380,7 +382,7 @@ class SessionComponent(
                     }
                     val text = response.bodyAsText()
 
-                    val key = (requestBus.request<ConfigResponse>(GetDecryptKey("v2")).value as? String) ?: run {
+                    val key = (requestBus.request<ConfigResponse>(GetDecryptKey(rs.pkey)).value as? String) ?: run {
                         logger.error("No decrypt key for room ${rs.roomId}")
                         delay(5.seconds)
                         continue
@@ -444,7 +446,7 @@ class SessionComponent(
                         if (configureSession(rs.roomId, rs.roomName) == null) {
                             logger.info("[STOP] [{}] Room off or non-public after timeout", rs.roomName)
                         }
-                        rs.playlistUrl = buildPlaylistUrl(rs.roomId, rs.quality, rs.token)
+                        rs.playlistUrl = buildPlaylistUrl(rs.roomId, rs.quality, rs.pkey, rs.token)
                         continue
                     }
                     throw e
@@ -453,7 +455,7 @@ class SessionComponent(
                         val token = configureSession(rs.roomId, rs.roomName)
                         if (token != null) {
                             rs.token = token.takeIf { it.isNotEmpty() }
-                            rs.playlistUrl = buildPlaylistUrl(rs.roomId, rs.quality, rs.token)
+                            rs.playlistUrl = buildPlaylistUrl(rs.roomId, rs.quality, rs.pkey, rs.token)
                             continue
                         }
                         logger.info("[STOP] [{}] Room off or non-public (403)", rs.roomName)
@@ -468,7 +470,7 @@ class SessionComponent(
                     if (configureSession(rs.roomId, rs.roomName) == null) {
                         logger.info("[STOP] [{}] Room off or non-public", rs.roomName)
                     }
-                    rs.playlistUrl = buildPlaylistUrl(rs.roomId, rs.quality, rs.token)
+                    rs.playlistUrl = buildPlaylistUrl(rs.roomId, rs.quality, rs.pkey, rs.token)
                 }
             }
         } finally {

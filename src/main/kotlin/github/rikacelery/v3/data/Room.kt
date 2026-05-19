@@ -16,7 +16,8 @@ data class Room(
     val sizeLimitBytes: Long,
     val autoPay: Boolean,
     val lastSeen: String?,
-    val status: String = ""
+    val status: String = "",
+    val pkey: String = ""
 )
 
 object DurationMillisSerializer : KSerializer<Long> {

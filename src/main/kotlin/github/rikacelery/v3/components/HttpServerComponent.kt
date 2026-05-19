@@ -46,6 +46,7 @@ class HttpServerComponent(
                     val active = call.request.queryParameters["active"]?.toBooleanStrictOrNull() ?: false
                     val limit = call.request.queryParameters["limit"]?.toLongOrNull() ?: 0L
                     val autopay = call.request.queryParameters["autopay"]?.toBooleanStrictOrNull() ?: false
+                    val pkey = call.request.queryParameters["pkey"] ?: ""
                     val sizeBytes = call.request.queryParameters["size"]?.let {
                         try {
                             github.rikacelery.v3.data.SizeStrSerializer.parseSizeString(it)
@@ -61,6 +62,7 @@ class HttpServerComponent(
                             AddRoom(
                                 name,
                                 quality,
+                                pkey,
                                 limit * 1000,
                                 sizeBytes,
                                 autopay

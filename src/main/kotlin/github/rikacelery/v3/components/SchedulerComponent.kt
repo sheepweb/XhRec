@@ -14,7 +14,7 @@ data class OnSchedulerEvent(val event: Any) : SchedulerMsg
 data class SchedulerHandleCommand(val env: CommandEnvelope) : SchedulerMsg
 object LoopListen : SchedulerMsg
 
-data class ArmedRoom(val roomId: Long, val roomName: String, val quality: String)
+data class ArmedRoom(val roomId: Long, val roomName: String, val quality: String, val pkey: String = "")
 
 class SchedulerComponent(
     private val requestBus: RequestBus,
@@ -75,7 +75,7 @@ class SchedulerComponent(
                         event.newStatus
                     )
                     eventBus.publish(RecordingStarted(event.roomId))
-                    sessionComponent.tell(DoStart(event.roomId, a.roomName, a.quality))
+                    sessionComponent.tell(DoStart(event.roomId, a.roomName, a.quality, a.pkey))
                 }
             }
 
@@ -93,8 +93,8 @@ class SchedulerComponent(
         }
     }
 
-    fun internalAdd(room: Long, name1: String, quality: String, isArmed: Boolean) {
-        armed[room] = ArmedRoom(room, name1, quality)
+    fun internalAdd(room: Long, name1: String, quality: String, pkey: String, isArmed: Boolean) {
+        armed[room] = ArmedRoom(room, name1, quality, pkey)
         if (isArmed) logger.info("Room {} ({}) armed and waiting", name1, room)
     }
 
@@ -104,9 +104,9 @@ class SchedulerComponent(
                 try {
                     val name = requestBus.request<RoomNameResponse>(GetRoomName(env.command.roomId)).name
                     val config = requestBus.request<RoomConfigResponse>(GetRoomConfig(env.command.roomId))
-                    armed[env.command.roomId] = ArmedRoom(env.command.roomId, name, config.quality)
+                    armed[env.command.roomId] = ArmedRoom(env.command.roomId, name, config.quality, config.pkey)
                     eventBus.publish(RecordingStarted(env.command.roomId))
-                    sessionComponent.tell(DoStart(env.command.roomId, name, config.quality))
+                    sessionComponent.tell(DoStart(env.command.roomId, name, config.quality, config.pkey))
                 } catch (e: Exception) { /* room offline, armed and waiting */
                 }
                 OkResponse
@@ -120,7 +120,7 @@ class SchedulerComponent(
                 try {
                     val name = requestBus.request<RoomNameResponse>(GetRoomName(env.command.roomId)).name
                     val config = requestBus.request<RoomConfigResponse>(GetRoomConfig(env.command.roomId))
-                    armed[env.command.roomId] = ArmedRoom(env.command.roomId, name, config.quality)
+                    armed[env.command.roomId] = ArmedRoom(env.command.roomId, name, config.quality, config.pkey)
                     logger.info("Room {} ({}) activated (armed)", name, env.command.roomId)
                 } catch (_: Exception) {
                 }
@@ -157,7 +157,7 @@ class SchedulerComponent(
                 val status = requestBus.request<RoomStatusResponse>(GetRoomStatus(roomId))
                 if (status.status == "public" || status.status == "groupShow") {
                     eventBus.publish(RecordingStarted(roomId))
-                    sessionComponent.tell(DoStart(roomId, a.roomName, a.quality))
+                    sessionComponent.tell(DoStart(roomId, a.roomName, a.quality, a.pkey))
                 }
             } catch (_: Exception) {
             }

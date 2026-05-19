@@ -14,7 +14,7 @@ data class SetRoomQuality(val roomId: Long, val quality: String) : Request
 data class SetRoomTimeLimit(val roomId: Long, val limitMs: Long) : Request
 data class SetRoomSizeLimit(val roomId: Long, val limitBytes: Long) : Request
 data class SetRoomAutoPay(val roomId: Long, val autoPay: Boolean) : Request
-data class AddRoom(val name: String, val quality: String, val timeLimitMs: Long = 0, val sizeLimitBytes: Long = 0, val autoPay: Boolean = false) : Request
+data class AddRoom(val name: String, val quality: String, val pkey: String = "", val timeLimitMs: Long = 0, val sizeLimitBytes: Long = 0, val autoPay: Boolean = false) : Request
 data class RemoveRoom(val roomId: Long) : Request
 
 // ── Config commands ──
@@ -64,7 +64,8 @@ data class RoomConfigResponse(
     val quality: String,
     val timeLimitMs: Long,
     val sizeLimitBytes: Long,
-    val autoPay: Boolean
+    val autoPay: Boolean,
+    val pkey: String = ""
 ) : Response
 data class ConfigResponse(val value: Any?) : Response
 object OkResponse : Response

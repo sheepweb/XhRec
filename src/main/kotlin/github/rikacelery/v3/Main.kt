@@ -3,12 +3,39 @@ package github.rikacelery.v3
 import github.rikacelery.v3.api.ApiClient
 import github.rikacelery.v3.bootstrap.Bootstrap
 import github.rikacelery.v3.components.*
-import github.rikacelery.v3.core.*
+import github.rikacelery.v3.core.DataChannel
+import github.rikacelery.v3.core.EventBus
+import github.rikacelery.v3.core.RequestBus
 import github.rikacelery.v3.data.SystemConfig
 import github.rikacelery.v3.m3u8.M3u8Parser
-import kotlinx.coroutines.*
-import org.apache.commons.cli.*
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import org.apache.commons.cli.DefaultParser
+import org.apache.commons.cli.Options
+import org.apache.commons.cli.ParseException
 import java.io.File
+
+private fun loadPersistedConfig(configPath: String): Pair<String, Map<String, String>> {
+    val file = File(configPath)
+    val key = "YzWScuyQRGAGcxx1KIJmiQ7BY9Vi35ftwLqUOVO8uoo="
+    val pkey = "Fq6m2TO2ZeBkRPm9"
+    val default = pkey to mapOf(pkey to key)
+    if (!file.exists()) return default
+    try {
+        val json = Json.parseToJsonElement(file.readText()).jsonObject
+        val pkey = json["streamAuthKey"]?.jsonPrimitive?.content ?: pkey
+        val keys = mutableMapOf(pkey to key)
+        json["decryptKeys"]?.jsonObject?.forEach { (k, v) -> keys[k] = v.jsonPrimitive.content }
+        return pkey to keys
+    } catch (_: Exception) {
+        return default
+    }
+}
 
 fun main(vararg args: String): Unit {
     val cliOptions = Options()
@@ -25,16 +52,20 @@ fun main(vararg args: String): Unit {
     coroutineScope {
         val appScope = this
 
+        val configPath = "xhrec.json"
+        val (defaultPkey, decryptKeys) = loadPersistedConfig(configPath)
+
         val config = SystemConfig(
             outputDir = File(cli.getOptionValue("output", "out")),
             tmpDir = File(cli.getOptionValue("tmp", "tmp")),
             port = cli.getOptionValue("port", "8090").toInt(),
             proxy = System.getenv("http_proxy"),
-            decryptKeys = mapOf("v2" to "YzWScuyQRGAGcxx1KIJmiQ7BY9Vi35ftwLqUOVO8uoo="),
-            streamAuthKey = "Fq6m2TO2ZeBkRPm9", // old:"Ook7quaiNgiyuhai",
+            decryptKeys = decryptKeys,
+            streamAuthKey = defaultPkey,
             authToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiItMTA4MSIsImluZm8iOnsiaXNHdWVzdCI6dHJ1ZSwidXNlcklkIjotMTA4MX19.IXF36-UfCEmOPGvhl2a19rgLsh2rDCdXNJ3su9LkA9Y",
             platformHost = "stripchat.com",
-            listConfPath = cli.getOptionValue("file", "list.conf")
+            listConfPath = cli.getOptionValue("file", "list.conf"),
+            configPath = configPath
         )
 
         // 1. Core infrastructure

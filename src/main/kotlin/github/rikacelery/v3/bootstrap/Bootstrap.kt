@@ -120,7 +120,8 @@ class Bootstrap(
 
     data class ListConfLine(
         val url: String, val quality: String = "720p",
-        val timeLimit: Long = 0, val sizeLimit: Long = 0, val autoPay: Boolean = false, val armed: Boolean
+        val timeLimit: Long = 0, val sizeLimit: Long = 0, val autoPay: Boolean = false, val pkey: String = "",
+        val armed: Boolean
     )
 
     private suspend fun loadRooms(cli: CliConfig) {
@@ -153,9 +154,9 @@ class Bootstrap(
     }
 
     private fun addRoomFromParsed(id: Long, name: String, parsed: ListConfLine) {
-        roomComponent.internalAdd(id, name, parsed.quality, parsed.timeLimit, parsed.sizeLimit, parsed.autoPay)
+        roomComponent.internalAdd(id, name, parsed.quality, parsed.timeLimit, parsed.sizeLimit, parsed.autoPay, parsed.pkey)
         if (parsed.armed) {
-            schedulerComponent.internalAdd(id, name, parsed.quality, parsed.armed)
+            schedulerComponent.internalAdd(id, name, parsed.quality, parsed.pkey, parsed.armed)
         }
     }
 
@@ -167,16 +168,18 @@ class Bootstrap(
         var timeLimit = 0L
         var sizeLimit = 0L
         var autoPay = false
+        var pkey = ""
         for (i in 1 until parts.size) {
             when {
                 parts[i].startsWith("q:") -> quality = parts[i].substring(2)
                 parts[i].startsWith("limit:") -> timeLimit = parts[i].substring(6).toLong()
                 parts[i].startsWith("size:") -> sizeLimit = parseSize(parts[i].substring(5))
+                parts[i].startsWith("pkey:") -> pkey = parts[i].substring(5)
                 parts[i] == "autopay" -> autoPay = true
             }
         }
         val trimmed = line.trim()
-        return ListConfLine(url, quality, timeLimit, sizeLimit, autoPay, armed = !trimmed.startsWith("#") && !trimmed.startsWith(";"))
+        return ListConfLine(url, quality, timeLimit, sizeLimit, autoPay, pkey, armed = !trimmed.startsWith("#") && !trimmed.startsWith(";"))
     }
 
     private fun parseSize(s: String): Long {

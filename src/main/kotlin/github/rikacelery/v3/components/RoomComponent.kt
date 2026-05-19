@@ -95,7 +95,8 @@ class RoomComponent(
                     r.quality,
                     r.timeLimitMs,
                     r.sizeLimitBytes,
-                    r.autoPay
+                    r.autoPay,
+                    r.pkey
                 ) else ErrorResponse("not found: ${cmd.roomId}")
             }
 
@@ -127,7 +128,7 @@ class RoomComponent(
                         logger.warn("Duplicate room: id={}, name={}", id, name)
                         ErrorResponse("Exist $name")
                     } else {
-                        rooms[id] = Room(id, name, cmd.quality, cmd.timeLimitMs, cmd.sizeLimitBytes, cmd.autoPay, null)
+                        rooms[id] = Room(id, name, cmd.quality, cmd.timeLimitMs, cmd.sizeLimitBytes, cmd.autoPay, null, pkey = cmd.pkey)
                         logger.info("Room added: id={}, name={}, quality={}", id, name, cmd.quality)
                         eventBus.publish(RoomAdded(id, name))
                         RoomNameResponse(name)
@@ -187,9 +188,10 @@ class RoomComponent(
         quality: String,
         timeLimitMs: Long,
         sizeLimitBytes: Long,
-        autoPay: Boolean
+        autoPay: Boolean,
+        pkey: String = ""
     ) {
-        rooms[id] = Room(id, name, quality, timeLimitMs, sizeLimitBytes, autoPay, null)
+        rooms[id] = Room(id, name, quality, timeLimitMs, sizeLimitBytes, autoPay, null, pkey = pkey)
     }
 
     fun getRoom(roomId: Long): Room? = rooms[roomId]
@@ -205,6 +207,7 @@ class RoomComponent(
                     val sb = StringBuilder("${prefix}https://$platformHost/${room.name} q:${room.quality}")
                     if (room.timeLimitMs > 0) sb.append(" limit:${room.timeLimitMs / 1000}")
                     if (room.sizeLimitBytes > 0) sb.append(" size:${formatSize(room.sizeLimitBytes)}")
+                    if (room.pkey.isNotBlank()) sb.append(" pkey:${room.pkey}")
                     if (room.autoPay) sb.append(" autopay")
                     sb.toString()
                 }.let { lines -> if (lines.isNotEmpty()) lines + "\n" else "" })
