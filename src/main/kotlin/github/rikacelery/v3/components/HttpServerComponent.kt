@@ -41,7 +41,20 @@ class HttpServerComponent(
                     val name = call.request.queryParameters["name"] ?: ""
                     if (name.isBlank()) return@get call.respondText("Missing name", status = HttpStatusCode.BadRequest)
                     val quality = call.request.queryParameters["quality"] ?: "720p"
-                    try { call.respondText("Room added: ${requestBus.request<RoomNameResponse>(AddRoom(name, quality), timeoutMs = 30_000).name}") }
+                    val armed = call.request.queryParameters["active"].toBoolean()
+                    val limitSec = call.request.queryParameters["limit"]?.toLongOrNull() ?: 0L
+                    try {
+                        val resp = requestBus.request<RoomNameResponse>(AddRoom(name, quality, armed), timeoutMs = 30_000)
+                        if (limitSec > 0 && resp is RoomNameResponse) {
+                            // Room was added, now set time limit — need roomId
+                            val rooms = requestBus.request<List<Room>>(GetRooms)
+                            val added = rooms.find { it.name == resp.name }
+                            if (added != null) {
+                                requestBus.request<OkResponse>(SetRoomTimeLimit(added.id, limitSec * 1000))
+                            }
+                        }
+                        call.respondText("Room added: ${resp.name}")
+                    }
                     catch (e: Exception) { call.respondText("Error: ${e.message}", status = HttpStatusCode.InternalServerError) }
                 }
                 get("/start") {
@@ -100,7 +113,7 @@ class HttpServerComponent(
                 get("/limit") {
                     val id = call.request.queryParameters["id"]?.toLongOrNull() ?: return@get call.respondText("Missing id", status = HttpStatusCode.BadRequest)
                     val v = call.request.queryParameters["v"]?.toLongOrNull() ?: return@get call.respondText("Missing v (seconds)", status = HttpStatusCode.BadRequest)
-                    requestBus.request<OkResponse>(SetRoomTimeLimit(id, v))
+                    requestBus.request<OkResponse>(SetRoomTimeLimit(id, if (v == 0L) Long.MAX_VALUE else v * 1000))
                     call.respondText("Time limit set to ${v}s")
                 }
                 get("/sizelimit") {
@@ -140,7 +153,8 @@ class HttpServerComponent(
                                 put("room", buildJsonObject {
                                     put("name", r.name); put("id", r.id); put("quality", r.quality)
                                     put("status", r.status)
-                                    put("timeLimitMs", r.timeLimitMs); put("sizeLimitBytes", r.sizeLimitBytes)
+                                    put("timeLimit", if (r.timeLimitMs > 0 && r.timeLimitMs < Long.MAX_VALUE) r.timeLimitMs / 1000 else 0)
+                                    put("sizeLimit", r.sizeLimitBytes)
                                     put("autoPay", r.autoPay)
                                 })
                             })
@@ -149,9 +163,28 @@ class HttpServerComponent(
                 }
                 get("/status") {
                     val sessions = requestBus.request<List<RoomSession>>(GetSessions)
+                    val metrics = try { requestBus.request<MetricsResponse>(GetMetrics).metrics } catch (_: Exception) { emptyMap() }
+                    val activeDownloads = try { requestBus.request<ActiveDownloadsResponse>(GetActiveDownloads).downloads } catch (_: Exception) { emptyMap() }
                     call.respond(buildJsonObject {
                         sessions.filter { it.state == SessionState.Recording || it.state == SessionState.Fetching }
-                            .forEach { s -> put(s.roomName, s.state.name) }
+                            .forEach { s ->
+                                val m = metrics[s.roomId] as? Map<*, *>
+                                val running = activeDownloads[s.roomId] ?: emptyList<ActiveDownloadInfo>()
+                                put(s.roomName, buildJsonObject {
+                                    put("total", (m?.get("total") as? Int) ?: 0)
+                                    put("success", (m?.get("success") as? Int) ?: 0)
+                                    put("failed", (m?.get("failed") as? Int) ?: 0)
+                                    put("bytesWrite", (m?.get("bytesWrite") as? Long) ?: 0L)
+                                    put("running", buildJsonObject {
+                                        running.forEach { dl ->
+                                            put(dl.url, buildJsonObject {
+                                                put("type", dl.type)
+                                                put("startAt", dl.startAt)
+                                            })
+                                        }
+                                    })
+                                })
+                            }
                     })
                 }
                 get("/recorders") {

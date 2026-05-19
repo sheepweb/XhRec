@@ -141,7 +141,9 @@ class SessionComponent(
         logger.info("Session stopping: roomId={}, name={}, state={}", roomId, rs.roomName, rs.state)
         rs.state = SessionState.Closing
         rs.pollingJob?.cancel()
-        downloader.tell(DoCutPoint(CutPoint(roomId, rs.segmentIndex, rs.roomName, Instant.now(), EndReason.UserStop)))
+        downloader.tell(DoStopFetch(
+            roomId
+        ))
     }
 
     private suspend fun handleEvent(event: Any) {
@@ -157,10 +159,8 @@ class SessionComponent(
                         rs.state = SessionState.Closing
                         rs.pollingJob?.cancel()
                         downloader.tell(
-                            DoCutPoint(
-                                CutPoint(
-                                    event.roomId, rs.segmentIndex, rs.roomName, Instant.now(), EndReason.StreamEnd
-                                )
+                            DoStopFetch(
+                                event.roomId
                             )
                         )
                     }

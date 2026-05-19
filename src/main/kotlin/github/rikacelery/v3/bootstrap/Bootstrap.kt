@@ -2,6 +2,10 @@ package github.rikacelery.v3.bootstrap
 
 import github.rikacelery.v3.api.ApiClient
 import github.rikacelery.v3.components.*
+import github.rikacelery.v3.core.EventBus
+import github.rikacelery.v3.core.RequestBus
+import github.rikacelery.v3.events.AddRoom
+import github.rikacelery.v3.events.RoomNameResponse
 import github.rikacelery.v3.exceptions.RenameException
 import github.rikacelery.v3.postprocessors.*
 import kotlinx.coroutines.*
@@ -10,6 +14,7 @@ import kotlinx.serialization.json.jsonObject
 import org.apache.commons.cli.*
 import org.slf4j.LoggerFactory
 import java.io.File
+import kotlin.time.Duration.Companion.seconds
 
 class Bootstrap(
     private val apiClient: ApiClient,
@@ -17,6 +22,7 @@ class Bootstrap(
     private val authComponent: AuthComponent,
     private val postProcessorComponent: PostProcessorComponent,
     private val schedulerComponent: SchedulerComponent,
+    private val requestBus: RequestBus,
 ) {
     private val logger = LoggerFactory.getLogger("v3.Bootstrap")
 
@@ -137,31 +143,11 @@ class Bootstrap(
                     val parsed = parseListConfLine(line) ?: return@async
                     try {
                         val (id, name) = apiClient.getRoomFromUrlOrSlug(parsed.url, parsed.quality)
-                        roomComponent.internalAdd(
-                            id,
-                            name,
-                            parsed.quality,
-                            parsed.timeLimit,
-                            parsed.sizeLimit,
-                            parsed.autoPay
-                        )
-                        if (parsed.armed) {
-                            schedulerComponent.internalAdd(id, name, parsed.quality, parsed.armed)
-                        }
+                        requestBus.request<RoomNameResponse>(AddRoom(name, parsed.quality,parsed.armed),30.seconds.inWholeMilliseconds)
                     } catch (e: RenameException) {
                         try {
                             val (id, name) = apiClient.getRoomFromUrlOrSlug(e.newName, parsed.quality)
-                            roomComponent.internalAdd(
-                                id,
-                                name,
-                                parsed.quality,
-                                parsed.timeLimit,
-                                parsed.sizeLimit,
-                                parsed.autoPay
-                            )
-                            if (parsed.armed) {
-                                schedulerComponent.internalAdd(id, name, parsed.quality, parsed.armed)
-                            }
+                            requestBus.request<RoomNameResponse>(AddRoom(name, parsed.quality,parsed.armed),30.seconds.inWholeMilliseconds)
                         } catch (e: Exception) {
                             logger.warn("Failed to load room from '$line': ${e.message}", e)
                         }

@@ -7,7 +7,7 @@ data class Segment(val url: String, val index: Int)
 
 // ── Room Events ──
 
-data class RoomAdded(val roomId: Long, val name: String)
+data class RoomAdded(val roomId: Long, val name: String, val armed: Boolean)
 data class RoomRenamed(val roomId: Long, val oldName: String, val newName: String)
 data class RoomRemoved(val roomId: Long, val name: String)
 data class RoomStatusChanged(val roomId: Long, val oldStatus: String, val newStatus: String)
@@ -31,6 +31,7 @@ data class SegmentDownloaded(
     val durationMs: Long,
     val proxied: Boolean
 )
+
 data class DownloadError(
     val roomId: Long,
     val idx: Int?,

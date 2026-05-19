@@ -11,4 +11,5 @@ sealed class DownloadResult {
     }
     data class Failed(val idx: Int, val url: String, val reason: String) : DownloadResult()
     data class Skipped(val idx: Int, val reason: String) : DownloadResult()
+    data class CutPoint(val cut: github.rikacelery.v3.events.CutPoint) : DownloadResult()
 }

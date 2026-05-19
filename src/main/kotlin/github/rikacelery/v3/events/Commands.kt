@@ -14,7 +14,7 @@ data class SetRoomQuality(val roomId: Long, val quality: String) : Request
 data class SetRoomTimeLimit(val roomId: Long, val limitMs: Long) : Request
 data class SetRoomSizeLimit(val roomId: Long, val limitBytes: Long) : Request
 data class SetRoomAutoPay(val roomId: Long, val autoPay: Boolean) : Request
-data class AddRoom(val name: String, val quality: String) : Request
+data class AddRoom(val name: String, val quality: String,val armed: Boolean) : Request
 data class RemoveRoom(val roomId: Long) : Request
 
 // ── Config commands ──
@@ -61,6 +61,8 @@ data class BreakCmd(val roomId: Long) : Request
 
 object GetRooms : Request
 object GetSessions : Request
+object GetMetrics : Request
+object GetActiveDownloads : Request
 object ShutdownCmd : Request
 
 // ── RequestBus responses ──
@@ -74,5 +76,8 @@ data class RoomConfigResponse(
     val autoPay: Boolean
 ) : Response
 data class ConfigResponse(val value: Any?) : Response
+data class MetricsResponse(val metrics: Map<Long, Any>) : Response
+data class ActiveDownloadInfo(val url: String, val type: String, val startAt: Long)
+data class ActiveDownloadsResponse(val downloads: Map<Long, List<ActiveDownloadInfo>>) : Response
 object OkResponse : Response
 data class ErrorResponse(val message: String) : Response

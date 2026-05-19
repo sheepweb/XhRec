@@ -29,7 +29,7 @@ fun main(vararg args: String): Unit = runBlocking {
         val dataChannel = DataChannel()
 
         // 2. Components
-        val metricComponent = MetricComponent(eventBus, appScope)
+        val metricComponent = MetricComponent(eventBus, appScope,requestBus)
         val configComponent = ConfigComponent(config, eventBus, appScope)
         val authComponent = AuthComponent(eventBus, appScope)
         val roomComponent = RoomComponent(ApiClient, eventBus, appScope)
@@ -40,17 +40,13 @@ fun main(vararg args: String): Unit = runBlocking {
         )
         val writerComponent = WriterComponent(
             dataChannel, config.outputDir, config.tmpDir,
-            eventBus = eventBus, parentScope = appScope
+            eventBus = eventBus, parentScope = appScope, metricComponent = metricComponent
         )
         val postProcessorComponent = PostProcessorComponent(eventBus = eventBus, parentScope = appScope)
         val sessionComponent = SessionComponent(dataChannel, downloaderComponent, M3u8Parser, requestBus, ApiClient, eventBus, appScope)
         val schedulerComponent = SchedulerComponent(requestBus, sessionComponent, eventBus, appScope)
 
         val httpServer = HttpServerComponent(config.port, eventBus, requestBus, metricComponent, appScope)
-
-        // 3. Bootstrap: load users, processors, rooms from config files
-        val bootstrap = Bootstrap(ApiClient, roomComponent, authComponent, postProcessorComponent,schedulerComponent)
-        bootstrap.initialize(args.toList())
 
         // 4. Start all Actors
         configComponent.start()
@@ -63,6 +59,10 @@ fun main(vararg args: String): Unit = runBlocking {
         postProcessorComponent.start()
         sessionComponent.start()
         schedulerComponent.start()
+
+        // 3. Bootstrap: load users, processors, rooms from config files
+        val bootstrap = Bootstrap(ApiClient, roomComponent, authComponent, postProcessorComponent,schedulerComponent,requestBus)
+        bootstrap.initialize(args.toList())
 
         // 5. Start HTTP server
         val engine = httpServer.start()

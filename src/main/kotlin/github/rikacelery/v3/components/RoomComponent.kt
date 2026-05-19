@@ -11,6 +11,7 @@ import github.rikacelery.v3.exceptions.DeletedException
 import github.rikacelery.v3.exceptions.RenameException
 import kotlinx.coroutines.*
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.random.Random
 
 sealed interface RoomMsg
 data class OnRoomEvent(val event: Any) : RoomMsg
@@ -25,7 +26,7 @@ class RoomComponent(
 
     private val rooms = ConcurrentHashMap<Long, Room>()
     private var nextId = 1L
-    private var ready = false
+    private var ready = true
 
     fun setReady() {
         ready = true
@@ -82,6 +83,7 @@ class RoomComponent(
                 if (r != null) RoomStatusResponse(r.status)
                 else ErrorResponse("not found: ${cmd.roomId}")
             }
+
             is GetRoomConfig -> {
                 val r = rooms[cmd.roomId]; if (r != null) RoomConfigResponse(
                     r.quality,
@@ -108,19 +110,30 @@ class RoomComponent(
             }
 
             is AddRoom -> {
-                if (!ready) {
-                    ErrorResponse("system initializing, please retry")
-                } else {
-                    try {
-                        val (id, name) = apiClient.getRoomFromUrlOrSlug(cmd.name, cmd.quality)
-                        rooms[id] = Room(id, name, cmd.quality, 0, 0, false, null)
-                        logger.info("Room added: id={}, name={}, quality={}", id, name, cmd.quality)
-                        eventBus.publish(RoomAdded(id, name))
-                        RoomNameResponse(name)
-                    } catch (e: Exception) {
-                        logger.warn("Failed to add room '{}': {}", cmd.name, e.message)
-                        ErrorResponse("failed to add room: ${e.message}")
-                    }
+                logger.info("AAA")
+                try {
+                    val (id, name) = apiClient.getRoomFromUrlOrSlug(cmd.name, cmd.quality)
+                    rooms[id] = Room(id, name, cmd.quality, 0, 0, false, null)
+                    logger.info(
+                        "Room added: id={}, name={}, quality={}, armed={}",
+                        id,
+                        name,
+                        cmd.quality,
+                        cmd.armed
+                    )
+                    eventBus.publish(RoomAdded(id, name, cmd.armed))
+                    RoomNameResponse(name)
+                } catch (e: RenameException) {
+                    eventBus.publish(
+                        CommandEnvelope(
+                            Random.nextInt().toLong(),
+                            AddRoom(name, cmd.quality, cmd.armed)
+                        )
+                    )
+                    ErrorResponse("Room renamed: ${e.message}")
+                } catch (e: Exception) {
+                    logger.warn("Failed to add room '{}': {}", cmd.name, e.message)
+                    ErrorResponse("failed to add room: ${e.message}")
                 }
             }
 

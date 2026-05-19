@@ -29,8 +29,14 @@ data class ActiveFile(
     var bytesWritten: Long = 0
 ) {
     fun dispose() {
-        try { fos.close() } catch (_: Exception) {}
-        try { eventFos.close() } catch (_: Exception) {}
+        try {
+            fos.close()
+        } catch (_: Exception) {
+        }
+        try {
+            eventFos.close()
+        } catch (_: Exception) {
+        }
         file.delete()
         eventFile.delete()
     }
@@ -42,7 +48,8 @@ class WriterComponent(
     private val tmpDir: File,
     private val hooks: List<WriterHook> = emptyList(),
     eventBus: EventBus,
-    parentScope: CoroutineScope
+    parentScope: CoroutineScope,
+    private val metricComponent: MetricComponent? = null
 ) : Actor<WriterMsg>("WriterComponent", eventBus, parentScope) {
 
     private val files = ConcurrentHashMap<Long, ActiveFile>()
@@ -82,12 +89,15 @@ class WriterComponent(
     }
 
     private suspend fun handleStreamData(msg: StreamData) {
-        val active = files[msg.roomId] ?: return
+        val active = files[msg.roomId] ?: run {
+            logger.info("drop {} {}", msg.roomId, msg.meta.url)
+            return
+        }
         var data = msg.data
         hooks.forEach { data = it.beforeWrite(msg.roomId, data) }
-        logger.info("recv {} {}",msg.roomId,msg.meta.url)
         active.fos.write(data)
         active.bytesWritten += data.size
+        metricComponent?.addBytes(msg.roomId, data.size.toLong())
     }
 
     private suspend fun handleStreamEnd(msg: StreamEnd) {
