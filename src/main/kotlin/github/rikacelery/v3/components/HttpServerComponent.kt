@@ -201,7 +201,7 @@ class HttpServerComponent(
                     )
                     val v = call.request.queryParameters["v"]?.toLongOrNull()
                         ?: return@get call.respondText("Missing v (seconds)", status = HttpStatusCode.BadRequest)
-                    requestBus.request<OkResponse>(SetRoomTimeLimit(id, v.seconds))
+                    requestBus.request<OkResponse>(SetRoomTimeLimit(id, if (v == 0L) Duration.INFINITE else v.seconds))
                     persistConfig()
                     call.respondText("Time limit set to ${v}s")
                 }
@@ -259,7 +259,10 @@ class HttpServerComponent(
                                     put("id", r.id)
                                     put("quality", r.quality)
                                     put("status", r.status)
-                                    put("timeLimit", if (r.timeLimit == Duration.INFINITE) 0L else r.timeLimit.inWholeMilliseconds)
+                                    put(
+                                        "timeLimit",
+                                        if (r.timeLimit == Duration.INFINITE) 0L else r.timeLimit.inWholeMilliseconds
+                                    )
                                     put("sizeLimitBytes", r.sizeLimitBytes)
                                     put("autoPay", r.autoPay)
                                 })

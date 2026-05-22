@@ -86,6 +86,8 @@ class SessionComponent(
         subscribe<SegmentDownloaded>(SegmentDownloaded::class)
         subscribe<CommandEnvelope>(CommandEnvelope::class)
         subscribe<QualityChangeRequested>(QualityChangeRequested::class)
+        subscribe<RoomTimeLimitChanged>(RoomTimeLimitChanged::class)
+        subscribe<RoomSizeLimitChanged>(RoomSizeLimitChanged::class)
 
         scope.launch {
             while (isActive) {
@@ -101,6 +103,8 @@ class SessionComponent(
         is QualitiesAvailable -> OnSessionEvent(event)
         is SegmentDownloaded -> OnSessionEvent(event)
         is QualityChangeRequested -> OnSessionEvent(event)
+        is RoomTimeLimitChanged -> OnSessionEvent(event)
+        is RoomSizeLimitChanged -> OnSessionEvent(event)
         is CommandEnvelope -> HandleSessionCommand(event)
         else -> null
     }
@@ -240,6 +244,18 @@ class SessionComponent(
                 if (rs.state == SessionState.Recording||rs.state==SessionState.Fetching) {
                     pollQualityForRoom(rs)
                 }
+            }
+
+            is RoomTimeLimitChanged -> {
+                val rs = sessions[event.roomId] ?: return
+                logger.info("Time limit changed for {}: {} -> {}", rs.roomName, rs.timeLimit, event.limit)
+                rs.timeLimit = event.limit
+            }
+
+            is RoomSizeLimitChanged -> {
+                val rs = sessions[event.roomId] ?: return
+                logger.info("Size limit changed for {}: {} -> {}", rs.roomName, rs.sizeLimitBytes, event.limitBytes)
+                rs.sizeLimitBytes = event.limitBytes
             }
 
             is SegmentDownloaded -> {

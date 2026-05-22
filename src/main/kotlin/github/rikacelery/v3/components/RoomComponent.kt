@@ -109,11 +109,15 @@ class RoomComponent(
             }
 
             is SetRoomTimeLimit -> {
-                rooms[cmd.roomId]?.let { rooms[it.id] = it.copy(timeLimit = cmd.limit) }; OkResponse
+                rooms[cmd.roomId]?.let { rooms[it.id] = it.copy(timeLimit = cmd.limit) }
+                eventBus.publish(RoomTimeLimitChanged(cmd.roomId, cmd.limit))
+                OkResponse
             }
 
             is SetRoomSizeLimit -> {
-                rooms[cmd.roomId]?.let { rooms[it.id] = it.copy(sizeLimitBytes = cmd.limitBytes) }; OkResponse
+                rooms[cmd.roomId]?.let { rooms[it.id] = it.copy(sizeLimitBytes = cmd.limitBytes) }
+                eventBus.publish(RoomSizeLimitChanged(cmd.roomId, cmd.limitBytes))
+                OkResponse
             }
 
             is SetRoomAutoPay -> {

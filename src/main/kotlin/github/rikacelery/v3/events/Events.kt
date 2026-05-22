@@ -2,6 +2,7 @@ package github.rikacelery.v3.events
 
 import kotlinx.serialization.json.JsonObject
 import java.io.File
+import kotlin.time.Duration
 
 data class Segment(val url: String, val index: Int)
 
@@ -63,6 +64,8 @@ data class WriterFatal(val roomId: Long, val error: String)
 object PersistConfig
 /** Published when user manually changes quality — triggers immediate quality check */
 data class QualityChangeRequested(val roomId: Long, val newQuality: String)
+data class RoomTimeLimitChanged(val roomId: Long, val limit: Duration)
+data class RoomSizeLimitChanged(val roomId: Long, val limitBytes: Long)
 
 // ── Misc ──
 
