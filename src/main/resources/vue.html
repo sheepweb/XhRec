@@ -456,11 +456,11 @@
                 roomDisplay() {
                     const list = Object.values(this.roomInfo);
                     return [...list].sort((a, b) => {
-                        // Status priority: Recording > Listening > Offline/Other
+                        // Status priority: Recording > Fetching > Listening > Offline/Other
                         if (this.sort["Status"]) {
-                            const sOrder = { "Recording": 3, "Listening": 2, "": 1 };
-                            const aVal = sOrder[a.status] || 0;
-                            const bVal = sOrder[b.status] || 0;
+                            const sOrder = { "Recording": 3, "Fetching": 2, "Listening": 1, "": 0 };
+                            const aVal = sOrder[a.sessionStatus] ?? 0;
+                            const bVal = sOrder[b.sessionStatus] ?? 0;
                             if (aVal !== bVal) return this.sort["Status"] === 1 ? bVal - aVal : aVal - bVal;
                         }
                         if (this.sort["Quality"]) {
