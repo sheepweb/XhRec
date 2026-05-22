@@ -229,12 +229,14 @@ class HttpServerComponent(
                 get("/list") {
                     val rooms = requestBus.request<List<Room>>(GetRooms)
                     val sessions = requestBus.request<List<RoomSession>>(GetSessions)
+                    val armedIds = requestBus.request<List<Long>>(GetArmedRoomIds).toSet()
                     call.respond(buildJsonArray {
                         rooms.forEach { r ->
                             val s = sessions.find { it.roomId == r.id }
+                            val isListening = s != null || r.id in armedIds
                             add(buildJsonArray {
                                 add(r.status)
-                                add(if (s != null) "listening" else "")
+                                add(if (isListening) "listening" else "")
                                 add(if (s?.state == SessionState.Recording) "recording" else "")
                                 add(r.name); add(r.id.toString()); add(r.quality)
                                 add(if (r.timeLimit != Duration.INFINITE) r.timeLimit.inWholeSeconds.toString() else "0")
@@ -245,15 +247,22 @@ class HttpServerComponent(
                 get("/listv2") {
                     val rooms = requestBus.request<List<Room>>(GetRooms)
                     val sessions = requestBus.request<List<RoomSession>>(GetSessions)
+                    val armedIds = requestBus.request<List<Long>>(GetArmedRoomIds).toSet()
                     call.respond(buildJsonArray {
                         rooms.forEach { r ->
                             val s = sessions.find { it.roomId == r.id }
+                            val isArmed = r.id in armedIds
+                            val isActive = s?.state == SessionState.Fetching || s?.state == SessionState.Recording
                             add(buildJsonObject {
                                 put("session", buildJsonObject {
-                                    put("status", s?.state?.name ?: "")
+                                    put("status", when {
+                                        s != null && isActive -> s.state.name
+                                        isArmed -> "Listening"
+                                        else -> s?.state?.name ?: ""
+                                    })
                                     put("active", s?.state == SessionState.Recording)
                                 })
-                                put("listening", s != null)
+                                put("listening", s != null || isArmed)
                                 put("room", buildJsonObject {
                                     put("name", r.name)
                                     put("id", r.id)
