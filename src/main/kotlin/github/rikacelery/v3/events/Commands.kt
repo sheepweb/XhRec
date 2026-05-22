@@ -1,5 +1,7 @@
 package github.rikacelery.v3.events
 
+import kotlin.time.Duration
+
 // ── Echo envelopes ──
 
 data class CommandEnvelope(val id: Long, val command: Request)
@@ -11,10 +13,10 @@ data class GetRoomName(val roomId: Long) : Request
 data class GetRoomStatus(val roomId: Long) : Request
 data class GetRoomConfig(val roomId: Long) : Request
 data class SetRoomQuality(val roomId: Long, val quality: String) : Request
-data class SetRoomTimeLimit(val roomId: Long, val limitMs: Long) : Request
+data class SetRoomTimeLimit(val roomId: Long, val limit: Duration) : Request
 data class SetRoomSizeLimit(val roomId: Long, val limitBytes: Long) : Request
 data class SetRoomAutoPay(val roomId: Long, val autoPay: Boolean) : Request
-data class AddRoom(val name: String, val quality: String, val pkey: String = "", val timeLimitMs: Long = 0, val sizeLimitBytes: Long = 0, val autoPay: Boolean = false) : Request
+data class AddRoom(val name: String, val quality: String, val pkey: String = "", val timeLimit: Duration = Duration.INFINITE, val sizeLimitBytes: Long = 0, val autoPay: Boolean = false) : Request
 data class RemoveRoom(val roomId: Long) : Request
 
 // ── Config commands ──
@@ -29,7 +31,8 @@ data class StopRecordingCmd(val roomId: Long) : Request
 data class Download(
     val roomId: Long,
     val urls: List<Segment>,
-    val startIndex: Int
+    val startIndex: Int,
+    val generation: Int
 )
 
 data class CutPoint(
@@ -44,7 +47,7 @@ data class CutPoint(
 
 data class ActivateRecordingCmd(val roomId: Long) : Request
 data class DeactivateCmd(val roomId: Long) : Request
-data class BreakCmd(val roomId: Long) : Request
+data class BreakCmd(val roomId: Long, val reason: EndReason = EndReason.UserStop) : Request
 
 // ── Query commands ──
 
@@ -62,7 +65,7 @@ data class RoomNameResponse(val name: String) : Response
 data class RoomStatusResponse(val status: String) : Response
 data class RoomConfigResponse(
     val quality: String,
-    val timeLimitMs: Long,
+    val timeLimit: Duration,
     val sizeLimitBytes: Long,
     val autoPay: Boolean,
     val pkey: String = ""

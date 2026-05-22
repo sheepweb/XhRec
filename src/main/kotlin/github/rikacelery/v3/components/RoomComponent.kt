@@ -11,6 +11,7 @@ import github.rikacelery.v3.data.SizeStrSerializer
 import github.rikacelery.v3.events.*
 import github.rikacelery.v3.exceptions.DeletedException
 import github.rikacelery.v3.exceptions.RenameException
+import kotlin.time.Duration
 import kotlinx.coroutines.*
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
@@ -93,7 +94,7 @@ class RoomComponent(
             is GetRoomConfig -> {
                 val r = rooms[cmd.roomId]; if (r != null) RoomConfigResponse(
                     r.quality,
-                    r.timeLimitMs,
+                    r.timeLimit,
                     r.sizeLimitBytes,
                     r.autoPay,
                     r.pkey
@@ -108,7 +109,7 @@ class RoomComponent(
             }
 
             is SetRoomTimeLimit -> {
-                rooms[cmd.roomId]?.let { rooms[it.id] = it.copy(timeLimitMs = cmd.limitMs) }; OkResponse
+                rooms[cmd.roomId]?.let { rooms[it.id] = it.copy(timeLimit = cmd.limit) }; OkResponse
             }
 
             is SetRoomSizeLimit -> {
@@ -128,7 +129,7 @@ class RoomComponent(
                         logger.warn("Duplicate room: id={}, name={}", id, name)
                         ErrorResponse("Exist $name")
                     } else {
-                        rooms[id] = Room(id, name, cmd.quality, cmd.timeLimitMs, cmd.sizeLimitBytes, cmd.autoPay, null, pkey = cmd.pkey)
+                        rooms[id] = Room(id, name, cmd.quality, cmd.timeLimit, cmd.sizeLimitBytes, cmd.autoPay, null, pkey = cmd.pkey)
                         logger.info("Room added: id={}, name={}, quality={}", id, name, cmd.quality)
                         eventBus.publish(RoomAdded(id, name))
                         RoomNameResponse(name)
@@ -186,12 +187,12 @@ class RoomComponent(
         id: Long,
         name: String,
         quality: String,
-        timeLimitMs: Long,
+        timeLimit: Duration,
         sizeLimitBytes: Long,
         autoPay: Boolean,
         pkey: String = ""
     ) {
-        rooms[id] = Room(id, name, quality, timeLimitMs, sizeLimitBytes, autoPay, null, pkey = pkey)
+        rooms[id] = Room(id, name, quality, timeLimit, sizeLimitBytes, autoPay, null, pkey = pkey)
     }
 
     fun getRoom(roomId: Long): Room? = rooms[roomId]
@@ -205,7 +206,7 @@ class RoomComponent(
                 file.writeText(rooms.values.joinToString("\n") { room ->
                     val prefix = if (room.id in armedIds) "" else "#"
                     val sb = StringBuilder("${prefix}https://$platformHost/${room.name} q:${room.quality}")
-                    if (room.timeLimitMs > 0) sb.append(" limit:${room.timeLimitMs / 1000}")
+                    if (room.timeLimit != Duration.INFINITE) sb.append(" limit:${room.timeLimit.inWholeSeconds}")
                     if (room.sizeLimitBytes > 0) sb.append(" size:${formatSize(room.sizeLimitBytes)}")
                     if (room.pkey.isNotBlank()) sb.append(" pkey:${room.pkey}")
                     if (room.autoPay) sb.append(" autopay")

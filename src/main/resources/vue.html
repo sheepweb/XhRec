@@ -297,7 +297,7 @@
                             </td>
                             <td class="px-4 py-3">
                                 <div class="flex items-center gap-2">
-                                    <span class="text-slate-500 text-right">{{room.timeLimitMs > 0 ? (room.timeLimitMs / 1000) : 0}}</span>
+                                    <span class="text-slate-500 text-right">{{room.timeLimit > 0 ? (room.timeLimit / 1000) : 0}}</span>
                                     <i class="fa-solid fa-arrow-right-long text-slate-300 text-xs"></i>
                                     <input v-model.number="editLimits[room.id]" type="number" min="0"
                                         :style="{ width: Math.max(6, String(editLimits[room.id] || '').length + 3) + 'ch' }"
@@ -480,8 +480,8 @@
                         if (this.sort["ID"] && a.id !== b.id) {
                             return this.sort["ID"] === 1 ? b.id - a.id : a.id - b.id;
                         }
-                        if (this.sort["Limit"] && a.timeLimitMs !== b.timeLimitMs) {
-                            return this.sort["Limit"] === 1 ? (b.timeLimitMs || 0) - (a.timeLimitMs || 0) : (a.timeLimitMs || 0) - (b.timeLimitMs || 0);
+                        if (this.sort["Limit"] && a.timeLimit !== b.timeLimit) {
+                            return this.sort["Limit"] === 1 ? (b.timeLimit || 0) - (a.timeLimit || 0) : (a.timeLimit || 0) - (b.timeLimit || 0);
                         }
                         if (this.sort["Size"] && a.bytesWrite !== b.bytesWrite) {
                             return this.sort["Size"] === 1 ? (a.bytesWrite || 0) - (b.bytesWrite || 0) : (b.bytesWrite || 0) - (a.bytesWrite || 0);

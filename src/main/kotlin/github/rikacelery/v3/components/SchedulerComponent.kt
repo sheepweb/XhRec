@@ -135,7 +135,7 @@ class SchedulerComponent(
             }
 
             is BreakCmd -> {
-                sessionComponent.tell(DoBreak(env.command.roomId))
+                sessionComponent.tell(DoBreak(env.command.roomId, env.command.reason))
                 OkResponse
             }
 

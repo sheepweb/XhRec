@@ -1,5 +1,7 @@
 package github.rikacelery.v3.data
 
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -12,7 +14,8 @@ data class Room(
     val id: Long,
     val name: String,
     val quality: String,
-    val timeLimitMs: Long,
+    @Serializable(with = DurationMillisSerializer::class)
+    val timeLimit: Duration = Duration.INFINITE,
     val sizeLimitBytes: Long,
     val autoPay: Boolean,
     val lastSeen: String?,
@@ -20,12 +23,20 @@ data class Room(
     val pkey: String = ""
 )
 
-object DurationMillisSerializer : KSerializer<Long> {
+object DurationMillisSerializer : KSerializer<Duration> {
     override val descriptor = PrimitiveSerialDescriptor("DurationMillis", PrimitiveKind.LONG)
-    override fun serialize(encoder: Encoder, value: Long) = encoder.encodeLong(value)
-    override fun deserialize(decoder: Decoder): Long {
-        val v = decoder.decodeLong()
-        return if (v == 0L) Long.MAX_VALUE else v * 1000 // 0 = infinite, store as ms
+
+    override fun serialize(encoder: Encoder, value: Duration) {
+        if (value == Duration.INFINITE) {
+            encoder.encodeLong(0)
+        } else {
+            encoder.encodeLong(value.inWholeMilliseconds)
+        }
+    }
+
+    override fun deserialize(decoder: Decoder): Duration {
+        val millis = decoder.decodeLong()
+        return if (millis == 0L) Duration.INFINITE else millis.milliseconds
     }
 }
 

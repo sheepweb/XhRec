@@ -4,6 +4,8 @@ import github.rikacelery.v3.api.ApiClient
 import github.rikacelery.v3.components.*
 import github.rikacelery.v3.exceptions.RenameException
 import github.rikacelery.v3.postprocessors.*
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.*
 import kotlinx.serialization.json.*
 import kotlinx.serialization.json.jsonObject
@@ -154,7 +156,8 @@ class Bootstrap(
     }
 
     private fun addRoomFromParsed(id: Long, name: String, parsed: ListConfLine) {
-        roomComponent.internalAdd(id, name, parsed.quality, parsed.timeLimit, parsed.sizeLimit, parsed.autoPay, parsed.pkey)
+        val timeLimit = if (parsed.timeLimit > 0) parsed.timeLimit.seconds else Duration.INFINITE
+        roomComponent.internalAdd(id, name, parsed.quality, timeLimit, parsed.sizeLimit, parsed.autoPay, parsed.pkey)
         if (parsed.armed) {
             schedulerComponent.internalAdd(id, name, parsed.quality, parsed.pkey, parsed.armed)
         }

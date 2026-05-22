@@ -11,7 +11,7 @@ import kotlinx.serialization.json.*
 object ApiClient {
 
     suspend fun getRoomFromUrlOrSlug(path: String, quality: String): Pair<Long, String> {
-        val client = ClientManager.getClient("api")
+        val client = ClientManager.getProxiedClient("api")
         val slug = path.substringAfterLast("/")
         val j = withRetry(3) {
             roomFetchBroadcastInfo(slug).jsonObject
@@ -22,7 +22,7 @@ object ApiClient {
     }
 
     suspend fun getUserFromCookie(cookie: String): User {
-        val client = ClientManager.getClient("api")
+        val client = ClientManager.getProxiedClient("api")
         val response = withRetry(3) {
             client.get("https://stripchat.com/api/front/v3/config/initial") {
                 header("Cookie", cookie)
@@ -38,7 +38,7 @@ object ApiClient {
     }
 
     suspend fun userFetchInitial(user: User): JsonObject {
-        val client = ClientManager.getClient("api")
+        val client = ClientManager.getProxiedClient("api")
         val response = withRetry(3) {
             client.get("https://stripchat.com/api/front/v3/config/initial") {
                 header("Cookie", user.cookie)
@@ -49,7 +49,7 @@ object ApiClient {
     }
 
     suspend fun roomFetchCamInfo(roomName: String, cookie: String): JsonObject {
-        val client = ClientManager.getClient("api")
+        val client = ClientManager.getProxiedClient("api")
         val response = withRetry(3) {
             client.get("https://stripchat.com/api/front/v2/models/username/$roomName/cam") {
                 header("Cookie", cookie)
@@ -66,7 +66,7 @@ object ApiClient {
 
     suspend fun roomRequestGroupShow(roomId: Long, user: User): Boolean {
         val initial = userFetchInitial(user)
-        val client = ClientManager.getClient("api")
+        val client = ClientManager.getProxiedClient("api")
         val response = withRetry(3, stopIf = { false }) {
             client.post("https://stripchat.com/api/front/show/models/$roomId/groupShows/${user.userId}") {
                 header("Cookie", user.cookie)
@@ -85,7 +85,8 @@ object ApiClient {
         val presetElem = info.PathSingleOrNull("item.settings.presets") ?: run {
             return emptyList()
         }
-        val qualities = presetElem.jsonArray.map { it.jsonPrimitive.content }.toMutableList()
+        val qualities = presetElem.jsonArray.map { it.jsonPrimitive.content }
+            .filterNot { it.endsWith("_blurred") }.toMutableList()
         val fps = info.PathSingle("item.settings.fps").asInt().toString()
         val height = info.PathSingle("item.settings.height").asInt().toString()
         val raw = height + "p" + (if (fps != "30") fps else "")
@@ -95,7 +96,7 @@ object ApiClient {
     }
 
     suspend fun roomFetchBroadcastInfo(roomName: String): JsonObject {
-        val client = ClientManager.getClient("api")
+        val client = ClientManager.getProxiedClient("api")
         val response = withRetry(3) {
             client.get("https://stripchat.com/api/front/v1/broadcasts/$roomName")
         }

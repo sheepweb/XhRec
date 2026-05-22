@@ -33,6 +33,7 @@ data class ActiveDownload(
     var concurrency: Int = 16,
 
     var idx: AtomicInteger = AtomicInteger(-1),
+    var generation: Int = 0,
     var active: Boolean = true
 )
 
@@ -66,6 +67,7 @@ class DownloaderComponent(
             )
         }
         if (!active.active) return
+        active.generation = cmd.generation
 
         for ((i, seg) in cmd.urls.withIndex()) {
             val idx = active.idx.incrementAndGet()
@@ -82,7 +84,7 @@ class DownloaderComponent(
                     when (result) {
                         is DownloadResult.Success -> {
                             eventBus.publish(SegmentDownloaded(cmd.roomId, idx, seg.url,
-                                result.meta.fetchDurationMs, result.meta.proxied, result.data.size))
+                                result.meta.fetchDurationMs, result.meta.proxied, result.data.size, active.generation))
                         }
                         is DownloadResult.Failed -> {
                             eventBus.publish(DownloadError(cmd.roomId, idx, seg.url, result.reason))
@@ -123,7 +125,7 @@ class DownloaderComponent(
             logger.debug("Direct download slow/failed for idx={}, falling back to proxy race", idx)
             // Phase 2: proxy joins the race
             val proxyDeferred = scope.async {
-                downloadWithClient(ClientManager.getProxiedClient("px_$idx"), url, idx, true)
+                downloadWithClient(ClientManager.getProxiedClient("px_${Random.nextInt(5)}"), url, idx, true)
             }
 
             val result = select<DownloadResult> {

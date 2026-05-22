@@ -14,10 +14,17 @@ data class HandleMetricCommand(val env: CommandEnvelope) : MetricMsg
 data class RunningUrlInfo(val type: String, val startAt: Long)
 
 data class RoomMetrics(
-    val totalAttempted: AtomicLong = AtomicLong(0),
-    val totalDownloaded: AtomicLong = AtomicLong(0),
-    val totalFailed: AtomicLong = AtomicLong(0),
-    val totalBytes: AtomicLong = AtomicLong(0),
+    // per-segment counters (reset on FileReady)
+    val segmentAttempted: AtomicLong = AtomicLong(0),
+    val segmentDownloaded: AtomicLong = AtomicLong(0),
+    val segmentFailed: AtomicLong = AtomicLong(0),
+    val segmentBytes: AtomicLong = AtomicLong(0),
+    // lifetime counters (never reset)
+    val lifetimeAttempted: AtomicLong = AtomicLong(0),
+    val lifetimeDownloaded: AtomicLong = AtomicLong(0),
+    val lifetimeFailed: AtomicLong = AtomicLong(0),
+    val lifetimeBytes: AtomicLong = AtomicLong(0),
+    // unchanged
     val proxyCount: AtomicLong = AtomicLong(0),
     val directCount: AtomicLong = AtomicLong(0),
     val latencySamples: ArrayDeque<Long> = ArrayDeque(10),
@@ -63,10 +70,12 @@ class MetricComponent(
                     is GetRoomDetailedStatus -> {
                         metrics.mapValues { (_, m) ->
                             mapOf<String, Any>(
-                                "total" to (m.totalAttempted.get() + m.runningUrls.size),
-                                "success" to m.totalDownloaded.get(),
-                                "failed" to m.totalFailed.get(),
-                                "bytesWrite" to m.totalBytes.get(),
+                                "total" to (m.segmentAttempted.get() + m.runningUrls.size),
+                                "success" to m.segmentDownloaded.get(),
+                                "failed" to m.segmentFailed.get(),
+                                "bytesWrite" to m.segmentBytes.get(),
+                                "lifetimeBytes" to m.lifetimeBytes.get(),
+                                "lifetimeDownloaded" to m.lifetimeDownloaded.get(),
                                 "running" to m.runningUrls.mapKeys { it.key }
                                     .mapValues { (_, v) ->
                                         mapOf<String, Any>(
@@ -86,14 +95,17 @@ class MetricComponent(
             is OnMetricEvent -> when (val e = msg.event) {
                 is DownloadStarted -> {
                     val m = metrics.getOrPut(e.roomId) { RoomMetrics() }
-                    m.totalAttempted.incrementAndGet()
+                    m.segmentAttempted.incrementAndGet()
+                    m.lifetimeAttempted.incrementAndGet()
                     m.runningUrls[e.url] = RunningUrlInfo("DIRECT", e.timestamp)
                 }
 
                 is SegmentDownloaded -> {
                     val m = metrics.getOrPut(e.roomId) { RoomMetrics() }
-                    m.totalDownloaded.incrementAndGet()
-                    m.totalBytes.addAndGet(e.bytes.toLong())
+                    m.segmentDownloaded.incrementAndGet()
+                    m.segmentBytes.addAndGet(e.bytes.toLong())
+                    m.lifetimeDownloaded.incrementAndGet()
+                    m.lifetimeBytes.addAndGet(e.bytes.toLong())
                     m.latencySamples.addLast(e.durationMs)
                     if (m.latencySamples.size > 10) m.latencySamples.removeFirst()
                     if (e.proxied) m.proxyCount.incrementAndGet() else m.directCount.incrementAndGet()
@@ -102,7 +114,8 @@ class MetricComponent(
 
                 is DownloadError -> {
                     val m = metrics.getOrPut(e.roomId) { RoomMetrics() }
-                    m.totalFailed.incrementAndGet()
+                    m.segmentFailed.incrementAndGet()
+                    m.lifetimeFailed.incrementAndGet()
                     e.url?.let { m.runningUrls.remove(it) }
                 }
 
@@ -111,7 +124,12 @@ class MetricComponent(
                 }
 
                 is FileReady -> {
-                    metrics.getOrPut(e.roomId) { RoomMetrics() }.fileCount.incrementAndGet()
+                    val m = metrics[e.roomId] ?: return
+                    m.fileCount.incrementAndGet()
+                    m.segmentAttempted.set(0)
+                    m.segmentDownloaded.set(0)
+                    m.segmentFailed.set(0)
+                    m.segmentBytes.set(0)
                 }
 
                 is FileProcessed -> {}
@@ -130,16 +148,16 @@ class MetricComponent(
 
             sb.appendLine("# HELP xhrec_attempted_total Total attempted segments")
             sb.appendLine("# TYPE xhrec_attempted_total counter")
-            sb.appendLine("xhrec_attempted_total{roomId=\"$roomId\"} ${m.totalAttempted.get()}")
+            sb.appendLine("xhrec_attempted_total{roomId=\"$roomId\"} ${m.lifetimeAttempted.get()}")
             sb.appendLine("# HELP xhrec_downloaded_total Successfully downloaded segments")
             sb.appendLine("# TYPE xhrec_downloaded_total counter")
-            sb.appendLine("xhrec_downloaded_total{roomId=\"$roomId\"} ${m.totalDownloaded.get()}")
+            sb.appendLine("xhrec_downloaded_total{roomId=\"$roomId\"} ${m.lifetimeDownloaded.get()}")
             sb.appendLine("# HELP xhrec_failed_total Failed segments")
             sb.appendLine("# TYPE xhrec_failed_total counter")
-            sb.appendLine("xhrec_failed_total{roomId=\"$roomId\"} ${m.totalFailed.get()}")
+            sb.appendLine("xhrec_failed_total{roomId=\"$roomId\"} ${m.lifetimeFailed.get()}")
             sb.appendLine("# HELP xhrec_bytes_write_total Bytes written")
             sb.appendLine("# TYPE xhrec_bytes_write_total counter")
-            sb.appendLine("xhrec_bytes_write_total{roomId=\"$roomId\"} ${m.totalBytes.get()}")
+            sb.appendLine("xhrec_bytes_write_total{roomId=\"$roomId\"} ${m.lifetimeBytes.get()}")
             sb.appendLine("# HELP xhrec_proxy_ratio Proxy download ratio")
             sb.appendLine("# TYPE xhrec_proxy_ratio gauge")
             sb.appendLine("xhrec_proxy_ratio{roomId=\"$roomId\"} $proxyRatio")
@@ -158,6 +176,14 @@ class MetricComponent(
             sb.appendLine("# HELP xhrec_files_total Files produced")
             sb.appendLine("# TYPE xhrec_files_total counter")
             sb.appendLine("xhrec_files_total{roomId=\"$roomId\"} ${m.fileCount.get()}")
+
+            // per-segment gauges
+            sb.appendLine("# HELP xhrec_segment_bytes_current Bytes in current segment")
+            sb.appendLine("# TYPE xhrec_segment_bytes_current gauge")
+            sb.appendLine("xhrec_segment_bytes_current{roomId=\"$roomId\"} ${m.segmentBytes.get()}")
+            sb.appendLine("# HELP xhrec_segment_downloaded_current Downloaded in current segment")
+            sb.appendLine("# TYPE xhrec_segment_downloaded_current gauge")
+            sb.appendLine("xhrec_segment_downloaded_current{roomId=\"$roomId\"} ${m.segmentDownloaded.get()}")
         }
         return sb.toString()
     }

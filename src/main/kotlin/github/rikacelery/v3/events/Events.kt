@@ -35,7 +35,8 @@ data class SegmentDownloaded(
     val originalUrl: String,
     val durationMs: Long,
     val proxied: Boolean,
-    val bytes: Int
+    val bytes: Int,
+    val generation: Int
 )
 data class DownloadError(
     val roomId: Long,

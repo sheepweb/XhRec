@@ -16,17 +16,17 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import kotlinx.coroutines.*
-import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.abs
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 sealed interface SessionMsg
 data class OnSessionEvent(val event: Any) : SessionMsg
 data class DoStart(val roomId: Long, val roomName: String, val quality: String, val pkey: String = "") : SessionMsg
 data class DoStop(val roomId: Long) : SessionMsg
-data class DoBreak(val roomId: Long) : SessionMsg
+data class DoBreak(val roomId: Long, val reason: EndReason) : SessionMsg
 data class DoCutPointDone(val roomId: Long) : SessionMsg
 data class HandleSessionCommand(val env: CommandEnvelope) : SessionMsg
 
@@ -43,10 +43,11 @@ data class RoomSession(
     var token: String? = null,
     var pkey: String = "",
     var segmentIndex: Int = 0,
+    var generation: Int = 0,
     val circleCache: CircleCache = CircleCache(100),
     var startTime: Instant = Instant.now(),
     var totalBytes: Long = 0,
-    var timeLimitMs: Long = 0,
+    var timeLimit: Duration = Duration.INFINITE,
     var sizeLimitBytes: Long = 0,
     var pollingJob: Job? = null,
     var lastSegmentId: Int? = null
@@ -114,11 +115,12 @@ class SessionComponent(
                     downloader.tell(
                         DoCutPoint(
                             CutPoint(
-                                msg.roomId, rs.segmentIndex - 1, rs.roomName, Instant.now(), EndReason.SizeLimit
+                                msg.roomId, rs.segmentIndex - 1, rs.roomName, Instant.now(), msg.reason
                             )
                         )
                     )
                     rs.startTime = Instant.now()
+                    rs.generation += 1
                     rs.totalBytes = 0
                     rs.segmentIndex = 0
                     rs.initUrl?.let { rs.circleCache.remove(it) }
@@ -161,6 +163,9 @@ class SessionComponent(
         val rs = RoomSession(roomId, name, selectedQuality, selectedQuality, pkey = resolvedPkey)
         sessions[roomId] = rs
         rs.token = token.takeIf { !it.isNullOrEmpty() }
+        val config = requestBus.request<RoomConfigResponse>(GetRoomConfig(roomId))
+        rs.timeLimit = config.timeLimit
+        rs.sizeLimitBytes = config.sizeLimitBytes
         rs.state = SessionState.Fetching
         rs.startTime = Instant.now()
         dataChannel.send(StreamStart(roomId, name, rs.startTime))
@@ -188,6 +193,7 @@ class SessionComponent(
                     if (rs.state == SessionState.Recording) {
                         rs.state = SessionState.Closing
                         rs.pollingJob?.cancel()
+                        rs.generation += 1
                         downloader.tell(
                             DoCutPoint(
                                 CutPoint(
@@ -238,6 +244,7 @@ class SessionComponent(
 
             is SegmentDownloaded -> {
                 val rs = sessions[event.roomId] ?: return
+                if (event.generation != rs.generation) return
                 rs.totalBytes += event.bytes
             }
 
@@ -315,6 +322,10 @@ class SessionComponent(
                 "public" -> return ""
                 "groupShow" -> {
                     val config = requestBus.request<RoomConfigResponse>(GetRoomConfig(roomId))
+                    sessions[roomId]?.let { rs ->
+                        rs.timeLimit = config.timeLimit
+                        rs.sizeLimitBytes = config.sizeLimitBytes
+                    }
                     if (!config.autoPay) {
                         logger.warn("[{}] Room not enable autopay", roomName)
                         return null
@@ -398,6 +409,7 @@ class SessionComponent(
                                 )
                             )
                         )
+                        rs.generation += 1
                         rs.segmentIndex = 0
                         rs.circleCache.clear()
                         rs.initUrl = parsed.initUrl
@@ -408,7 +420,8 @@ class SessionComponent(
                                 Download(
                                     rs.roomId,
                                     listOf(Segment(parsed.initUrl, -1)),
-                                    rs.segmentIndex
+                                    rs.segmentIndex,
+                                    rs.generation
                                 )
                             )
                         )
@@ -417,14 +430,14 @@ class SessionComponent(
                     val unseen = parsed.segments.filter { rs.circleCache.add(it.url) }
                     if (unseen.isNotEmpty()) {
                         eventBus.publish(NewSegments(rs.roomId, unseen))
-                        downloader.tell(DoDownload(Download(rs.roomId, unseen, rs.segmentIndex)))
+                        downloader.tell(DoDownload(Download(rs.roomId, unseen, rs.segmentIndex, rs.generation)))
                         rs.segmentIndex += unseen.size
                     }
 
-                    val limit = if (rs.timeLimitMs > 0) rs.timeLimitMs else Long.MAX_VALUE
-                    val elapsed = Duration.between(rs.startTime, Instant.now()).toMillis()
-                    if (elapsed >= limit || (rs.sizeLimitBytes > 0 && rs.totalBytes >= rs.sizeLimitBytes)) {
-                        val reason = if (elapsed >= limit) EndReason.TimeLimit else EndReason.SizeLimit
+                    val limitMs = if (rs.timeLimit != Duration.INFINITE) rs.timeLimit.inWholeMilliseconds else Long.MAX_VALUE
+                    val elapsed = java.time.Duration.between(rs.startTime, Instant.now()).toMillis()
+                    if (elapsed >= limitMs || (rs.sizeLimitBytes > 0 && rs.totalBytes >= rs.sizeLimitBytes)) {
+                        val reason = if (elapsed >= limitMs) EndReason.TimeLimit else EndReason.SizeLimit
                         downloader.tell(
                             DoCutPoint(
                                 CutPoint(
@@ -433,6 +446,7 @@ class SessionComponent(
                             )
                         )
                         rs.startTime = Instant.now()
+                        rs.generation += 1
                         rs.totalBytes = 0
                         rs.segmentIndex = 0
                         rs.circleCache.remove(parsed.initUrl)

@@ -16,6 +16,8 @@ import kotlinx.coroutines.*
 import github.rikacelery.v3.data.Room
 import github.rikacelery.v3.components.RoomSession
 import github.rikacelery.v3.components.SessionState
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.serialization.json.*
 import org.slf4j.LoggerFactory
 import java.util.concurrent.atomic.AtomicBoolean
@@ -63,7 +65,7 @@ class HttpServerComponent(
                                 name,
                                 quality,
                                 pkey,
-                                limit * 1000,
+                                if (limit > 0) limit.seconds else Duration.INFINITE,
                                 sizeBytes,
                                 autopay
                             ), timeoutMs = 30_000
@@ -199,7 +201,7 @@ class HttpServerComponent(
                     )
                     val v = call.request.queryParameters["v"]?.toLongOrNull()
                         ?: return@get call.respondText("Missing v (seconds)", status = HttpStatusCode.BadRequest)
-                    requestBus.request<OkResponse>(SetRoomTimeLimit(id, v))
+                    requestBus.request<OkResponse>(SetRoomTimeLimit(id, v.seconds))
                     persistConfig()
                     call.respondText("Time limit set to ${v}s")
                 }
@@ -235,7 +237,7 @@ class HttpServerComponent(
                                 add(if (s != null) "listening" else "")
                                 add(if (s?.state == SessionState.Recording) "recording" else "")
                                 add(r.name); add(r.id.toString()); add(r.quality)
-                                add(if (r.timeLimitMs > 0) (r.timeLimitMs / 1000).toString() else "0")
+                                add(if (r.timeLimit != Duration.INFINITE) r.timeLimit.inWholeSeconds.toString() else "0")
                             })
                         }
                     })
@@ -257,7 +259,8 @@ class HttpServerComponent(
                                     put("id", r.id)
                                     put("quality", r.quality)
                                     put("status", r.status)
-                                    put("timeLimitMs", r.timeLimitMs); put("sizeLimitBytes", r.sizeLimitBytes)
+                                    put("timeLimit", if (r.timeLimit == Duration.INFINITE) 0L else r.timeLimit.inWholeMilliseconds)
+                                    put("sizeLimitBytes", r.sizeLimitBytes)
                                     put("autoPay", r.autoPay)
                                 })
                             })
