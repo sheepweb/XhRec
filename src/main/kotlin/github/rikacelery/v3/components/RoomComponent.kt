@@ -33,6 +33,7 @@ class RoomComponent(
     private val rooms = ConcurrentHashMap<Long, Room>()
     private var nextId = 1L
     private var ready = false
+    private var saveDebounceJob: Job? = null
 
     fun setReady() {
         ready = true
@@ -66,7 +67,13 @@ class RoomComponent(
                         logger.debug("Room {} status: {} -> {}", event.roomId, event.oldStatus, event.newStatus)
                     }
                 }
-                is PersistConfig -> saveListConf()
+                is PersistConfig -> {
+                    saveDebounceJob?.cancel()
+                    saveDebounceJob = scope.launch {
+                        delay(1000)
+                        saveListConf()
+                    }
+                }
                 else -> {}
             }
 
