@@ -13,6 +13,7 @@ import org.apache.commons.cli.Options
 import org.apache.commons.cli.help.HelpFormatter
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.system.exitProcess
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -142,16 +143,19 @@ class Bootstrap(
         }
         val lines = file.readLines().filter { it.isNotBlank() && !it.trimStart().startsWith(";") }
         coroutineScope {
+            val idx = AtomicInteger(1)
             lines.map { line ->
                 async {
                     val parsed = parseListConfLine(line) ?: return@async
                     try {
                         val (id, name) = apiClient.getRoomFromUrlOrSlug(parsed.url, parsed.quality)
                         addRoomFromParsed(id, name, parsed)
+                        logger.info("Add room {} {}/{}",name,idx.getAndIncrement(),lines.size)
                     } catch (e: RenameException) {
                         try {
                             val (id, name) = apiClient.getRoomFromUrlOrSlug(e.newName, parsed.quality)
                             addRoomFromParsed(id, name, parsed)
+                            logger.info("Add room {} {}/{}",name,idx.getAndIncrement(),lines.size)
                         } catch (ex: Exception) {
                             logger.warn("Failed to load room from '$line': ${ex.message}", ex)
                         }

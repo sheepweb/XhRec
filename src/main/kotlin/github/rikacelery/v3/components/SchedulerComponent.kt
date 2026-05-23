@@ -4,15 +4,12 @@ import github.rikacelery.v3.core.Actor
 import github.rikacelery.v3.core.EventBus
 import github.rikacelery.v3.core.RequestBus
 import github.rikacelery.v3.events.*
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.collections.set
-import kotlin.time.Duration.Companion.seconds
 
 sealed interface SchedulerMsg
 data class OnSchedulerEvent(val event: Any) : SchedulerMsg
 data class SchedulerHandleCommand(val env: CommandEnvelope) : SchedulerMsg
-object LoopListen : SchedulerMsg
 
 data class ArmedRoom(val roomId: Long, val roomName: String, val quality: String, val pkey: String = "")
 
@@ -34,11 +31,6 @@ class SchedulerComponent(
         subscribe<AuthExpired>(AuthExpired::class)
         subscribe<CommandEnvelope>(CommandEnvelope::class)
 
-        scope.launch {
-            while (isActive) {
-                delay(1.seconds); tell(LoopListen)
-            }
-        }
     }
 
     override suspend fun wrapEvent(event: Any): SchedulerMsg? = when (event) {
@@ -58,7 +50,6 @@ class SchedulerComponent(
                 handleCommand(msg.env)
             }
 
-            is LoopListen -> loopListen()
         }
     }
 
@@ -150,17 +141,4 @@ class SchedulerComponent(
         eventBus.publish(CommandAck(env.id, ack))
     }
 
-    private suspend fun loopListen() {
-        if (gracefulStop) return
-        armed.forEach { (roomId, a) ->
-            try {
-                val status = requestBus.request<RoomStatusResponse>(GetRoomStatus(roomId))
-                if (status.status == "public" || status.status == "groupShow") {
-                    eventBus.publish(RecordingStarted(roomId))
-                    sessionComponent.tell(DoStart(roomId, a.roomName, a.quality, a.pkey))
-                }
-            } catch (_: Exception) {
-            }
-        }
-    }
 }

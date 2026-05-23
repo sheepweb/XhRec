@@ -1,20 +1,20 @@
 package github.rikacelery.v3.components
 
-import github.rikacelery.utils.asString
 import github.rikacelery.utils.PathSingle
+import github.rikacelery.utils.asString
 import github.rikacelery.v3.api.ApiClient
 import github.rikacelery.v3.core.Actor
 import github.rikacelery.v3.core.EventBus
 import github.rikacelery.v3.core.RequestBus
 import github.rikacelery.v3.data.Room
-import github.rikacelery.v3.data.SizeStrSerializer
 import github.rikacelery.v3.events.*
 import github.rikacelery.v3.exceptions.DeletedException
 import github.rikacelery.v3.exceptions.RenameException
-import kotlin.time.Duration
 import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.time.Duration
 
 sealed interface RoomMsg
 data class OnRoomEvent(val event: Any) : RoomMsg
@@ -46,7 +46,7 @@ class RoomComponent(
         scope.launch {
             tell(RefreshRooms)
             while (isActive) {
-                delay(10 * 1000L); tell(RefreshRooms)
+                delay(30 * 1000L); tell(RefreshRooms)
             }
         }
     }
@@ -78,10 +78,12 @@ class RoomComponent(
             }
 
             is HandleRoomCommand -> {
-                handleCommand(msg.env)
+                scope.launch{ handleCommand(msg.env) }
             }
 
-            is RefreshRooms -> refreshAll()
+            is RefreshRooms -> scope.launch{
+                refreshAll()
+            }
 
         }
     }
@@ -167,8 +169,11 @@ class RoomComponent(
         }
         eventBus.publish(CommandAck(env.id, ack))
     }
-
+    private val refreshLock = Mutex()
     private suspend fun refreshAll() {
+        if (!refreshLock.tryLock()) {
+            return
+        }
         rooms.values.forEach { room ->
             try {
                 val info = apiClient.roomFetchBroadcastInfo(room.name)
@@ -192,6 +197,7 @@ class RoomComponent(
                 logger.warn("refreshAll error room ${room.id}: ${e.message}")
             }
         }
+        refreshLock.unlock()
     }
 
     fun internalAdd(

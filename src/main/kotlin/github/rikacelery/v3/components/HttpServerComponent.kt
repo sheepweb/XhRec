@@ -2,25 +2,23 @@ package github.rikacelery.v3.components
 
 import github.rikacelery.v3.core.EventBus
 import github.rikacelery.v3.core.RequestBus
+import github.rikacelery.v3.data.Room
 import github.rikacelery.v3.events.*
 import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
 import io.ktor.server.cio.*
 import io.ktor.server.engine.*
-import io.ktor.server.plugins.cors.routing.*
 import io.ktor.server.plugins.contentnegotiation.*
+import io.ktor.server.plugins.cors.routing.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.*
-import github.rikacelery.v3.data.Room
-import github.rikacelery.v3.components.RoomSession
-import github.rikacelery.v3.components.SessionState
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
 import kotlinx.serialization.json.*
 import org.slf4j.LoggerFactory
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 class HttpServerComponent(
     private val port: Int,
@@ -152,7 +150,7 @@ class HttpServerComponent(
                         "Missing id",
                         status = HttpStatusCode.BadRequest
                     )
-                    requestBus.request<OkResponse>(BreakCmd(id))
+                    requestBus.request<OkResponse>(BreakCmd(id, reason = EndReason.NewInit))
                     call.respondText("Break signaled")
                 }
                 get("/activate") {
