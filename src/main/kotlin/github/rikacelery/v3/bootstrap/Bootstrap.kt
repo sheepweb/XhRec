@@ -4,14 +4,18 @@ import github.rikacelery.v3.api.ApiClient
 import github.rikacelery.v3.components.*
 import github.rikacelery.v3.exceptions.RenameException
 import github.rikacelery.v3.postprocessors.*
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
-import kotlinx.coroutines.*
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.json.*
-import kotlinx.serialization.json.jsonObject
-import org.apache.commons.cli.*
+import org.apache.commons.cli.DefaultParser
+import org.apache.commons.cli.Options
+import org.apache.commons.cli.help.HelpFormatter
 import org.slf4j.LoggerFactory
 import java.io.File
+import kotlin.system.exitProcess
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 class Bootstrap(
     private val apiClient: ApiClient,
@@ -44,13 +48,18 @@ class Bootstrap(
 
     private fun parseCli(args: Iterable<String>): CliConfig {
         val options = Options()
-            .addOption("file", true, "list.conf path")
-            .addOption("output", true, "output directory")
-            .addOption("tmp", true, "temp directory")
-            .addOption("port", true, "HTTP port")
-            .addOption("users", true, "users.txt path")
+            .addOption("f", "file", true, "list.conf path")
+            .addOption("o", "output", true, "output directory")
+            .addOption("t", "tmp", true, "temp directory")
+            .addOption("p", "port", true, "HTTP port")
+            .addOption("u", "users", true, "users.txt path")
             .addOption("post", true, "postprocessor.json path")
-        val cmd = DefaultParser().parse(options, args.toList().toTypedArray())
+        val cmd = try {
+            DefaultParser().parse(options, args.toList().toTypedArray())
+        }catch (_: Exception){
+            HelpFormatter.builder().get().printOptions(options)
+            exitProcess(1)
+        }
         return CliConfig(
             listConfPath = cmd.getOptionValue("file", "list.conf"),
             outputDir = cmd.getOptionValue("output", "out"),

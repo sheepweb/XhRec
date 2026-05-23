@@ -18,6 +18,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import org.apache.commons.cli.DefaultParser
 import org.apache.commons.cli.Options
 import org.apache.commons.cli.ParseException
+import org.apache.commons.cli.help.HelpFormatter
 import java.io.File
 
 private fun loadPersistedConfig(configPath: String): Pair<String, Map<String, String>> {
@@ -46,7 +47,11 @@ fun main(vararg args: String): Unit {
         .addOption("u", "users", true, "users.txt path")
         .addOption("post", true, "postprocessor.json path")
     val cli = try { DefaultParser().parse(cliOptions, args.toList().toTypedArray()) }
-        catch (_: ParseException) { return }
+        catch (_: ParseException) {
+            val formatter = HelpFormatter.builder().get()
+            formatter.printOptions(cliOptions)
+            return
+        }
 
     runBlocking {
     coroutineScope {
