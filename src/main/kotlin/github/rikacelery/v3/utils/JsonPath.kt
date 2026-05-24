@@ -1,6 +1,6 @@
 @file:Suppress("Unused", "FunctionName", "unused")
 
-package github.rikacelery.utils
+package github.rikacelery.v3.utils
 
 import io.github.nomisrev.JsonPath
 import io.github.nomisrev.path

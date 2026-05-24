@@ -1,4 +1,4 @@
-package github.rikacelery.utils
+package github.rikacelery.v3.utils
 
 import io.ktor.client.*
 import io.ktor.client.engine.okhttp.*
@@ -43,17 +43,7 @@ object ClientManager {
 
             install(WebSockets){
             }
-//
-//            install(Logging) {
-//                val clientLogger = LoggerFactory.getLogger("Client-$key")
-//                logger = object: Logger{
-//                    override fun log(message: String) {
-//                        clientLogger.trace(message)
-//                    }
-//
-//                }
-//                level = LogLevel.INFO
-//            }
+
             engine {
                 if (proxyEnv != null) {
                     val url = Url(proxyEnv)
