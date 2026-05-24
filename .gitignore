@@ -49,3 +49,13 @@ bin/
 /list.conf
 /list.txt
 ./logback.xml
+
+docs
+AGENTS.md
+*.conf
+*.xml
+*.json
+users.txt
+*.m3u8
+*.log
+.java-version
