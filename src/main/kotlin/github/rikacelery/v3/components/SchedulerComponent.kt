@@ -5,13 +5,20 @@ import github.rikacelery.v3.core.EventBus
 import github.rikacelery.v3.core.RequestBus
 import github.rikacelery.v3.events.*
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
 
 sealed interface SchedulerMsg
 data class OnSchedulerEvent(val event: Any) : SchedulerMsg
 data class SchedulerHandleCommand(val env: CommandEnvelope) : SchedulerMsg
 
-data class ArmedRoom(val roomId: Long, val roomName: String, val quality: String, val pkey: String = "")
+data class ArmedRoom(
+    val roomId: Long,
+    val roomName: String,
+    val quality: String,
+    val pkey: String = "",
+    val autoPay: Boolean = false
+)
 
 class SchedulerComponent(
     private val requestBus: RequestBus,
@@ -59,14 +66,16 @@ class SchedulerComponent(
                 if (gracefulStop) return
                 val a = armed[event.roomId] ?: return
                 if (event.newStatus == "public" || event.newStatus == "groupShow") {
+                    if (event.newStatus == "groupShow" && !a.autoPay) return
                     logger.debug(
                         "Armed room {} ({}) became {}, starting recording",
                         event.roomId,
                         a.roomName,
                         event.newStatus
                     )
-                    eventBus.publish(RecordingStarted(event.roomId))
                     sessionComponent.tell(DoStart(event.roomId, a.roomName, a.quality, a.pkey))
+                } else {
+
                 }
             }
 
@@ -84,23 +93,20 @@ class SchedulerComponent(
         }
     }
 
-    fun internalAdd(room: Long, name1: String, quality: String, pkey: String, isArmed: Boolean) {
-        armed[room] = ArmedRoom(room, name1, quality, pkey)
+    fun internalAdd(room: Long, name1: String, quality: String, pkey: String, isArmed: Boolean, autoPay: Boolean) {
+        armed[room] = ArmedRoom(room, name1, quality, pkey, autoPay)
         if (isArmed) logger.info("Room {} ({}) armed and waiting", name1, room)
     }
 
     private suspend fun handleCommand(env: CommandEnvelope) {
         val ack = when (env.command) {
             is StartRecordingCmd -> {
-                try {
-                    val name = requestBus.request<RoomNameResponse>(GetRoomName(env.command.roomId)).name
+                if (armed.contains(env.command.roomId)) OkResponse else {
                     val config = requestBus.request<RoomConfigResponse>(GetRoomConfig(env.command.roomId))
-                    armed[env.command.roomId] = ArmedRoom(env.command.roomId, name, config.quality, config.pkey)
-                    eventBus.publish(RecordingStarted(env.command.roomId))
-                    sessionComponent.tell(DoStart(env.command.roomId, name, config.quality, config.pkey))
-                } catch (e: Exception) { /* room offline, armed and waiting */
+                    armed[env.command.roomId] =
+                        ArmedRoom(env.command.roomId, name, config.quality, config.pkey, config.autoPay)
+                    OkResponse
                 }
-                OkResponse
             }
 
             is StopRecordingCmd -> {
@@ -111,7 +117,8 @@ class SchedulerComponent(
                 try {
                     val name = requestBus.request<RoomNameResponse>(GetRoomName(env.command.roomId)).name
                     val config = requestBus.request<RoomConfigResponse>(GetRoomConfig(env.command.roomId))
-                    armed[env.command.roomId] = ArmedRoom(env.command.roomId, name, config.quality, config.pkey)
+                    armed[env.command.roomId] =
+                        ArmedRoom(env.command.roomId, name, config.quality, config.pkey, config.autoPay)
                     logger.info("Room {} ({}) activated (armed)", name, env.command.roomId)
                 } catch (_: Exception) {
                 }
@@ -133,6 +140,10 @@ class SchedulerComponent(
             is GetArmedRoomIds -> armed.keys().toList()
             is ShutdownCmd -> {
                 gracefulStop = true
+
+                armed.forEach{
+                    scope.launch{ requestBus.request<OkResponse>(BreakCmd(it.key, EndReason.UserStop)) }
+                }
                 OkResponse
             }
 

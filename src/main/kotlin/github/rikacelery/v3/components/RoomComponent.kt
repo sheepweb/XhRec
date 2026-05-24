@@ -35,7 +35,8 @@ class RoomComponent(
     private var ready = false
     private var saveDebounceJob: Job? = null
 
-    fun setReady() {
+    suspend fun setReady() {
+        tell(RefreshRooms)
         ready = true
     }
 
@@ -59,6 +60,7 @@ class RoomComponent(
     }
 
     override suspend fun handle(msg: RoomMsg) {
+        if (!scope.isActive) return
         when (msg) {
             is OnRoomEvent -> when (val event = msg.event) {
                 is RoomStatusChanged -> {

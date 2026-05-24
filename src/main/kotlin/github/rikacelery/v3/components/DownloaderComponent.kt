@@ -1,25 +1,28 @@
 package github.rikacelery.v3.components
 
 import github.rikacelery.utils.ClientManager
-import github.rikacelery.utils.withRetry
-import github.rikacelery.v3.core.*
-import github.rikacelery.v3.data.*
+import github.rikacelery.v3.core.Actor
+import github.rikacelery.v3.core.DataChannel
+import github.rikacelery.v3.core.EventBus
+import github.rikacelery.v3.core.OrderedEmitter
+import github.rikacelery.v3.data.DownloadMeta
+import github.rikacelery.v3.data.DownloadResult
 import github.rikacelery.v3.events.*
 import github.rikacelery.v3.hooks.DownloaderHook
+import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
-import io.ktor.client.*
 import io.ktor.utils.io.*
 import kotlinx.coroutines.*
+import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
-import kotlinx.coroutines.selects.select
 import java.io.ByteArrayOutputStream
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.concurrent.atomics.AtomicInt
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.milliseconds
 
 sealed interface DownloaderMsg
 data class DoDownload(val cmd: Download) : DownloaderMsg
@@ -51,6 +54,7 @@ class DownloaderComponent(
     )
 
     override suspend fun handle(msg: DownloaderMsg) {
+        if (!scope.isActive) return
         when (msg) {
             is DoDownload -> handleDownload(msg.cmd)
             is DoCutPoint -> handleCutPoint(msg.cut)
@@ -106,17 +110,17 @@ class DownloaderComponent(
         active.emitter.complete(idx,  DownloadResult.CutPoint(cut))
     }
 
-    private val raceThresholdMs: Long = 8000
+    private val raceThresholdMs: Long = 10_000
 
     private suspend fun downloadSegment(url: String, idx: Int): DownloadResult {
         val start = System.currentTimeMillis()
 
         return try {
             val directDeferred = scope.async {
-                downloadWithClient(ClientManager.getClient("dl_${Random.nextInt(5)}"), url, idx, false)
+                downloadWithClient(ClientManager.getClient("dl_${Random.nextInt(32)}"), url, idx, false)
             }
 
-            val directResult = withTimeoutOrNull(raceThresholdMs) { directDeferred.await() }
+            val directResult = withTimeoutOrNull(raceThresholdMs.milliseconds) { directDeferred.await() }
             if (directResult is DownloadResult.Success) {
                 val dur = System.currentTimeMillis() - start
                 return directResult.copy(meta = directResult.meta.copy(fetchDurationMs = dur, proxied = false))

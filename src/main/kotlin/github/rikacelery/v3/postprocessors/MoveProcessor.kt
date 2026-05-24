@@ -29,7 +29,9 @@ class MoveProcessor(
         if (eventFile.exists()) {
             val destEvent = File(dir, dest.nameWithoutExtension + ".event")
             eventFile.copyTo(destEvent, overwrite = true)
+            eventFile.delete()
         }
+        input.delete()
         return listOf(dest)
     }
 

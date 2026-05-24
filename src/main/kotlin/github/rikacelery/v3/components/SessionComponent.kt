@@ -16,6 +16,8 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.abs
@@ -147,10 +149,10 @@ class SessionComponent(
         eventBus.publish(CommandAck(env.id, ack))
     }
 
-    private suspend fun startSession(roomId: Long, name: String, quality: String, pkey: String = "", reconfigure: Boolean = true) {
-        if (sessions.containsKey(roomId) && (sessions[roomId]!!.state == SessionState.Fetching ||
-                    sessions[roomId]!!.state == SessionState.Recording)
-        ) {
+    private suspend fun startSession(
+        roomId: Long, name: String, quality: String, pkey: String = "", reconfigure: Boolean = true
+    ) {
+        if (sessions.containsKey(roomId) && (sessions[roomId]!!.state == SessionState.Fetching || sessions[roomId]!!.state == SessionState.Recording)) {
             return
         }
         var token: String? = null
@@ -191,8 +193,18 @@ class SessionComponent(
                 val rs = sessions[event.roomId] ?: return
                 if (event.newStatus == "public" || event.newStatus == "groupShow") {
                     if (rs.state == SessionState.Armed) {
+                        if (event.newStatus == "groupShow") {
+                            val token = configureSession(rs.roomId,rs.roomName)
+                            if (token==null){
+                                stopSession(rs.roomId)
+                                eventBus.publish(RecordingStopped(event.roomId))
+                            }
+                            return
+                        }
                         startSession(event.roomId, rs.roomName, rs.quality, rs.pkey)
+                        eventBus.publish(RecordingStarted(event.roomId))
                     }
+
                 } else if (event.newStatus == "offline" || event.newStatus == "private") {
                     if (rs.state == SessionState.Recording) {
                         rs.state = SessionState.Closing
@@ -229,10 +241,7 @@ class SessionComponent(
                     rs.playlistUrl = buildPlaylistUrl(event.roomId, newQuality, rs.pkey, rs.token)
                 } else {
                     logger.debug(
-                        "Quality unchanged for {}: {} (available: {})",
-                        rs.roomName,
-                        rs.quality,
-                        event.qualities
+                        "Quality unchanged for {}: {} (available: {})", rs.roomName, rs.quality, event.qualities
                     )
                 }
             }
@@ -241,7 +250,7 @@ class SessionComponent(
                 val rs = sessions[event.roomId] ?: return
                 logger.info("Quality change requested for {}: {} -> {}", rs.roomName, rs.quality, event.newQuality)
                 rs.targetquality = event.newQuality
-                if (rs.state == SessionState.Recording||rs.state==SessionState.Fetching) {
+                if (rs.state == SessionState.Recording || rs.state == SessionState.Fetching) {
                     pollQualityForRoom(rs)
                 }
             }
@@ -264,25 +273,6 @@ class SessionComponent(
                 rs.totalBytes += event.bytes
             }
 
-            is NewSegments -> {
-                val rs = sessions[event.roomId] ?: return
-                event.urls.forEach { url ->
-                    val segId = m3u8Parser.segmentIDFromUrl(url.url)
-                    if (segId != null) {
-                        val prev = rs.lastSegmentId
-                        if (prev != null) {
-                            val gap = segId - prev - 1
-                            if (gap > 0) {
-                                eventBus.publish(SegmentGapDetected(event.roomId, gap))
-                            }
-                        }
-                        if (prev == null || segId > prev) {
-                            rs.lastSegmentId = segId
-                        }
-                    }
-                }
-            }
-
             else -> {}
         }
     }
@@ -291,22 +281,20 @@ class SessionComponent(
         if (requested == "raw") return "raw"
         val clean = available.filterNot { it.contains("blurred") }
         if (clean.isEmpty()) return "raw"
-        if (requested == available[0])
-            return "raw"
-        if (requested in available)
-            return requested
+        if (requested == available[0]) return "raw"
+        if (requested in available) return requested
         val reqParts = requested.split("p").filterNot(String::isEmpty)
         val final = clean.minByOrNull { q ->
             val qParts = q.split("p").filterNot(String::isEmpty)
             if (reqParts.size == 2) {
-                abs((qParts[0].toIntOrNull() ?: 0) - (reqParts[0].toIntOrNull() ?: 0)) +
-                        abs((reqParts[1].toIntOrNull() ?: 30) - (qParts.getOrElse(1) { "30" }.toIntOrNull() ?: 30))
+                abs((qParts[0].toIntOrNull() ?: 0) - (reqParts[0].toIntOrNull() ?: 0)) + abs(
+                    (reqParts[1].toIntOrNull() ?: 30) - (qParts.getOrElse(1) { "30" }.toIntOrNull() ?: 30)
+                )
             } else {
                 abs((qParts[0].toIntOrNull() ?: 0) - (reqParts[0].toIntOrNull() ?: 0))
             }
         } ?: requested
-        if (final == available[0])
-            return "raw"
+        if (final == available[0]) return "raw"
         return final
     }
 
@@ -382,26 +370,53 @@ class SessionComponent(
         return null
     }
 
-    private fun buildPlaylistUrl(roomId: Long, quality: String, pkey: String, token: String? = null): String = buildUrl {
-        protocol = URLProtocol.HTTPS
-        host = "media-hls.doppiocdn.org"
-        encodedPath = if (quality != "raw" && quality.isNotBlank()) "b-hls-%d/%d/%d_%s.m3u8".format(
-            22, roomId, roomId, quality
-        ) else "b-hls-%d/%d/%d.m3u8".format(
-            22, roomId, roomId
-        )
-        parameters["psch"] = "v2"
-        parameters["pkey"] = pkey
-        parameters["preferredVideoCodec"] = "H265"
-        if (token != null) {
-            parameters["aclAuth"] = token
+    private fun buildPlaylistUrl(roomId: Long, quality: String, pkey: String, token: String? = null): String =
+        buildUrl {
+            protocol = URLProtocol.HTTPS
+            host = "media-hls.doppiocdn.org"
+            encodedPath = if (quality != "raw" && quality.isNotBlank()) "b-hls-%d/%d/%d_%s.m3u8".format(
+                22, roomId, roomId, quality
+            ) else "b-hls-%d/%d/%d.m3u8".format(
+                22, roomId, roomId
+            )
+            parameters["psch"] = "v2"
+            parameters["pkey"] = pkey
+            parameters["preferredVideoCodec"] = "H265"
+            if (token != null) {
+                parameters["aclAuth"] = token
+            }
+        }.toString()
+
+    private fun createDiscontinuityCounter(): suspend (List<Int>) -> Int {
+        var lastMax: Int? = null
+        var totalGaps = 0
+        val lock = Mutex()
+        return counter@{ numbers: List<Int> ->
+            lock.withLock {
+                if (numbers.isEmpty()) return@counter totalGaps
+
+                val currentMin = numbers.first()      // 连续递增，首项最小
+                val currentMax = numbers.last()       // 尾项最大
+
+                if (lastMax != null) {
+                    val gap = currentMin - lastMax!! - 1
+                    if (gap > 0) {
+                        totalGaps += gap
+                    }
+                    // 如果 gap <= 0，说明重叠或紧接，无新增不连续
+                }
+
+                lastMax = currentMax  // 更新状态
+                totalGaps
+            }
         }
-    }.toString()
+    }
 
     private suspend fun CoroutineScope.pollingLoop(rs: RoomSession) {
         try {
+            val counter = createDiscontinuityCounter()
             while (isActive && (rs.state == SessionState.Fetching || rs.state == SessionState.Recording)) {
-                delay(2.seconds)
+                delay(3.seconds)
                 try {
                     val client = ClientManager.getProxiedClient("m3u8_${rs.roomId}")
                     val response = withRetry(3) {
@@ -434,10 +449,7 @@ class SessionComponent(
                         downloader.tell(
                             DoDownload(
                                 Download(
-                                    rs.roomId,
-                                    listOf(Segment(parsed.initUrl, -1)),
-                                    rs.segmentIndex,
-                                    rs.generation
+                                    rs.roomId, listOf(Segment(parsed.initUrl, -1)), rs.segmentIndex, rs.generation
                                 )
                             )
                         )
@@ -445,12 +457,19 @@ class SessionComponent(
                     }
                     val unseen = parsed.segments.filter { rs.circleCache.add(it.url) }
                     if (unseen.isNotEmpty()) {
+                        val gap = counter(unseen.map {
+                            m3u8Parser.segmentIDFromUrl(it.url) ?: 0
+                        })
+                        if (gap > 0) {
+                            eventBus.publish(SegmentGapDetected(rs.roomId, gap))
+                        }
                         eventBus.publish(NewSegments(rs.roomId, unseen))
                         downloader.tell(DoDownload(Download(rs.roomId, unseen, rs.segmentIndex, rs.generation)))
                         rs.segmentIndex += unseen.size
                     }
 
-                    val limitMs = if (rs.timeLimit != Duration.INFINITE) rs.timeLimit.inWholeMilliseconds else Long.MAX_VALUE
+                    val limitMs =
+                        if (rs.timeLimit != Duration.INFINITE) rs.timeLimit.inWholeMilliseconds else Long.MAX_VALUE
                     val elapsed = java.time.Duration.between(rs.startTime, Instant.now()).toMillis()
                     if (elapsed >= limitMs || (rs.sizeLimitBytes > 0 && rs.totalBytes >= rs.sizeLimitBytes)) {
                         val reason = if (elapsed >= limitMs) EndReason.TimeLimit else EndReason.SizeLimit
@@ -475,6 +494,7 @@ class SessionComponent(
                         logger.warn("[{}] Refresh list timeout", rs.roomName)
                         if (configureSession(rs.roomId, rs.roomName) == null) {
                             logger.info("[STOP] [{}] Room off or non-public after timeout", rs.roomName)
+                            break
                         }
                         rs.playlistUrl = buildPlaylistUrl(rs.roomId, rs.quality, rs.pkey, rs.token)
                         continue
@@ -489,11 +509,14 @@ class SessionComponent(
                             continue
                         }
                         logger.info("[STOP] [{}] Room off or non-public (403)", rs.roomName)
-                    }
-                    if (e.response.status == HttpStatusCode.NotFound) {
+                        break
+                    } else if (e.response.status == HttpStatusCode.NotFound) {
                         logger.info("[STOP] [{}] Stream url returns 404", rs.roomName)
+                        break
+                    } else {
+                        logger.error("Polling error room ${rs.roomId}: ${e.message}")
+                        break
                     }
-                    logger.error("Polling error room ${rs.roomId}: ${e.message}")
                     eventBus.publish(DownloadError(rs.roomId, null, null, e.message))
                 } catch (e: Exception) {
                     logger.error("[{}] Unexpected error in polling", rs.roomName, e)

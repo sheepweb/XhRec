@@ -18,6 +18,8 @@ import kotlinx.serialization.json.*
 import org.slf4j.LoggerFactory
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 class HttpServerComponent(
@@ -25,6 +27,7 @@ class HttpServerComponent(
     private val eventBus: EventBus,
     private val requestBus: RequestBus,
     private val metricComponent: MetricComponent,
+    private val postProcessorComponent: PostProcessorComponent,
     private val scope: CoroutineScope
 ) {
     private val logger = LoggerFactory.getLogger("v3.HttpServer")
@@ -253,11 +256,13 @@ class HttpServerComponent(
                             val isActive = s?.state == SessionState.Fetching || s?.state == SessionState.Recording
                             add(buildJsonObject {
                                 put("session", buildJsonObject {
-                                    put("status", when {
-                                        s != null && isActive -> s.state.name
-                                        isArmed -> "Listening"
-                                        else -> s?.state?.name ?: ""
-                                    })
+                                    put(
+                                        "status", when {
+                                            s != null && isActive -> s.state.name
+                                            isArmed -> "Listening"
+                                            else -> s?.state?.name ?: ""
+                                        }
+                                    )
                                     put("active", s?.state == SessionState.Recording)
                                 })
                                 put("listening", s != null || isArmed)
@@ -315,11 +320,21 @@ class HttpServerComponent(
                                 write("Cancelling ${s.roomName}.\n"); flush()
                                 requestBus.request<OkResponse>(StopRecordingCmd(s.roomId))
                             }
-                            waitSessionsDone(sessions, "Cancelled", 30_000L) { write(it); flush() }
+                            waitSessionsDone(sessions, "Cancelled", 120_000L) { write(it); flush() }
                         }
+                        delay(2.seconds)
+                        val processors = postProcessorComponent.jobs.filter { !it.value.isCompleted }
+                        for (s in processors) {
+                            write("Waiting ${s.key}.\n"); flush()
+                            waitProcessorDone(
+                                processors,
+                                "Processed",
+                                3.minutes.inWholeMilliseconds
+                            ) { write(it); flush() }
+                        }
+
                         write("OK\n"); flush()
                     }
-                    engine.stop(500, 1000)
                     eventBus.publish("ServerShutdown")
                 }
             }
@@ -327,6 +342,34 @@ class HttpServerComponent(
         engine.start(wait = false)
         logger.info("HTTP server started on port $port")
         return engine
+    }
+
+    suspend fun waitProcessorDone(
+        sessions: Map<String, Job>, verb: String, timeoutMs: Long,
+        onProgress: suspend (String) -> Unit
+    ) {
+        val stopped = mutableSetOf<String>()
+        var remaining = sessions.size
+        try {
+            withTimeout(timeoutMs.milliseconds) {
+                while (remaining > 0) {
+                    delay(500)
+                    val current = postProcessorComponent.jobs.filter { !it.value.isCompleted }
+                    for (s in sessions) {
+                        if (s.key !in stopped) {
+                            val cur = current[s.key]
+                            if (cur == null || cur.isCompleted) {
+                                stopped.add(s.key)
+                                remaining--
+                                onProgress("$verb ${s.key}. remain: $remaining\n")
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (_: TimeoutCancellationException) {
+            onProgress("Timeout waiting for processors.\n")
+        }
     }
 
     private fun persistConfig() {
@@ -340,7 +383,7 @@ class HttpServerComponent(
         val stopped = mutableSetOf<Long>()
         var remaining = sessions.size
         try {
-            withTimeout(timeoutMs) {
+            withTimeout(timeoutMs.milliseconds) {
                 while (remaining > 0) {
                     delay(500)
                     val current = requestBus.request<List<RoomSession>>(GetSessions)

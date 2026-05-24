@@ -3,8 +3,10 @@ package github.rikacelery.v3.components
 import github.rikacelery.v3.core.Actor
 import github.rikacelery.v3.core.DataChannel
 import github.rikacelery.v3.core.EventBus
-import github.rikacelery.v3.data.*
-import github.rikacelery.v3.events.EndReason
+import github.rikacelery.v3.data.StreamData
+import github.rikacelery.v3.data.StreamEnd
+import github.rikacelery.v3.data.StreamEvent
+import github.rikacelery.v3.data.StreamStart
 import github.rikacelery.v3.events.FileReady
 import github.rikacelery.v3.events.WriterFatal
 import github.rikacelery.v3.hooks.WriterHook
@@ -30,8 +32,14 @@ data class ActiveFile(
     var bytesWritten: Long = 0
 ) {
     fun dispose() {
-        try { fos.close() } catch (_: Exception) {}
-        try { eventFos.close() } catch (_: Exception) {}
+        try {
+            fos.close()
+        } catch (_: Exception) {
+        }
+        try {
+            eventFos.close()
+        } catch (_: Exception) {
+        }
         file.delete()
         eventFile.delete()
     }
@@ -74,12 +82,13 @@ class WriterComponent(
             val file = File(path)
             file.parentFile?.mkdirs()
             val eventFile = File("$path.event")
-
-            files[msg.roomId] = ActiveFile(
-                file = file, eventFile = eventFile,
-                fos = FileOutputStream(file), eventFos = FileOutputStream(eventFile),
-                roomId = msg.roomId, roomName = msg.roomName, startTime = msg.startTime
-            )
+            withContext(Dispatchers.IO) {
+                files[msg.roomId] = ActiveFile(
+                    file = file, eventFile = eventFile,
+                    fos = FileOutputStream(file), eventFos = FileOutputStream(eventFile),
+                    roomId = msg.roomId, roomName = msg.roomName, startTime = msg.startTime
+                )
+            }
             logger.info("Opened file: $path")
         } catch (e: Exception) {
             logger.error("Failed to open file for room ${msg.roomId}: ${e.message}", e)
@@ -93,7 +102,7 @@ class WriterComponent(
         try {
             var data = msg.data
             hooks.forEach { data = it.beforeWrite(msg.roomId, data) }
-            logger.trace("Receive {} {}",msg.roomId,msg.meta.url)
+            logger.trace("Receive {} {}", msg.roomId, msg.meta.url)
             active.fos.write(data)
             active.bytesWritten += data.size
         } catch (e: Exception) {
@@ -118,11 +127,20 @@ class WriterComponent(
             val durationMs = java.time.Duration.between(active.startTime, endTime).toMillis()
             val durFmt = formatDurationHM(durationMs)
             val finalName = "${active.roomName}-${timeFormatter.format(active.startTime)}-${durFmt}.mp4"
-            val finalFile = File(outputDir, finalName)
+            val finalFile = File(tmpDir, finalName)
             active.file.renameTo(finalFile)
 
-            val finalEvent = File(outputDir, "$finalName.event")
+            val finalEvent = File(tmpDir, "$finalName.event")
             active.eventFile.renameTo(finalEvent)
+
+            if (finalEvent.length() == 0L) {
+                finalEvent.delete()
+            }
+            if (finalFile.length() == 0L) {
+                finalFile.delete()
+                logger.info("Remove empty file: ${finalFile.absolutePath}, reason=${msg.reason}")
+                return
+            }
 
             hooks.forEach { it.afterFileClosed(msg.roomId, finalFile) }
             eventBus.publish(FileReady(msg.roomId, finalFile, msg.reason))

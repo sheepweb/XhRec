@@ -15,6 +15,7 @@ class SliceProcessor(
             "-f", "segment", "-segment_time", sliceDuration.seconds.toString(),
             "-reset_timestamps", "1",
             File(base, "part_%03d.mp4").absolutePath)
+        input.delete()
         return base.listFiles()?.toList() ?: emptyList()
     }
 }

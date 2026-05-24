@@ -1,11 +1,6 @@
 package github.rikacelery.v3.m3u8
 
-import github.rikacelery.v2.Session.Companion.DECRYPT_KEY_V2
 import github.rikacelery.v3.events.Segment
-import java.util.NoSuchElementException
-import kotlin.text.replace
-import kotlin.text.startsWith
-import kotlin.text.substringAfterLast
 
 object M3u8Parser {
     private val mouflonRegex = Regex("#EXT-X-MOUFLON:URI=\"([^\"]+)\"")
@@ -53,7 +48,7 @@ object M3u8Parser {
             }
         }
         segments.addAll(newList.map {
-            Segment(it,segmentIDFromUrl(it)?:0)
+            Segment(it, segmentIDFromUrl(it) ?: 0)
         })
         return ParsedPlaylist(initUrl, segments)
     }
@@ -62,12 +57,11 @@ object M3u8Parser {
     fun segmentIDFromUrl(url: String): Int? {
 //        roomid_480p_h265_SEGMENTID_XXXXXXXXXXX_timestamp.mp4 transcended stream
 //        roomid_SEGMENTID_XXXXXXXXXXX_timestamp.mp4 raw stream
-        val parts = url.substringAfterLast("/").split("_")
-        if (parts.size == 6)
-            return parts[3].toIntOrNull()
-        else if (parts.size == 4)
-            return parts[1].toIntOrNull()
-        return null
+        if (url.contains("h265_"))
+            return url.substringAfterLast("h265_").substringBefore("_").toIntOrNull()
+        else
+            return url.substringAfterLast("h264_").substringBefore("_").toIntOrNull()
+
     }
 }
 

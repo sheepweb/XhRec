@@ -172,7 +172,7 @@ class Bootstrap(
         val timeLimit = if (parsed.timeLimit > 0) parsed.timeLimit.seconds else Duration.INFINITE
         roomComponent.internalAdd(id, name, parsed.quality, timeLimit, parsed.sizeLimit, parsed.autoPay, parsed.pkey)
         if (parsed.armed) {
-            schedulerComponent.internalAdd(id, name, parsed.quality, parsed.pkey, parsed.armed)
+            schedulerComponent.internalAdd(id, name, parsed.quality, parsed.pkey, parsed.armed,parsed.autoPay)
         }
     }
 

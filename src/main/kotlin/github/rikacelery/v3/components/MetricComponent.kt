@@ -120,7 +120,7 @@ class MetricComponent(
                 }
 
                 is SegmentGapDetected -> {
-                    metrics.getOrPut(e.roomId) { RoomMetrics() }.segmentMissing.addAndGet(e.gap.toLong())
+                    metrics.getOrPut(e.roomId) { RoomMetrics() }.segmentMissing.set(e.gap.toLong())
                 }
 
                 is FileReady -> {
