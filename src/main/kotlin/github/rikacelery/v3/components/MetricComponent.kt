@@ -43,6 +43,7 @@ class MetricComponent(
 ) : Actor<MetricMsg>("MetricComponent", eventBus, parentScope) {
 
     private val metrics = ConcurrentHashMap<Long, RoomMetrics>()
+    private val recording = ConcurrentHashMap.newKeySet<Long>()
 
     override suspend fun onStart(scope: CoroutineScope) {
         subscribe<SegmentDownloaded>(SegmentDownloaded::class)
@@ -53,6 +54,7 @@ class MetricComponent(
         subscribe<FileProcessed>(FileProcessed::class)
         subscribe<PlaylistRefreshed>(PlaylistRefreshed::class)
         subscribe<RecordingStarted>(RecordingStarted::class)
+        subscribe<RecordingStopped>(RecordingStopped::class)
         subscribe<CommandEnvelope>(CommandEnvelope::class)
     }
 
@@ -65,6 +67,7 @@ class MetricComponent(
         is FileProcessed -> OnMetricEvent(event)
         is PlaylistRefreshed -> OnMetricEvent(event)
         is RecordingStarted -> OnMetricEvent(event)
+        is RecordingStopped -> OnMetricEvent(event)
         is CommandEnvelope -> HandleMetricCommand(event)
         else -> null
     }
@@ -149,6 +152,11 @@ class MetricComponent(
 
                 is RecordingStarted -> {
                     metrics.getOrPut(e.roomId) { RoomMetrics() }.quality = e.quality
+                    recording.add(e.roomId)
+                }
+
+                is RecordingStopped -> {
+                    recording.remove(e.roomId)
                 }
 
                 else -> {}
@@ -159,6 +167,7 @@ class MetricComponent(
     fun prometheusText(): String {
         val sb = StringBuilder()
         metrics.forEach { (roomId, m) ->
+            if (roomId !in recording) return@forEach
             val avgLatency = if (m.latencySamples.isNotEmpty())
                 m.latencySamples.average() else 0.0
             val total = m.proxyCount.get() + m.directCount.get()
@@ -174,8 +183,8 @@ class MetricComponent(
             sb.appendLine("# TYPE xhrec_failed_total counter")
             sb.appendLine("xhrec_failed_total{roomId=\"$roomId\"} ${m.lifetimeFailed.get()}")
             sb.appendLine("# HELP xhrec_bytes_write_total Bytes written")
-            sb.appendLine("# TYPE xhrec_bytes_write_total counter")
-            sb.appendLine("xhrec_bytes_write_total{roomId=\"$roomId\"} ${m.lifetimeBytes.get()}")
+            sb.appendLine("# TYPE xhrec_bytes_write_total gauge")
+            sb.appendLine("xhrec_bytes_write_total{roomId=\"$roomId\"} ${m.segmentBytes.get()}")
             sb.appendLine("# HELP xhrec_proxy_ratio Proxy download ratio")
             sb.appendLine("# TYPE xhrec_proxy_ratio gauge")
             sb.appendLine("xhrec_proxy_ratio{roomId=\"$roomId\"} $proxyRatio")
@@ -212,9 +221,6 @@ class MetricComponent(
             sb.appendLine("xhrec_quality{roomId=\"$roomId\",quality=\"${m.quality}\"} 1")
 
             // per-segment gauges
-            sb.appendLine("# HELP xhrec_segment_bytes_current Bytes in current segment")
-            sb.appendLine("# TYPE xhrec_segment_bytes_current gauge")
-            sb.appendLine("xhrec_segment_bytes_current{roomId=\"$roomId\"} ${m.segmentBytes.get()}")
             sb.appendLine("# HELP xhrec_segment_downloaded_current Downloaded in current segment")
             sb.appendLine("# TYPE xhrec_segment_downloaded_current gauge")
             sb.appendLine("xhrec_segment_downloaded_current{roomId=\"$roomId\"} ${m.segmentDownloaded.get()}")
