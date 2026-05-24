@@ -1,6 +1,6 @@
 package github.rikacelery.v3.components
 
-import github.rikacelery.utils.ClientManager
+import github.rikacelery.v3.utils.ClientManager
 import github.rikacelery.v3.core.Actor
 import github.rikacelery.v3.core.DataChannel
 import github.rikacelery.v3.core.EventBus
@@ -70,7 +70,7 @@ class DownloaderComponent(
         if (!active.active) return
         active.generation = cmd.generation
 
-        for ((i, seg) in cmd.urls.withIndex()) {
+        for (seg in cmd.urls) {
             val idx = active.idx.incrementAndGet()
             var url = seg.url
             hooks.forEach { url = it.beforeDownload(url) }

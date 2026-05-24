@@ -39,7 +39,7 @@ private fun loadPersistedConfig(configPath: String): Pair<String, Map<String, St
     }
 }
 
-fun main(vararg args: String): Unit {
+fun main(vararg args: String) {
     val cliOptions = Options()
         .addOption("f", "file", true, "list.conf path")
         .addOption("o", "output", true, "output directory")
@@ -80,7 +80,7 @@ fun main(vararg args: String): Unit {
             val requestBus = RequestBus(eventBus, appScope)
             val dataChannel = DataChannel()
             eventBus.installHook(object : EventHook {
-                override suspend fun intercept(event: Any): Any? {
+                override suspend fun intercept(event: Any): Any {
 
                     return event
                 }
@@ -99,7 +99,7 @@ fun main(vararg args: String): Unit {
                 dataChannel, eventBus = eventBus, parentScope = appScope, initialConcurrency = 64
             )
             val writerComponent = WriterComponent(
-                dataChannel, config.outputDir, config.tmpDir,
+                dataChannel, config.tmpDir,
                 eventBus = eventBus, parentScope = appScope
             )
             val postProcessorComponent = PostProcessorComponent(eventBus = eventBus, parentScope = appScope)

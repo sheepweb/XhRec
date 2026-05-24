@@ -1,6 +1,6 @@
 package github.rikacelery.v3.postprocessors
 
-import github.rikacelery.utils.runProcessGetStdout
+import github.rikacelery.v3.utils.runProcessGetStdout
 import java.io.File
 import java.time.Duration
 

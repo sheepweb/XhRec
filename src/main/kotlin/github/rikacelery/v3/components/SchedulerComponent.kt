@@ -67,24 +67,27 @@ class SchedulerComponent(
             is RoomStatusChanged -> {
                 if (gracefulStop) return
                 val a = armed[event.roomId] ?: return
-                if (event.newStatus == "public" || event.newStatus == "groupShow") {
-                    if (event.newStatus == "groupShow" && !a.autoPay) return
-                    logger.debug(
-                        "Armed room {} ({}) became {}, starting recording",
-                        event.roomId,
-                        a.roomName,
-                        event.newStatus
-                    )
-                    sessionComponent.tell(DoStart(event.roomId, a.roomName, a.quality, a.pkey))
-                } else {
-
+                if (event.newStatus != "public" && event.newStatus != "groupShow") {
+                    return
                 }
+                if (event.newStatus == "groupShow" && !a.autoPay) return
+                logger.debug(
+                    "Armed room {} ({}) became {}, starting recording",
+                    event.roomId,
+                    a.roomName,
+                    event.newStatus
+                )
+                sessionComponent.tell(DoStart(event.roomId, a.roomName, a.quality, a.pkey))
             }
 
             is RecordingStopped -> {
                 val a = armed[event.roomId]
                 if (a != null) {
-                    logger.info("Recording stopped for armed room {} ({}), re-arming after delay", event.roomId, a.roomName)
+                    logger.info(
+                        "Recording stopped for armed room {} ({}), re-arming after delay",
+                        event.roomId,
+                        a.roomName
+                    )
                     scope.launch {
                         delay(30.seconds)
                         sessionComponent.tell(DoStart(event.roomId, a.roomName, a.quality, a.pkey))
@@ -112,11 +115,17 @@ class SchedulerComponent(
     private suspend fun handleCommand(env: CommandEnvelope) {
         val ack = when (env.command) {
             is StartRecordingCmd -> {
-                if (armed.contains(env.command.roomId)) OkResponse else {
+                if (armed.contains(env.command.roomId)) {
+                    OkResponse
+                } else try {
+                    val roomName = requestBus.request<RoomNameResponse>(GetRoomName(env.command.roomId)).name
                     val config = requestBus.request<RoomConfigResponse>(GetRoomConfig(env.command.roomId))
                     armed[env.command.roomId] =
-                        ArmedRoom(env.command.roomId, name, config.quality, config.pkey, config.autoPay)
+                        ArmedRoom(env.command.roomId, roomName, config.quality, config.pkey, config.autoPay)
+                    requestBus.request<OkResponse>(RefreshRoomCmd(env.command.roomId))
                     OkResponse
+                } catch (_: Exception) {
+                    ErrorResponse("failed to start recording")
                 }
             }
 
@@ -131,6 +140,7 @@ class SchedulerComponent(
                     armed[env.command.roomId] =
                         ArmedRoom(env.command.roomId, name, config.quality, config.pkey, config.autoPay)
                     logger.info("Room {} ({}) activated (armed)", name, env.command.roomId)
+                    requestBus.request<OkResponse>(RefreshRoomCmd(env.command.roomId))
                 } catch (_: Exception) {
                 }
                 OkResponse

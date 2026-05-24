@@ -88,7 +88,7 @@ class Bootstrap(
         logger.info("Loaded ${users.size} users")
     }
 
-    private suspend fun loadProcessors(cli: CliConfig) {
+    private fun loadProcessors(cli: CliConfig) {
         val file = File(cli.postProcessorPath)
         if (!file.exists()) {
             logger.warn("postprocessor.json not found"); return
@@ -101,7 +101,7 @@ class Bootstrap(
 
     private fun parseProcessorConfig(jsonStr: String, outputDir: File): List<Processor> {
         val processors = mutableListOf<Processor>()
-        val arr = kotlinx.serialization.json.Json.parseToJsonElement(jsonStr).jsonObject["default"]?.jsonArray
+        val arr = Json.parseToJsonElement(jsonStr).jsonObject["default"]?.jsonArray
         requireNotNull(arr)
         for (elem in arr) {
             val obj = elem.jsonObject

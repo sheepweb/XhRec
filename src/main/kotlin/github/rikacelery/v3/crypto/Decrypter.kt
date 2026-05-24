@@ -1,10 +1,10 @@
 package github.rikacelery.v3.crypto
 
-import java.util.Base64
+import java.util.*
 
 object Decrypter {
 
-    suspend fun decode(encryptedB64: String, keyB64: String): String {
+    fun decode(encryptedB64: String, keyB64: String): String {
         val keyBytes = Base64.getDecoder().decode(keyB64)
         val encrypted = Base64.getDecoder().decode(encryptedB64)
         val decrypted = ByteArray(encrypted.size)

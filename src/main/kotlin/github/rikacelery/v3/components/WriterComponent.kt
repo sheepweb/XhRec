@@ -19,7 +19,6 @@ import java.time.format.DateTimeFormatter
 import java.util.concurrent.ConcurrentHashMap
 
 sealed interface WriterMsg
-object PollDataChannel : WriterMsg
 
 data class ActiveFile(
     val file: File,
@@ -47,7 +46,6 @@ data class ActiveFile(
 
 class WriterComponent(
     private val dataChannel: DataChannel,
-    private val outputDir: File,
     private val tmpDir: File,
     private val hooks: List<WriterHook> = emptyList(),
     eventBus: EventBus,
@@ -103,7 +101,9 @@ class WriterComponent(
             var data = msg.data
             hooks.forEach { data = it.beforeWrite(msg.roomId, data) }
             logger.trace("Receive {} {}", msg.roomId, msg.meta.url)
-            active.fos.write(data)
+            withContext(Dispatchers.IO) {
+                active.fos.write(data)
+            }
             active.bytesWritten += data.size
         } catch (e: Exception) {
             logger.error("Failed to write data for room ${msg.roomId}: ${e.message}", e)
@@ -156,7 +156,9 @@ class WriterComponent(
     private suspend fun handleStreamEvent(msg: StreamEvent) {
         val active = files[msg.roomId] ?: return
         try {
-            active.eventFos.write((msg.eventJson + "\n").toByteArray())
+            withContext(Dispatchers.IO) {
+                active.eventFos.write((msg.eventJson + "\n").toByteArray())
+            }
         } catch (e: Exception) {
             logger.error("Failed to write event for room ${msg.roomId}: ${e.message}", e)
             eventBus.publish(WriterFatal(msg.roomId, e.message ?: "Unknown error"))

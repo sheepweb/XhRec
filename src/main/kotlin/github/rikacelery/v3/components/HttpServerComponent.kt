@@ -144,7 +144,7 @@ class HttpServerComponent(
                         status = HttpStatusCode.BadRequest
                     )
                     requestBus.request<OkResponse>(StopRecordingCmd(id))
-                    delay(500)
+                    delay(0.5.seconds)
                     requestBus.request<OkResponse>(StartRecordingCmd(id))
                     call.respondText("Restarted")
                 }
@@ -353,7 +353,7 @@ class HttpServerComponent(
         try {
             withTimeout(timeoutMs.milliseconds) {
                 while (remaining > 0) {
-                    delay(500)
+                    delay(0.5.seconds)
                     val current = postProcessorComponent.jobs.filter { !it.value.isCompleted }
                     for (s in sessions) {
                         if (s.key !in stopped) {
@@ -385,7 +385,7 @@ class HttpServerComponent(
         try {
             withTimeout(timeoutMs.milliseconds) {
                 while (remaining > 0) {
-                    delay(500)
+                    delay(0.5.seconds)
                     val current = requestBus.request<List<RoomSession>>(GetSessions)
                     for (s in sessions) {
                         if (s.roomId !in stopped) {
@@ -399,7 +399,7 @@ class HttpServerComponent(
                     }
                 }
             }
-            delay(500) // let CutPoint drain through pipeline
+            delay(0.5.seconds) // let CutPoint drain through pipeline
         } catch (_: TimeoutCancellationException) {
             onProgress("Timeout waiting for sessions.\n")
         }

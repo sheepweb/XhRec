@@ -4,7 +4,6 @@ import github.rikacelery.v3.crypto.Decrypter
 import github.rikacelery.v3.events.Segment
 
 object M3u8Parser {
-    private val mouflonRegex = Regex("#EXT-X-MOUFLON:URI=\"([^\"]+)\"")
     private val mapRegex = Regex("#EXT-X-MAP:URI=\"([^\"]+)\"")
     private fun parseInitUrl(lines: List<String>): String {
         return try {

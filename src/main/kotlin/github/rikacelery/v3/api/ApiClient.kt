@@ -1,6 +1,6 @@
 package github.rikacelery.v3.api
 
-import github.rikacelery.utils.*
+import github.rikacelery.v3.utils.*
 import github.rikacelery.v3.data.User
 import io.ktor.client.plugins.*
 import io.ktor.client.request.*

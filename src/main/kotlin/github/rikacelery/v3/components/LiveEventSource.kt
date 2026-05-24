@@ -13,6 +13,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.seconds
 
 sealed interface LiveEventMsg
 data class OnLiveEvent(val event: Any) : LiveEventMsg
@@ -73,7 +74,7 @@ class LiveEventSource(
     }
 
     private suspend fun CoroutineScope.connectWebSocket() {
-        var backoff = 1000L
+        var backoff = 1.seconds
         while (isActive) {
             try {
                 val client = HttpClient { install(WebSockets) }
@@ -92,9 +93,9 @@ class LiveEventSource(
                 throw e
             } catch (e: Exception) {
                 wsSession = null
-                logger.error("WS error: ${e.message}, reconnecting in ${backoff}ms")
+                logger.error("WS error: ${e.message}, reconnecting in ${backoff.inWholeMilliseconds}ms")
                 delay(backoff)
-                backoff = minOf(backoff * 2, 30_000L)
+                backoff = minOf(backoff.inWholeSeconds * 2, 30).seconds
             }
         }
     }

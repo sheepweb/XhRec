@@ -1,6 +1,6 @@
 package github.rikacelery.v3.components
 
-import github.rikacelery.utils.*
+import github.rikacelery.v3.utils.*
 import github.rikacelery.v3.api.ApiClient
 import github.rikacelery.v3.core.Actor
 import github.rikacelery.v3.core.DataChannel
@@ -244,7 +244,7 @@ class SessionComponent(
             is QualitiesAvailable -> {
                 val rs = sessions[event.roomId] ?: return
                 if (rs.state != SessionState.Recording) return
-                var newQuality = selectQuality(event.qualities, rs.targetquality)
+                val newQuality = selectQuality(event.qualities, rs.targetquality)
                 if (newQuality != rs.quality) {
                     logger.info(
                         "Quality switched for {}: {} -> {} (available: {})",
@@ -571,7 +571,7 @@ class SessionComponent(
         }
     }
 
-    private suspend fun onCutPointDone(roomId: Long) {
+    private fun onCutPointDone(roomId: Long) {
         val rs = sessions[roomId] ?: return
         rs.pollingJob = scope.launch { pollingLoop(rs) }
     }

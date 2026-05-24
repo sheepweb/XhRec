@@ -1,7 +1,7 @@
 package github.rikacelery.v3.components
 
-import github.rikacelery.utils.PathSingle
-import github.rikacelery.utils.asString
+import github.rikacelery.v3.utils.PathSingle
+import github.rikacelery.v3.utils.asString
 import github.rikacelery.v3.api.ApiClient
 import github.rikacelery.v3.core.Actor
 import github.rikacelery.v3.core.EventBus
@@ -15,6 +15,7 @@ import kotlinx.coroutines.sync.Mutex
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 sealed interface RoomMsg
 data class OnRoomEvent(val event: Any) : RoomMsg
@@ -31,7 +32,6 @@ class RoomComponent(
 ) : Actor<RoomMsg>("RoomComponent", eventBus, parentScope) {
 
     private val rooms = ConcurrentHashMap<Long, Room>()
-    private var nextId = 1L
     private var ready = false
     private var saveDebounceJob: Job? = null
 
@@ -47,7 +47,7 @@ class RoomComponent(
         scope.launch {
             tell(RefreshRooms)
             while (isActive) {
-                delay(30 * 1000L); tell(RefreshRooms)
+                delay((30).seconds); tell(RefreshRooms)
             }
         }
     }
@@ -72,7 +72,7 @@ class RoomComponent(
                 is PersistConfig -> {
                     saveDebounceJob?.cancel()
                     saveDebounceJob = scope.launch {
-                        delay(1000)
+                        delay(1.seconds)
                         saveListConf()
                     }
                 }
@@ -200,7 +200,7 @@ class RoomComponent(
                 rooms[room.id] = room.copy(name = e.newName)
                 eventBus.publish(RoomRenamed(room.id, oldName, e.newName))
                 logger.info("Room ${room.id} renamed: $oldName -> ${e.newName}")
-            } catch (e: DeletedException) {
+            } catch (_: DeletedException) {
                 rooms.remove(room.id)
                 eventBus.publish(RoomRemoved(room.id, room.name))
                 logger.info("Room ${room.id} deleted: ${room.name}")

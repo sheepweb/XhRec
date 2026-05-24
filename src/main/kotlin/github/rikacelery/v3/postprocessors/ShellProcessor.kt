@@ -1,6 +1,6 @@
 package github.rikacelery.v3.postprocessors
 
-import github.rikacelery.utils.runProcessGetStdout
+import github.rikacelery.v3.utils.runProcessGetStdoutBlocking
 import java.io.File
 import java.time.Instant
 import java.time.ZoneId
@@ -47,14 +47,14 @@ class ShellProcessor(
             .replace("{{FILE_NAME}}", file.name)
             .replace("{{FILE_NAME_NOEXT}}", file.nameWithoutExtension)
             .replace("\\{\\{TOTAL_FRAMES}}".toRegex()) {
-                runProcessGetStdout(
+                runProcessGetStdoutBlocking(
                     "ffprobe", "-v", "error", "-select_streams", "v:0",
                     "-count_frames", "-show_entries", "stream=nb_frames",
                     "-of", "default=noprint_wrappers=1:nokey=1", file.absolutePath
                 )
             }
             .replace("\\{\\{TOTAL_FRAMES_GUESS}}".toRegex()) {
-                runProcessGetStdout(
+                runProcessGetStdoutBlocking(
                     "ffprobe", "-v", "error", "-select_streams", "v:0",
                     "-show_entries", "stream=r_frame_rate",
                     "-of", "default=noprint_wrappers=1:nokey=1", file.absolutePath

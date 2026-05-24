@@ -63,7 +63,6 @@ data class RefreshRoomCmd(val roomId: Long) : Request
 // ── RequestBus responses ──
 
 data class RoomNameResponse(val name: String) : Response
-data class RoomStatusResponse(val status: String) : Response
 data class RoomConfigResponse(
     val quality: String,
     val timeLimit: Duration,
