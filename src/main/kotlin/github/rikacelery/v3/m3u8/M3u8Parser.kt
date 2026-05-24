@@ -16,7 +16,7 @@ object M3u8Parser {
     }
 
     // TODO: handle #EXT-X-PART low-latency segments (v2 fallback: plain https://*.mp4 URLs)
-    suspend fun parse(m3u8Text: String, decryptKey: String): ParsedPlaylist {
+    fun parse(m3u8Text: String, decryptKey: String): ParsedPlaylist {
         val rawList = m3u8Text.lines()
         val segments = mutableListOf<Segment>()
 

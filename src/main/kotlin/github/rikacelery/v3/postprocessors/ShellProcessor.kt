@@ -1,6 +1,8 @@
 package github.rikacelery.v3.postprocessors
 
 import github.rikacelery.v3.utils.runProcessGetStdoutBlocking
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.Instant
 import java.time.ZoneId
@@ -14,14 +16,18 @@ class ShellProcessor(
     override suspend fun process(input: File, ctx: ProcessorCtx): List<File> {
         val cmd = command.map { substitute(it, ctx, input) }
         val builder = ProcessBuilder(cmd)
-        val p = builder.start()
+        val p = withContext(Dispatchers.IO) {
+            builder.start()
+        }
         p.errorStream.bufferedReader().use {
             while (true) {
                 val line = it.readLine() ?: break
                 println(line)
             }
         }
-        if (p.waitFor() == 0) {
+        if (withContext(Dispatchers.IO) {
+                p.waitFor()
+            } == 0) {
             if (noreturn) return listOf(input)
             val outputFile = File(p.inputStream.bufferedReader().readLines().last())
             if (!outputFile.exists()) throw IllegalStateException("Output file not found: $outputFile")

@@ -148,12 +148,12 @@ class Bootstrap(
                 async {
                     val parsed = parseListConfLine(line) ?: return@async
                     try {
-                        val (id, name) = apiClient.getRoomFromUrlOrSlug(parsed.url, parsed.quality)
+                        val (id, name) = apiClient.getRoomFromUrlOrSlug(parsed.url)
                         addRoomFromParsed(id, name, parsed)
                         logger.info("Add room {} {}/{}",name,idx.getAndIncrement(),lines.size)
                     } catch (e: RenameException) {
                         try {
-                            val (id, name) = apiClient.getRoomFromUrlOrSlug(e.newName, parsed.quality)
+                            val (id, name) = apiClient.getRoomFromUrlOrSlug(e.newName)
                             addRoomFromParsed(id, name, parsed)
                             logger.info("Add room {} {}/{}",name,idx.getAndIncrement(),lines.size)
                         } catch (ex: Exception) {

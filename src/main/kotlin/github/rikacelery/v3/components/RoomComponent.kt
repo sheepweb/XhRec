@@ -134,7 +134,7 @@ class RoomComponent(
                 if (!ready) {
                     ErrorResponse("system initializing, please retry")
                 } else try {
-                    val (id, name) = apiClient.getRoomFromUrlOrSlug(cmd.name, cmd.quality)
+                    val (id, name) = apiClient.getRoomFromUrlOrSlug(cmd.name)
                     if (rooms.containsKey(id) || rooms.values.any { it.name.equals(name, true) }) {
                         logger.warn("Duplicate room: id={}, name={}", id, name)
                         ErrorResponse("Exist $name")

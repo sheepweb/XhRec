@@ -1,7 +1,7 @@
 package github.rikacelery.v3.api
 
-import github.rikacelery.v3.utils.*
 import github.rikacelery.v3.data.User
+import github.rikacelery.v3.utils.*
 import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -10,8 +10,7 @@ import kotlinx.serialization.json.*
 
 object ApiClient {
 
-    suspend fun getRoomFromUrlOrSlug(path: String, quality: String): Pair<Long, String> {
-        val client = ClientManager.getProxiedClient("api")
+    suspend fun getRoomFromUrlOrSlug(path: String): Pair<Long, String> {
         val slug = path.substringAfterLast("/")
         val j = withRetry(3) {
             roomFetchBroadcastInfo(slug).jsonObject
