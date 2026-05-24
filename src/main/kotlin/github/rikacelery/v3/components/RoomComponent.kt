@@ -97,11 +97,6 @@ class RoomComponent(
                     rooms[cmd.roomId]; if (r != null) RoomNameResponse(r.name) else ErrorResponse("not found: ${cmd.roomId}")
             }
 
-            is GetRoomStatus -> {
-                val r = rooms[cmd.roomId]
-                if (r != null) RoomStatusResponse(r.status)
-                else ErrorResponse("not found: ${cmd.roomId}")
-            }
             is GetRoomConfig -> {
                 val r = rooms[cmd.roomId]; if (r != null) RoomConfigResponse(
                     r.quality,
@@ -176,7 +171,7 @@ class RoomComponent(
                         if (status != room.status) {
                             rooms[room.id] = room.copy(status = status)
                         }
-                        eventBus.publish(RoomStatusChanged(room.id, room.status ?: "", status))
+                        eventBus.publish(RoomStatusChanged(room.id, room.status, status))
                     } catch (_: Exception) {}
                 }
                 OkResponse
@@ -228,8 +223,6 @@ class RoomComponent(
         rooms[id] = Room(id, name, quality, timeLimit, sizeLimitBytes, autoPay, null, pkey = pkey)
     }
 
-    fun getRoom(roomId: Long): Room? = rooms[roomId]
-    fun allRooms(): List<Room> = rooms.values.toList()
 
     private suspend fun saveListConf() {
         try {

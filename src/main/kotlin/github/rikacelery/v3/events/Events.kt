@@ -15,7 +15,7 @@ data class RoomStatusChanged(val roomId: Long, val oldStatus: String, val newSta
 
 // ── Recording Events ──
 
-data class RecordingStarted(val roomId: Long)
+data class RecordingStarted(val roomId: Long, val quality: String = "")
 data class RecordingStopped(val roomId: Long)
 data class FileReady(val roomId: Long, val file: File, val reason: EndReason)
 data class FileProcessed(val roomId: Long, val file: File)
@@ -48,6 +48,11 @@ data class DownloadError(
 data class SegmentGapDetected(
     val roomId: Long,
     val gap: Int
+)
+data class PlaylistRefreshed(
+    val roomId: Long,
+    val latencyMs: Long,
+    val maxSegmentId: Int
 )
 
 // ── Platform Events ──

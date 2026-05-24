@@ -27,14 +27,11 @@ import kotlin.time.Duration.Companion.milliseconds
 sealed interface DownloaderMsg
 data class DoDownload(val cmd: Download) : DownloaderMsg
 data class DoCutPoint(val cut: CutPoint) : DownloaderMsg
-data class SetConcurrency(val limit: Int) : DownloaderMsg
 
 data class ActiveDownload(
     val emitter: OrderedEmitter,
     val semaphore: Semaphore,
     val runningJobs: MutableSet<Job>,
-    var concurrency: Int = 16,
-
     var idx: AtomicInteger = AtomicInteger(-1),
     var generation: Int = 0,
     var active: Boolean = true
@@ -58,7 +55,7 @@ class DownloaderComponent(
         when (msg) {
             is DoDownload -> handleDownload(msg.cmd)
             is DoCutPoint -> handleCutPoint(msg.cut)
-            is SetConcurrency -> rooms.values.forEach { it.concurrency = msg.limit }
+
         }
     }
 
@@ -93,7 +90,6 @@ class DownloaderComponent(
                         is DownloadResult.Failed -> {
                             eventBus.publish(DownloadError(cmd.roomId, idx, seg.url, result.reason))
                         }
-                        is DownloadResult.Skipped -> {}
                         is DownloadResult.CutPoint -> {}
                     }
                 }

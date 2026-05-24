@@ -81,7 +81,7 @@ fun main(vararg args: String): Unit {
             val dataChannel = DataChannel()
             eventBus.installHook(object : EventHook {
                 override suspend fun intercept(event: Any): Any? {
-//                println(event)
+
                     return event
                 }
             })

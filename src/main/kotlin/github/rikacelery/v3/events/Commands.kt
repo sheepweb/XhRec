@@ -10,7 +10,7 @@ data class CommandAck(val requestId: Long, val body: Any)
 // ── Room commands ──
 
 data class GetRoomName(val roomId: Long) : Request
-data class GetRoomStatus(val roomId: Long) : Request
+
 data class GetRoomConfig(val roomId: Long) : Request
 data class SetRoomQuality(val roomId: Long, val quality: String) : Request
 data class SetRoomTimeLimit(val roomId: Long, val limit: Duration) : Request

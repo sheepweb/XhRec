@@ -14,8 +14,3 @@ data class SystemConfig(
     val listConfPath: String = "list.conf",
     val configPath: String = "xhrec.json"
 )
-
-data class ProcessorConfig(
-    val type: String,
-    val config: Map<String, String>
-)

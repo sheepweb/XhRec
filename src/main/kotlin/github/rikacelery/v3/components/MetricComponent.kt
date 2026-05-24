@@ -28,7 +28,9 @@ data class RoomMetrics(
     val proxyCount: AtomicLong = AtomicLong(0),
     val directCount: AtomicLong = AtomicLong(0),
     val latencySamples: ArrayDeque<Long> = ArrayDeque(10),
+    val refreshLatencySamples: ArrayDeque<Long> = ArrayDeque(10),
     var quality: String = "",
+    val currentSegmentId: AtomicLong = AtomicLong(0),
     val totalLatencyMs: AtomicLong = AtomicLong(0),
     val fileCount: AtomicLong = AtomicLong(0),
     val segmentMissing: AtomicLong = AtomicLong(0),
@@ -49,6 +51,8 @@ class MetricComponent(
         subscribe<SegmentGapDetected>(SegmentGapDetected::class)
         subscribe<FileReady>(FileReady::class)
         subscribe<FileProcessed>(FileProcessed::class)
+        subscribe<PlaylistRefreshed>(PlaylistRefreshed::class)
+        subscribe<RecordingStarted>(RecordingStarted::class)
         subscribe<CommandEnvelope>(CommandEnvelope::class)
     }
 
@@ -59,6 +63,8 @@ class MetricComponent(
         is SegmentGapDetected -> OnMetricEvent(event)
         is FileReady -> OnMetricEvent(event)
         is FileProcessed -> OnMetricEvent(event)
+        is PlaylistRefreshed -> OnMetricEvent(event)
+        is RecordingStarted -> OnMetricEvent(event)
         is CommandEnvelope -> HandleMetricCommand(event)
         else -> null
     }
@@ -133,6 +139,18 @@ class MetricComponent(
                 }
 
                 is FileProcessed -> {}
+
+                is PlaylistRefreshed -> {
+                    val m = metrics.getOrPut(e.roomId) { RoomMetrics() }
+                    m.refreshLatencySamples.addLast(e.latencyMs)
+                    if (m.refreshLatencySamples.size > 10) m.refreshLatencySamples.removeFirst()
+                    m.currentSegmentId.set(e.maxSegmentId.toLong())
+                }
+
+                is RecordingStarted -> {
+                    metrics.getOrPut(e.roomId) { RoomMetrics() }.quality = e.quality
+                }
+
                 else -> {}
             }
         }
@@ -176,6 +194,22 @@ class MetricComponent(
             sb.appendLine("# HELP xhrec_files_total Files produced")
             sb.appendLine("# TYPE xhrec_files_total counter")
             sb.appendLine("xhrec_files_total{roomId=\"$roomId\"} ${m.fileCount.get()}")
+
+            val avgRefreshLatency = if (m.refreshLatencySamples.isNotEmpty())
+                m.refreshLatencySamples.average() else 0.0
+
+            sb.appendLine("# HELP xhrec_refresh_latency_ms Playlist refresh latency ms")
+            sb.appendLine("# TYPE xhrec_refresh_latency_ms gauge")
+            sb.appendLine("xhrec_refresh_latency_ms{roomId=\"$roomId\"} $avgRefreshLatency")
+            sb.appendLine("# HELP xhrec_segment_id_current Current segment ID")
+            sb.appendLine("# TYPE xhrec_segment_id_current gauge")
+            sb.appendLine("xhrec_segment_id_current{roomId=\"$roomId\"} ${m.currentSegmentId.get()}")
+            sb.appendLine("# HELP xhrec_downloading_current Currently downloading segments")
+            sb.appendLine("# TYPE xhrec_downloading_current gauge")
+            sb.appendLine("xhrec_downloading_current{roomId=\"$roomId\"} ${m.runningUrls.size}")
+            sb.appendLine("# HELP xhrec_quality Recording quality")
+            sb.appendLine("# TYPE xhrec_quality gauge")
+            sb.appendLine("xhrec_quality{roomId=\"$roomId\",quality=\"${m.quality}\"} 1")
 
             // per-segment gauges
             sb.appendLine("# HELP xhrec_segment_bytes_current Bytes in current segment")

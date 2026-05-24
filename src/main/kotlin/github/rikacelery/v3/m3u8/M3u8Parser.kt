@@ -1,5 +1,6 @@
 package github.rikacelery.v3.m3u8
 
+import github.rikacelery.v3.crypto.Decrypter
 import github.rikacelery.v3.events.Segment
 
 object M3u8Parser {
@@ -32,7 +33,7 @@ object M3u8Parser {
 
                 val decrypted = try {
                     val result = runCatching {
-                        github.rikacelery.v2.Decrypter.decodev3(
+                        Decrypter.decode(
                             encrypted.reversed(),
                             decryptKey
                         )
@@ -43,8 +44,6 @@ object M3u8Parser {
                 }
                 val dec = rawList[idx].substringAfterLast("#EXT-X-MOUFLON:URI:").replace(encrypted, decrypted)
                 newList.add(dec)
-            } else {
-//                newList.add(rawList[idx])
             }
         }
         segments.addAll(newList.map {

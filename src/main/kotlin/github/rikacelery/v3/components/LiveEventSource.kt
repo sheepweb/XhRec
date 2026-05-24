@@ -17,8 +17,7 @@ import java.util.concurrent.atomic.AtomicInteger
 sealed interface LiveEventMsg
 data class OnLiveEvent(val event: Any) : LiveEventMsg
 data class OnWsMessage(val text: String) : LiveEventMsg
-data class OnWsSubscribe(val roomId: Long) : LiveEventMsg
-data class OnWsUnsubscribe(val roomId: Long) : LiveEventMsg
+
 
 class LiveEventSource(
     private val authToken: String,
@@ -69,8 +68,6 @@ class LiveEventSource(
                 else -> {}
             }
 
-            is OnWsSubscribe -> sendWsSubscribe(msg.roomId)
-            is OnWsUnsubscribe -> sendWsUnsubscribe(msg.roomId)
             is OnWsMessage -> dispatch(msg.text)
         }
     }
@@ -134,24 +131,6 @@ class LiveEventSource(
                     it.send(Frame.Text(unsubscribeFrame(roomId)))
                 } catch (_: Exception) {
                 }
-            }
-        }
-    }
-
-    private suspend fun sendWsSubscribe(roomId: Long) {
-        wsSession?.let {
-            try {
-                it.send(Frame.Text(subscribeFrame(roomId)))
-            } catch (_: Exception) {
-            }
-        }
-    }
-
-    private suspend fun sendWsUnsubscribe(roomId: Long) {
-        wsSession?.let {
-            try {
-                it.send(Frame.Text(unsubscribeFrame(roomId)))
-            } catch (_: Exception) {
             }
         }
     }

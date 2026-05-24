@@ -51,8 +51,7 @@ data class RoomSession(
     var totalBytes: Long = 0,
     var timeLimit: Duration = Duration.INFINITE,
     var sizeLimitBytes: Long = 0,
-    var pollingJob: Job? = null,
-    var lastSegmentId: Int? = null
+    var pollingJob: Job? = null
 )
 
 class CircleCache(private val capacity: Int) {
@@ -198,7 +197,7 @@ class SessionComponent(
         dataChannel.send(StreamStart(roomId, name, rs.startTime))
         rs.pollingJob = scope.launch { pollingLoop(rs) }
         rs.playlistUrl = buildPlaylistUrl(roomId, rs.quality, rs.pkey, rs.token)
-        eventBus.publish(RecordingStarted(roomId))
+        eventBus.publish(RecordingStarted(roomId, rs.quality))
     }
 
     private suspend fun stopSession(roomId: Long) {
@@ -325,7 +324,6 @@ class SessionComponent(
     private suspend fun pollQualityForRoom(rs: RoomSession) {
         try {
             val qualities = apiClient.roomQualities(rs.roomName)
-//            logger.debug("Available qualities for {}: {}", rs.roomName, qualities)
             if (qualities.isNotEmpty()) {
                 eventBus.publish(QualitiesAvailable(rs.roomId, qualities))
             }
@@ -446,9 +444,11 @@ class SessionComponent(
                 delay(3.seconds)
                 try {
                     val client = ClientManager.getProxiedClient("m3u8_${rs.roomId}")
+                    val fetchStart = System.currentTimeMillis()
                     val response = withRetry(3) {
                         client.get(rs.playlistUrl)
                     }
+                    val fetchLatency = System.currentTimeMillis() - fetchStart
                     val text = response.bodyAsText()
 
                     val key = (requestBus.request<ConfigResponse>(GetDecryptKey(rs.pkey)).value as? String) ?: run {
@@ -457,6 +457,8 @@ class SessionComponent(
                         continue
                     }
                     val parsed = m3u8Parser.parse(text, key)
+                    val maxSegId = parsed.segments.maxOfOrNull { m3u8Parser.segmentIDFromUrl(it.url) ?: 0 } ?: 0
+                    eventBus.publish(PlaylistRefreshed(rs.roomId, fetchLatency, maxSegId))
                     requireNotNull(parsed.initUrl)
 
                     if (parsed.initUrl != rs.initUrl) {
@@ -526,7 +528,7 @@ class SessionComponent(
                         if (configureSession(rs.roomId, rs.roomName) == null) {
                             logger.info("[STOP] [{}] Room off or non-public after timeout", rs.roomName)
                             rs.state = SessionState.Closing
-                            downloader.tell(DoCutPoint(CutPoint(rs.roomId, rs.segmentIndex - 1, rs.roomName, Instant.now(), EndReason.StreamEnd)))
+                            downloader.tell(DoCutPoint(CutPoint(rs.roomId, rs.segmentIndex - 1, rs.roomName, Instant.now(), EndReason.UserStop)))
                             break
                         }
                         rs.playlistUrl = buildPlaylistUrl(rs.roomId, rs.quality, rs.pkey, rs.token)
@@ -543,20 +545,19 @@ class SessionComponent(
                         }
                         logger.info("[STOP] [{}] Room off or non-public (403)", rs.roomName)
                         rs.state = SessionState.Closing
-                        downloader.tell(DoCutPoint(CutPoint(rs.roomId, rs.segmentIndex - 1, rs.roomName, Instant.now(), EndReason.StreamEnd)))
+                        downloader.tell(DoCutPoint(CutPoint(rs.roomId, rs.segmentIndex - 1, rs.roomName, Instant.now(), EndReason.UserStop)))
                         break
                     } else if (e.response.status == HttpStatusCode.NotFound) {
                         logger.info("[STOP] [{}] Stream url returns 404", rs.roomName)
                         rs.state = SessionState.Closing
-                        downloader.tell(DoCutPoint(CutPoint(rs.roomId, rs.segmentIndex - 1, rs.roomName, Instant.now(), EndReason.StreamEnd)))
+                        downloader.tell(DoCutPoint(CutPoint(rs.roomId, rs.segmentIndex - 1, rs.roomName, Instant.now(), EndReason.UserStop)))
                         break
                     } else {
                         logger.error("Polling error room ${rs.roomId}: ${e.message}")
                         rs.state = SessionState.Closing
-                        downloader.tell(DoCutPoint(CutPoint(rs.roomId, rs.segmentIndex - 1, rs.roomName, Instant.now(), EndReason.StreamEnd)))
+                        downloader.tell(DoCutPoint(CutPoint(rs.roomId, rs.segmentIndex - 1, rs.roomName, Instant.now(), EndReason.UserStop)))
                         break
                     }
-                    eventBus.publish(DownloadError(rs.roomId, null, null, e.message))
                 } catch (e: Exception) {
                     logger.error("[{}] Unexpected error in polling", rs.roomName, e)
                     if (configureSession(rs.roomId, rs.roomName) == null) {

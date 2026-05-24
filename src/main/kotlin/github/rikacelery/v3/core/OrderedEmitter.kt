@@ -2,7 +2,6 @@ package github.rikacelery.v3.core
 
 import github.rikacelery.v3.data.*
 import github.rikacelery.v3.events.EndReason
-import java.time.Instant
 
 class OrderedEmitter(
     private val roomId: Long,
@@ -10,32 +9,10 @@ class OrderedEmitter(
 ) {
     private var nextIndex = 0L
     private val buffer = sortedMapOf<Long, DownloadResult>()
-    private var cutPending: CutState? = null
-
-    private data class CutState(
-        val index: Long,
-        val roomName: String,
-        val startTime: Instant,
-        val reason: EndReason
-    )
 
     suspend fun complete(idx: Long, result: DownloadResult) {
         buffer[idx] = result
         drain()
-    }
-
-    suspend fun acquire(): Long {
-        return 0L
-    }
-
-    fun signalCut(index: Int, roomName: String, startTime: Instant, reason: EndReason) {
-        cutPending = CutState(index.toLong(), roomName, startTime, reason)
-    }
-
-    fun reset(fromIndex: Int) {
-        buffer.clear()
-        cutPending = null
-        nextIndex = fromIndex.toLong()
     }
 
     private suspend fun drain() {
@@ -61,9 +38,6 @@ class OrderedEmitter(
             }
 
             is DownloadResult.Failed -> { /* skip */
-            }
-
-            is DownloadResult.Skipped -> { /* skip */
             }
 
             is DownloadResult.CutPoint -> {

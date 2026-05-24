@@ -10,6 +10,5 @@ sealed class DownloadResult {
         override fun hashCode(): Int = 31 * data.contentHashCode() + meta.hashCode()
     }
     data class Failed(val idx: Int, val url: String, val reason: String) : DownloadResult()
-    data class Skipped(val idx: Int, val reason: String) : DownloadResult()
     data class CutPoint(val cut: github.rikacelery.v3.events.CutPoint) : DownloadResult()
 }
