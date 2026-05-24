@@ -95,6 +95,7 @@ class SessionComponent(
             while (isActive) {
                 delay(30.seconds)
                 pollQualities()
+                cleanStaleSessions()
             }
         }
     }
@@ -117,19 +118,29 @@ class SessionComponent(
             is DoStop -> stopSession(msg.roomId)
             is DoBreak -> {
                 val rs = sessions[msg.roomId] ?: return
-                if (rs.state == SessionState.Recording) {
-                    downloader.tell(
-                        DoCutPoint(
-                            CutPoint(
-                                msg.roomId, rs.segmentIndex - 1, rs.roomName, Instant.now(), msg.reason
+                when (rs.state) {
+                    SessionState.Recording -> {
+                        if (msg.reason == EndReason.UserStop) {
+                            stopSession(msg.roomId)
+                        } else {
+                            downloader.tell(
+                                DoCutPoint(
+                                    CutPoint(
+                                        msg.roomId, rs.segmentIndex - 1, rs.roomName, Instant.now(), msg.reason
+                                    )
+                                )
                             )
-                        )
-                    )
-                    rs.startTime = Instant.now()
-                    rs.generation += 1
-                    rs.totalBytes = 0
-                    rs.segmentIndex = 0
-                    rs.initUrl?.let { rs.circleCache.remove(it) }
+                            rs.startTime = Instant.now()
+                            rs.generation += 1
+                            rs.totalBytes = 0
+                            rs.segmentIndex = 0
+                            rs.initUrl?.let { rs.circleCache.remove(it) }
+                        }
+                    }
+                    SessionState.Fetching -> {
+                        stopSession(msg.roomId)
+                    }
+                    else -> {} // Armed, Closing, Idle — nothing to do
                 }
             }
 
@@ -152,13 +163,23 @@ class SessionComponent(
     private suspend fun startSession(
         roomId: Long, name: String, quality: String, pkey: String = "", reconfigure: Boolean = true
     ) {
-        if (sessions.containsKey(roomId) && (sessions[roomId]!!.state == SessionState.Fetching || sessions[roomId]!!.state == SessionState.Recording)) {
-            return
+        val existing = sessions[roomId]
+        if (existing != null) {
+            val blocked = when (existing.state) {
+                SessionState.Fetching, SessionState.Recording -> true
+                SessionState.Closing -> existing.pollingJob?.isCompleted != true
+                else -> false
+            }
+            if (blocked) return
         }
         var token: String? = null
         if (reconfigure) {
             token = configureSession(roomId, name) ?: run {
                 logger.info("[{}] Session not started: configure returned false", name)
+                scope.launch {
+                    delay(5.seconds)
+                    requestBus.request<OkResponse>(RefreshRoomCmd(roomId))
+                }
                 return
             }
         }
@@ -177,6 +198,7 @@ class SessionComponent(
         dataChannel.send(StreamStart(roomId, name, rs.startTime))
         rs.pollingJob = scope.launch { pollingLoop(rs) }
         rs.playlistUrl = buildPlaylistUrl(roomId, rs.quality, rs.pkey, rs.token)
+        eventBus.publish(RecordingStarted(roomId))
     }
 
     private suspend fun stopSession(roomId: Long) {
@@ -194,15 +216,10 @@ class SessionComponent(
                 if (event.newStatus == "public" || event.newStatus == "groupShow") {
                     if (rs.state == SessionState.Armed) {
                         if (event.newStatus == "groupShow") {
-                            val token = configureSession(rs.roomId,rs.roomName)
-                            if (token==null){
-                                stopSession(rs.roomId)
-                                eventBus.publish(RecordingStopped(event.roomId))
-                            }
+                            // SchedulerComponent handles groupShow via DoStart→startSession→configureSession
                             return
                         }
                         startSession(event.roomId, rs.roomName, rs.quality, rs.pkey)
-                        eventBus.publish(RecordingStarted(event.roomId))
                     }
 
                 } else if (event.newStatus == "offline" || event.newStatus == "private") {
@@ -314,6 +331,16 @@ class SessionComponent(
             }
         } catch (_: Exception) {
             // quality polling is best-effort; ignore transient errors
+        }
+    }
+
+    private fun cleanStaleSessions() {
+        val toRemove = sessions.filter { (_, rs) ->
+            rs.state == SessionState.Idle || (rs.state == SessionState.Closing && rs.pollingJob?.isCompleted == true)
+        }
+        for (roomId in toRemove.keys) {
+            sessions.remove(roomId)
+            logger.debug("Cleaned up stale session for room {}", roomId)
         }
     }
 
@@ -487,13 +514,19 @@ class SessionComponent(
                         rs.circleCache.remove(parsed.initUrl)
                     }
 
-                    if (rs.state == SessionState.Fetching) rs.state = SessionState.Recording
+                    if (rs.state == SessionState.Fetching) {
+                        synchronized(rs) {
+                            if (rs.state == SessionState.Fetching) rs.state = SessionState.Recording
+                        }
+                    }
 
                 } catch (e: CancellationException) {
                     if (e is TimeoutCancellationException) {
                         logger.warn("[{}] Refresh list timeout", rs.roomName)
                         if (configureSession(rs.roomId, rs.roomName) == null) {
                             logger.info("[STOP] [{}] Room off or non-public after timeout", rs.roomName)
+                            rs.state = SessionState.Closing
+                            downloader.tell(DoCutPoint(CutPoint(rs.roomId, rs.segmentIndex - 1, rs.roomName, Instant.now(), EndReason.StreamEnd)))
                             break
                         }
                         rs.playlistUrl = buildPlaylistUrl(rs.roomId, rs.quality, rs.pkey, rs.token)
@@ -509,12 +542,18 @@ class SessionComponent(
                             continue
                         }
                         logger.info("[STOP] [{}] Room off or non-public (403)", rs.roomName)
+                        rs.state = SessionState.Closing
+                        downloader.tell(DoCutPoint(CutPoint(rs.roomId, rs.segmentIndex - 1, rs.roomName, Instant.now(), EndReason.StreamEnd)))
                         break
                     } else if (e.response.status == HttpStatusCode.NotFound) {
                         logger.info("[STOP] [{}] Stream url returns 404", rs.roomName)
+                        rs.state = SessionState.Closing
+                        downloader.tell(DoCutPoint(CutPoint(rs.roomId, rs.segmentIndex - 1, rs.roomName, Instant.now(), EndReason.StreamEnd)))
                         break
                     } else {
                         logger.error("Polling error room ${rs.roomId}: ${e.message}")
+                        rs.state = SessionState.Closing
+                        downloader.tell(DoCutPoint(CutPoint(rs.roomId, rs.segmentIndex - 1, rs.roomName, Instant.now(), EndReason.StreamEnd)))
                         break
                     }
                     eventBus.publish(DownloadError(rs.roomId, null, null, e.message))

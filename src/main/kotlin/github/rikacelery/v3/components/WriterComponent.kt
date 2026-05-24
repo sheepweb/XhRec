@@ -114,16 +114,16 @@ class WriterComponent(
 
     private suspend fun handleStreamEnd(msg: StreamEnd) {
         val active = files.remove(msg.roomId) ?: return
-        try {
-            if (active.bytesWritten < 1024) {
-                // Too few bytes — dispose and don't publish FileReady
-                active.dispose()
-                return
-            }
-            active.fos.close()
-            active.eventFos.close()
+        withContext(NonCancellable) {
+            try {
+                if (active.bytesWritten < 1024) {
+                    active.dispose()
+                    return@withContext
+                }
+                active.fos.close()
+                active.eventFos.close()
 
-            val endTime = Instant.now()
+                val endTime = Instant.now()
             val durationMs = java.time.Duration.between(active.startTime, endTime).toMillis()
             val durFmt = formatDurationHM(durationMs)
             val finalName = "${active.roomName}-${timeFormatter.format(active.startTime)}-${durFmt}.mp4"
@@ -139,7 +139,7 @@ class WriterComponent(
             if (finalFile.length() == 0L) {
                 finalFile.delete()
                 logger.info("Remove empty file: ${finalFile.absolutePath}, reason=${msg.reason}")
-                return
+                return@withContext
             }
 
             hooks.forEach { it.afterFileClosed(msg.roomId, finalFile) }
@@ -149,6 +149,7 @@ class WriterComponent(
             logger.error("Failed to close file for room ${msg.roomId}: ${e.message}", e)
             eventBus.publish(WriterFatal(msg.roomId, e.message ?: "Unknown error"))
             active.dispose()
+        }
         }
     }
 

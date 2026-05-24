@@ -58,6 +58,7 @@ object GetRoomDetailedStatus : Request
 data class GetValidPaymentAccount(val price: Long) : Request
 data class DeductCoins(val userId: Long, val amount: Long) : Request
 object ShutdownCmd : Request
+data class RefreshRoomCmd(val roomId: Long) : Request
 
 // ── RequestBus responses ──
 

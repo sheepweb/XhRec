@@ -399,6 +399,7 @@ class HttpServerComponent(
                     }
                 }
             }
+            delay(500) // let CutPoint drain through pipeline
         } catch (_: TimeoutCancellationException) {
             onProgress("Timeout waiting for sessions.\n")
         }

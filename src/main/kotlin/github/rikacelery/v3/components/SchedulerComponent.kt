@@ -5,8 +5,10 @@ import github.rikacelery.v3.core.EventBus
 import github.rikacelery.v3.core.RequestBus
 import github.rikacelery.v3.events.*
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.time.Duration.Companion.seconds
 
 sealed interface SchedulerMsg
 data class OnSchedulerEvent(val event: Any) : SchedulerMsg
@@ -80,7 +82,16 @@ class SchedulerComponent(
             }
 
             is RecordingStopped -> {
-                logger.debug("Recording stopped for room {}", event.roomId)
+                val a = armed[event.roomId]
+                if (a != null) {
+                    logger.info("Recording stopped for armed room {} ({}), re-arming after delay", event.roomId, a.roomName)
+                    scope.launch {
+                        delay(30.seconds)
+                        sessionComponent.tell(DoStart(event.roomId, a.roomName, a.quality, a.pkey))
+                    }
+                } else {
+                    logger.debug("Recording stopped for room {}", event.roomId)
+                }
             }
 
             is DownloadError -> logger.warn("Download error room ${event.roomId}: ${event.reason}")
@@ -141,8 +152,8 @@ class SchedulerComponent(
             is ShutdownCmd -> {
                 gracefulStop = true
 
-                armed.forEach{
-                    scope.launch{ requestBus.request<OkResponse>(BreakCmd(it.key, EndReason.UserStop)) }
+                armed.forEach { (id, _) ->
+                    requestBus.request<OkResponse>(BreakCmd(id, EndReason.UserStop))
                 }
                 OkResponse
             }
