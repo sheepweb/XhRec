@@ -168,7 +168,7 @@
                            class="pl-9 pr-2 py-1.5 text-sm bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 w-24 transition-all">
                 </div>
                 <div class="relative flex items-center">
-                    <i class="fa-regular fa-clock absolute left-3 text-slate-400"></i>
+                    <i class="fa-solid fa-weight-hanging absolute left-3 text-slate-400"></i>
                     <input v-model="sizeLimit" type="text"  placeholder="Size"
                            class="pl-9 pr-2 py-1.5 text-sm bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 w-24 transition-all">
                 </div>
@@ -288,7 +288,7 @@
                             </td>
                             <td class="px-4 py-3 text-slate-500 font-mono text-xs">{{room.id || '-'}}</td>
                             <td class="px-4 py-3">
-                                <select @change="ev => setQuality(ev.target.value, room.name)" :value="room.quality"
+                                <select @change="ev => setQuality(ev.target.value, room.id)" :value="room.quality"
                                     class="text-xs py-1 px-2 border border-slate-200 rounded bg-white focus:outline-none focus:border-indigo-500">
                                     <option
                                         v-for="q in ['160p','240p','480p','720p','720p60','540p','960p','1080p','1080p60','2560p60','raw']"
@@ -297,13 +297,13 @@
                             </td>
                             <td class="px-4 py-3">
                                 <div class="flex items-center gap-2">
-                                    <span class="text-slate-500 text-right">{{room.timeLimit}}</span>
+                                    <span class="text-slate-500 text-right">{{room.timeLimit > 0 ? (room.timeLimit / 1000) : 0}}</span>
                                     <i class="fa-solid fa-arrow-right-long text-slate-300 text-xs"></i>
-                                    <input v-model.number="editLimits[room.name]" type="number" min="0"
-                                        :style="{ width: Math.max(6, String(editLimits[room.name] || '').length + 3) + 'ch' }"
+                                    <input v-model.number="editLimits[room.id]" type="number" min="0"
+                                        :style="{ width: Math.max(6, String(editLimits[room.id] || '').length + 3) + 'ch' }"
                                         class="px-2 py-1 text-xs border border-slate-200 rounded bg-white focus:outline-none focus:border-indigo-500"
                                         placeholder="New">
-                                    <button @click="setLimit(room.name)" title="Apply Limit"
+                                    <button @click="setLimit(room.id)" title="Apply Limit"
                                         class="text-emerald-600 hover:text-emerald-800 transition-colors p-1">
                                         <i class="fa-solid fa-check"></i>
                                     </button>
@@ -311,47 +311,47 @@
                             </td>
                             <td class="px-4 py-3">
                                 <div class="flex items-center gap-2">
-                                    <span class="text-slate-500 text-right">{{room.sizeLimit}}</span>
+                                    <span class="text-slate-500 text-right">{{room.sizeLimitBytes > 0 ? formatBytes(room.sizeLimitBytes) : 0}}</span>
                                     <i class="fa-solid fa-arrow-right-long text-slate-300 text-xs"></i>
-                                    <input v-model="editSizeLimits[room.name]" type="text"
-                                        :style="{ width: Math.max(6, String(editSizeLimits[room.name] || '').length + 3) + 'ch' }"
+                                    <input v-model="editSizeLimits[room.id]" type="text"
+                                        :style="{ width: Math.max(6, String(editSizeLimits[room.id] || '').length + 3) + 'ch' }"
                                         class="px-2 py-1 text-xs border border-slate-200 rounded bg-white focus:outline-none focus:border-indigo-500"
                                         placeholder="New">
-                                    <button @click="setSizeLimit(room.name)" title="Apply Limit"
+                                    <button @click="setSizeLimit(room.id)" title="Apply Limit"
                                         class="text-emerald-600 hover:text-emerald-800 transition-colors p-1">
                                         <i class="fa-solid fa-check"></i>
                                     </button>
                                 </div>
                             </td>
                             <td class="px-4 py-3">
-                                <span v-if="room.status==='Recording'"
+                                <span v-if="room.sessionStatus==='Recording'"
                                     class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
                                     <span class="w-2 h-2 rounded-full bg-red-500 status-recording"></span> Recording
                                 </span>
-                                <span v-else-if="room.status==='Listening'"
+                                <span v-else-if="room.sessionStatus==='Listening'"
                                     class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
                                     <i class="fa-solid fa-hourglass-half fa-spin-pulse"></i> Listening
                                 </span>
-                                <span v-else-if="room.status===''"
+                                <span v-else-if="room.sessionStatus===''"
                                     class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-500">
                                     <i class="fa-solid fa-video-slash"></i> Offline
                                 </span>
                                 <span v-else
                                     class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
-                                    {{room.status}}
+                                    {{room.sessionStatus}}
                                 </span>
                             </td>
                             <td class="px-4 py-3 text-center">
                                 <label class="relative inline-flex items-center cursor-pointer">
                                     <input type="checkbox" v-model="room.autoPay"
-                                        @change="setAutoPay($event.target.checked, room.name)" class="sr-only peer">
+                                        @change="setAutoPay($event.target.checked, room.id)" class="sr-only peer">
                                     <div
                                         class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600">
                                     </div>
                                 </label>
                             </td>
                             <td class="px-4 py-3">
-                                <div v-if="room.status==='Recording'" class="flex items-center gap-3 text-xs font-mono">
+                                <div v-if="room.sessionStatus==='Recording'" class="flex items-center gap-3 text-xs font-mono">
                                     <span class="text-emerald-600 flex items-center gap-1" title="Running"><i
                                             :class="[{'animate-bounce':room.running},'fa-download','fa-solid']"></i>{{room.running
                                         || 0}}</span>
@@ -370,27 +370,27 @@
                             <td class="px-4 py-3">
                                 <div
                                     class="flex items-center justify-center gap-1.5 opacity-70 group-hover:opacity-100 transition-opacity">
-                                    <button @click="action('activate',room.name)" title="Activate"
+                                    <button @click="action('activate',room.id)" title="Activate"
                                         class="w-7 h-7 rounded bg-slate-100 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-colors flex items-center justify-center">
                                         <i class="fa-solid fa-play text-xs"></i>
                                     </button>
 
-                                    <button @click="action('deactivate',room.name)" title="Deactivate"
+                                    <button @click="action('deactivate',room.id)" title="Deactivate"
                                         class="w-7 h-7 rounded bg-slate-100 text-amber-600 hover:bg-amber-600 hover:text-white transition-colors flex items-center justify-center">
                                         <i class="fa-solid fa-stop text-xs"></i>
                                     </button>
 
-                                    <button @click="action('restart',room.name)" title="Save & Restart (Full)"
+                                    <button @click="action('restart',room.id)" title="Save & Restart (Full)"
                                         class="w-7 h-7 rounded bg-slate-100 text-purple-600 hover:bg-purple-600 hover:text-white transition-colors flex items-center justify-center">
                                         <i class="fa-solid fa-rotate-right text-xs"></i>
                                     </button>
 
-                                    <button @click="action('break',room.name)" title="Break (Split File Only)"
+                                    <button @click="action('break',room.id)" title="Break (Split File Only)"
                                         class="w-7 h-7 rounded bg-slate-100 text-blue-600 hover:bg-blue-600 hover:text-white transition-colors flex items-center justify-center">
                                         <i class="fa-solid fa-scissors text-xs"></i>
                                     </button>
 
-                                    <button @click="action('remove',room.name)" title="Remove"
+                                    <button @click="action('remove',room.id)" title="Remove"
                                         class="w-7 h-7 rounded bg-slate-100 text-red-600 hover:bg-red-600 hover:text-white transition-colors flex items-center justify-center">
                                         <i class="fa-solid fa-trash-can text-xs"></i>
                                     </button>
@@ -438,6 +438,7 @@
                     toasts: [],
                     toastId: 0,
                     timeLimit: null,
+                    sizeLimit: null,
                     addInput: "",
                     addQuality: "720p",
                     sort: { "Room": 1, "Status": 1 },
@@ -455,11 +456,11 @@
                 roomDisplay() {
                     const list = Object.values(this.roomInfo);
                     return [...list].sort((a, b) => {
-                        // Status priority: Recording > Listening > Offline/Other
+                        // Status priority: Recording > Fetching > Listening > Offline/Other
                         if (this.sort["Status"]) {
-                            const sOrder = { "Recording": 3, "Listening": 2, "": 1 };
-                            const aVal = sOrder[a.status] || 0;
-                            const bVal = sOrder[b.status] || 0;
+                            const sOrder = { "Recording": 3, "Fetching": 2, "Listening": 1, "": 0 };
+                            const aVal = sOrder[a.sessionStatus] ?? 0;
+                            const bVal = sOrder[b.sessionStatus] ?? 0;
                             if (aVal !== bVal) return this.sort["Status"] === 1 ? bVal - aVal : aVal - bVal;
                         }
                         if (this.sort["Quality"]) {
@@ -479,8 +480,8 @@
                         if (this.sort["ID"] && a.id !== b.id) {
                             return this.sort["ID"] === 1 ? b.id - a.id : a.id - b.id;
                         }
-                        if (this.sort["Limit"] && a.limit !== b.limit) {
-                            return this.sort["Limit"] === 1 ? (b.limit || 0) - (a.limit || 0) : (a.limit || 0) - (b.limit || 0);
+                        if (this.sort["Limit"] && a.timeLimit !== b.timeLimit) {
+                            return this.sort["Limit"] === 1 ? (b.timeLimit || 0) - (a.timeLimit || 0) : (a.timeLimit || 0) - (b.timeLimit || 0);
                         }
                         if (this.sort["Size"] && a.bytesWrite !== b.bytesWrite) {
                             return this.sort["Size"] === 1 ? (a.bytesWrite || 0) - (b.bytesWrite || 0) : (b.bytesWrite || 0) - (a.bytesWrite || 0);
@@ -516,45 +517,45 @@
                     while (bytes >= 1024 && i < units.length - 1) { bytes /= 1024; i++; }
                     return `${bytes.toFixed(2)} ${units[i]}`;
                 },
-                async setQuality(quality, roomName) {
+                async setQuality(quality, roomId) {
                     try {
-                        const r1 = await fetch(`${HOST}/quality?slug=${roomName}&quality=${quality}`);
+                        const r1 = await fetch(`${HOST}/quality?id=${roomId}&q=${quality}`);
                         this.showToast(await r1.text());
                     } catch (e) { this.showToast("Network Error", "error"); }
                 },
-                async setAutoPay(value, roomName) {
+                async setAutoPay(value, roomId) {
                     try {
-                        const r1 = await fetch(`${HOST}/autopay?slug=${roomName}&value=${value}`);
+                        const r1 = await fetch(`${HOST}/autopay?id=${roomId}&v=${value}`);
                         this.showToast(await r1.text());
                     } catch (e) { this.showToast("Network Error", "error"); }
                 },
-                async setLimit(roomName) {
-                    const newLimit = this.editLimits[roomName];
+                async setLimit(roomId) {
+                    const newLimit = this.editLimits[roomId];
                     if (newLimit === undefined || newLimit === null || newLimit < 0) {
                         this.showToast(`Invalid limit value`, "error");
                         return;
                     }
                     try {
-                        const r1 = await fetch(`${HOST}/limit?slug=${roomName}&limit=${newLimit}`);
+                        const r1 = await fetch(`${HOST}/limit?id=${roomId}&v=${newLimit}`);
                         this.showToast(await r1.text());
-                        this.editLimits[roomName] = null; // Clear input after success
+                        this.editLimits[roomId] = null;
                     } catch (e) { this.showToast("Network Error", "error"); }
                 },
-                async setSizeLimit(roomName) {
-                    const newLimit = this.editSizeLimits[roomName];
-                    if (newLimit === undefined || newLimit === null || newLimit < 0) {
+                async setSizeLimit(roomId) {
+                    const newLimit = this.editSizeLimits[roomId];
+                    if (!newLimit) {
                         this.showToast(`Invalid limit value`, "error");
                         return;
                     }
                     try {
-                        const r1 = await fetch(`${HOST}/sizelimit?slug=${roomName}&size=${newLimit}`);
+                        const r1 = await fetch(`${HOST}/sizelimit?id=${roomId}&v=${newLimit}`);
                         this.showToast(await r1.text());
-                        this.editLimits[roomName] = null; // Clear input after success
+                        this.editSizeLimits[roomId] = null;
                     } catch (e) { this.showToast("Network Error", "error"); }
                 },
-                async action(actionType, roomName) {
+                async action(actionType, roomId) {
                     try {
-                        const r1 = await fetch(`${HOST}/${actionType}?slug=${roomName}`);
+                        const r1 = await fetch(`${HOST}/${actionType}?id=${roomId}`);
                         this.showToast(await r1.text());
                     } catch (e) { this.showToast("Network Error", "error"); }
                 },
@@ -565,12 +566,16 @@
                         return;
                     }
                     const limit = this.timeLimit || 0;
+                    const size = this.sizeLimit || '';
                     try {
-                        const r1 = await fetch(`${HOST}/add?slug=${name}&active=${active}&quality=${this.addQuality}&limit=${limit}`);
-                        if (r1.status === 404 || r1.status === 200) {
+                        const params = new URLSearchParams({ name, quality: this.addQuality, active, limit });
+                        if (size) params.append('size', size);
+                        const r1 = await fetch(`${HOST}/add?${params}`);
+                        if (r1.ok) {
                             this.showToast("Room added successfully");
                             this.addInput = "";
                             this.timeLimit = null;
+                            this.sizeLimit = null;
                         } else {
                             this.showToast(await r1.text(), "error");
                         }
@@ -630,25 +635,27 @@
                         for (const room of data3) {
                             if (!newRoomInfo[room.room.name]) newRoomInfo[room.room.name] = {};
                             Object.assign(newRoomInfo[room.room.name], {
-                                status: room.session.active ? "Recording" : (room.listening ? "Listening" : ""),
-                                roomStatus: room.session.status,
+                                sessionStatus: room.session.status,
+                                roomStatus: room.room.status,
                                 ...room.room,
                             });
                         }
 
+                        // Parse v3 xhrec metrics
                         for (const line of data4.split("\n")) {
-                            if (line.startsWith("rikacelery_v2_segment_missing_total")) {
-                                const [_, name, value] = /rikacelery_v2_segment_missing_total{name="(\S+)"} (\d+)/.exec(line)
-                                Object.assign(newRoomInfo[name], {
-                                    segMissing: parseInt(value)
-                                });
+                            const segMatch = /xhrec_segment_missing_total\{roomId="(\d+)"\}\s+(\d+)/.exec(line);
+                            if (segMatch) {
+                                const roomId = segMatch[1];
+                                const value = parseInt(segMatch[2]);
+                                const room = Object.values(newRoomInfo).find(r => r.id == roomId);
+                                if (room) room.segMissing = value;
                             }
                         }
 
                         this.roomInfo = newRoomInfo;
                         this.allUrls = newAllUrls;
                     } catch (e) {
-                        // Suppress polling error logs to keep console clean, or log if needed
+                        // Suppress polling error logs to keep console clean
                     }
                 },
                 async fetchThumb(modelName) {
