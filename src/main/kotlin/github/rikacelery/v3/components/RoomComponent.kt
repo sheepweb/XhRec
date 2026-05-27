@@ -34,6 +34,7 @@ class RoomComponent(
     private val rooms = ConcurrentHashMap<Long, Room>()
     private var ready = false
     private var saveDebounceJob: Job? = null
+    @Volatile private var stopRefresh = false
 
     suspend fun setReady() {
         tell(RefreshRooms)
@@ -46,7 +47,7 @@ class RoomComponent(
         subscribe<PersistConfig>(PersistConfig::class)
         scope.launch {
             tell(RefreshRooms)
-            while (isActive) {
+            while (isActive && !stopRefresh) {
                 delay((30).seconds); tell(RefreshRooms)
             }
         }
@@ -174,6 +175,10 @@ class RoomComponent(
                         eventBus.publish(RoomStatusChanged(room.id, room.status, status))
                     } catch (_: Exception) {}
                 }
+                OkResponse
+            }
+            is ShutdownCmd -> {
+                stopRefresh = true
                 OkResponse
             }
             else -> return
