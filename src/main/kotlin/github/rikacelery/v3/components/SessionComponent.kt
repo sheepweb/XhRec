@@ -487,8 +487,8 @@ class SessionComponent(
                     val unseen = parsed.segments.filter { rs.circleCache.add(it.url) }
                     if (unseen.isNotEmpty()) {
                         val gap = counter(unseen.map {
-                            m3u8Parser.segmentIDFromUrl(it.url) ?: 0
-                        })
+                            m3u8Parser.segmentIDFromUrl(it.url)
+                        }.filterNotNull())
                         if (gap > 0) {
                             eventBus.publish(SegmentGapDetected(rs.roomId, gap))
                         }

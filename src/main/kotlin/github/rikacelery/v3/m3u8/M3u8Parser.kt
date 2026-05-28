@@ -51,15 +51,17 @@ object M3u8Parser {
         return ParsedPlaylist(initUrl, segments)
     }
 
-
+    private val segmentIDRegex = Regex("_(\\d+)_[a-zA-Z0-9]{16}_\\d{10}")
     fun segmentIDFromUrl(url: String): Int? {
-//        roomid_480p_h265_SEGMENTID_XXXXXXXXXXX_timestamp.mp4 transcended stream
-//        roomid_SEGMENTID_XXXXXXXXXXX_timestamp.mp4 raw stream
-        if (url.contains("h265_"))
-            return url.substringAfterLast("h265_").substringBefore("_").toIntOrNull()
-        else
-            return url.substringAfterLast("h264_").substringBefore("_").toIntOrNull()
-
+//        roomid_480p_h265_SEGMENTID_XXXXXXXXXXXXXXXX_timestamp.mp4 transcended stream
+//        roomid_240p_h264_SEGMENTID_iRAiezcS7w4MfUvZ_1779960801.mp4
+//        roomid_SEGMENTID_XXXXXXXXXXXXXXXX_timestamp.mp4 raw stream
+//        roomid_SEGMENTID_QdsH2dA1G46tXepO_1779960890.mp4
+        val match = segmentIDRegex.find(url)
+        if (match != null) {
+            return match.groupValues[1].toIntOrNull()
+        }
+        return null
     }
 }
 
