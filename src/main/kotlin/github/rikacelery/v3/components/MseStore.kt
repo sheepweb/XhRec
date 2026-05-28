@@ -10,11 +10,7 @@ import kotlinx.coroutines.channels.SendChannel
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.collections.ArrayDeque
 import kotlin.collections.MutableList
-import kotlin.collections.copyInto
-import kotlin.collections.filter
-import kotlin.collections.forEach
 import kotlin.collections.isEmpty
 import kotlin.collections.isNotEmpty
 import kotlin.collections.mutableListOf
@@ -35,7 +31,7 @@ class MseStore : DataHook {
     }
 
     private data class RoomState(
-        val ring: ArrayDeque<SegmentEntry> = ArrayDeque(5),
+        var latestSegment: SegmentEntry? = null,
         var generation: Int = 0,
         var init: ByteArray = ByteArray(0),
         var mime: String = "",
@@ -61,7 +57,7 @@ class MseStore : DataHook {
     private fun onStreamStart(roomId: Long) {
         val state = rooms.computeIfAbsent(roomId) { RoomState() }
         state.generation++
-        state.ring.clear()
+        state.latestSegment = null
         state.segCounter.set(0)
         state.latestIdx = -1
         state.lastAccess = System.currentTimeMillis()
@@ -77,14 +73,13 @@ class MseStore : DataHook {
             state.mime = extractMime(msg.data)
             state.segCounter.set(0)
             state.latestIdx = -1
-            state.ring.clear()
+            state.latestSegment = null
             broadcast(state, SseChunk.Meta(state.mime))
             broadcast(state, SseChunk.Init(msg.data))
         } else {
             val idx = state.segCounter.incrementAndGet()
             state.latestIdx = idx
-            state.ring.addLast(SegmentEntry(idx, msg.data, state.generation))
-            while (state.ring.size > 5) state.ring.removeFirst()
+            state.latestSegment = SegmentEntry(idx, msg.data, state.generation)
             broadcast(state, SseChunk.Seg(msg.data))
         }
     }
@@ -99,43 +94,17 @@ class MseStore : DataHook {
         rooms[roomId]?.generation?.inc()?.let { rooms[roomId]?.generation = it }
     }
 
-    // ── poll-style query ────────────────────────────────────────────
-    fun getBlob(roomId: Long, after: Int): ByteArray? {
-        val state = rooms[roomId] ?: return null
-        state.lastAccess = System.currentTimeMillis()
-
-        val segments = if (after < 0) state.ring.toList()
-        else state.ring.filter { it.generation == state.generation && it.idx > after }
-        if (segments.isEmpty() && after >= 0) return null
-
-        val init = state.init
-        if (init.isEmpty()) return null
-
-        var total = init.size
-        for (s in segments) total += s.data.size
-
-        val blob = ByteArray(total)
-        var pos = 0
-        init.copyInto(blob, pos); pos += init.size
-        for (s in segments) { s.data.copyInto(blob, pos); pos += s.data.size }
-        return blob
-    }
-
-    fun getGeneration(roomId: Long): Int = rooms[roomId]?.generation ?: 0
-    fun getLatestIdx(roomId: Long): Int = rooms[roomId]?.latestIdx ?: -1
-    fun touch(roomId: Long) { rooms[roomId]?.lastAccess = System.currentTimeMillis() }
-
     // ── SSE streaming ───────────────────────────────────────────────
     fun subscribe(roomId: Long): Channel<SseChunk> {
         val ch = Channel<SseChunk>(Channel.UNLIMITED)
         val state = rooms.computeIfAbsent(roomId) { RoomState() }
         state.sseChannels.add(ch)
 
-        // catch-up: replay meta + init + current ring
+        // catch-up: replay meta + init + latest segment
         if (state.init.isNotEmpty()) {
             ch.trySend(SseChunk.Meta(state.mime))
             ch.trySend(SseChunk.Init(state.init))
-            state.ring.forEach { ch.trySend(SseChunk.Seg(it.data)) }
+            state.latestSegment?.let { ch.trySend(SseChunk.Seg(it.data)) }
         }
         return ch
     }

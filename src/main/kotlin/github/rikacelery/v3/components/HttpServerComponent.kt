@@ -279,43 +279,6 @@ class HttpServerComponent(
                         }
                     })
                 }
-                get("/listv2") {
-                    val rooms = requestBus.request<List<Room>>(GetRooms)
-                    val sessions = requestBus.request<List<RoomSession>>(GetSessions)
-                    val armedIds = requestBus.request<List<Long>>(GetArmedRoomIds).toSet()
-                    call.respond(buildJsonArray {
-                        rooms.forEach { r ->
-                            val s = sessions.find { it.roomId == r.id }
-                            val isArmed = r.id in armedIds
-                            val isActive = s?.state == SessionState.Fetching || s?.state == SessionState.Recording
-                            add(buildJsonObject {
-                                put("session", buildJsonObject {
-                                    put(
-                                        "status", when {
-                                            s != null && isActive -> s.state.name
-                                            isArmed -> "Listening"
-                                            else -> s?.state?.name ?: ""
-                                        }
-                                    )
-                                    put("active", s?.state == SessionState.Recording)
-                                })
-                                put("listening", s != null || isArmed)
-                                put("room", buildJsonObject {
-                                    put("name", r.name)
-                                    put("id", r.id)
-                                    put("quality", r.quality)
-                                    put("status", r.status)
-                                    put(
-                                        "timeLimit",
-                                        if (r.timeLimit == Duration.INFINITE) 0L else r.timeLimit.inWholeMilliseconds
-                                    )
-                                    put("sizeLimitBytes", r.sizeLimitBytes)
-                                    put("autoPay", r.autoPay)
-                                })
-                            })
-                        }
-                    })
-                }
                 get("/status") {
                     val statuses = requestBus.request<Map<Long, Map<String, Any>>>(GetRoomDetailedStatus)
                     val sessions = requestBus.request<List<RoomSession>>(GetSessions)
@@ -327,32 +290,52 @@ class HttpServerComponent(
                         }
                     })
                 }
-                get("/recorders") {
+                get("/dashboard") {
                     val rooms = requestBus.request<List<Room>>(GetRooms)
+                    val statuses = requestBus.request<Map<Long, Map<String, Any>>>(GetRoomDetailedStatus)
+                    val sessions = requestBus.request<List<RoomSession>>(GetSessions)
+                    val armedIds = requestBus.request<List<Long>>(GetArmedRoomIds).toSet()
+                    val metrics = metricComponent.prometheusText()
+
                     val json = Json { encodeDefaults = true }
-                    call.respond(rooms.map { json.encodeToJsonElement(it) })
+                    val nameById = sessions.associate { it.roomId to it.roomName }
+
+                    call.respond(buildJsonObject {
+                        put("rooms", buildJsonArray { rooms.forEach { add(json.encodeToJsonElement(it)) } })
+                        put("statuses", buildJsonObject {
+                            statuses.filter { (_, v) -> hasRecentActivity(v) }.forEach { (roomId, data) ->
+                                put(nameById[roomId] ?: roomId.toString(), anyToJsonElement(data))
+                            }
+                        })
+                        put("listv2", buildJsonArray {
+                            rooms.forEach { r ->
+                                val s = sessions.find { it.roomId == r.id }
+                                val isArmed = r.id in armedIds
+                                val isActive = s?.state == SessionState.Fetching || s?.state == SessionState.Recording
+                                add(buildJsonObject {
+                                    put("session", buildJsonObject {
+                                        put("status", when {
+                                            s != null && isActive -> s.state.name
+                                            isArmed -> "Listening"
+                                            else -> s?.state?.name ?: ""
+                                        })
+                                        put("active", s?.state == SessionState.Recording)
+                                    })
+                                    put("listening", s != null || isArmed)
+                                    put("room", buildJsonObject {
+                                        put("name", r.name); put("id", r.id); put("quality", r.quality)
+                                        put("status", r.status)
+                                        put("timeLimit", if (r.timeLimit == Duration.INFINITE) 0L else r.timeLimit.inWholeMilliseconds)
+                                        put("sizeLimitBytes", r.sizeLimitBytes); put("autoPay", r.autoPay)
+                                    })
+                                })
+                            }
+                        })
+                        put("metrics", metrics)
+                    })
                 }
                 get("/metrics") {
                     call.respondText(metricComponent.prometheusText())
-                }
-                get("/mse") {
-                    val id = call.request.queryParameters["id"]?.toLongOrNull()
-                        ?: return@get call.respondText("Missing id", status = HttpStatusCode.BadRequest)
-                    val after = call.request.queryParameters["after"]?.toIntOrNull() ?: -1
-
-                    val gen = mseStore.getGeneration(id)
-                    val idx = mseStore.getLatestIdx(id)
-                    val blob = mseStore.getBlob(id, after)
-
-                    call.response.header("X-Generation", gen.toString())
-                    call.response.header("X-SegIndex", idx.toString())
-                    call.response.header("Cache-Control", "no-cache, no-store, must-revalidate")
-
-                    if (blob == null || blob.isEmpty()) {
-                        call.respondText("", ContentType.Video.MP4, HttpStatusCode.NoContent)
-                    } else {
-                        call.respondBytes(blob, ContentType.Video.MP4)
-                    }
                 }
                 get("/mse/live") {
                     val id = call.request.queryParameters["id"]?.toLongOrNull()
@@ -373,36 +356,8 @@ class HttpServerComponent(
                                 }
                                 flush()
                             }
-                        } finally {
-                            mseStore.unsubscribe(id, ch)
-                        }
-                    }
-                }
-                get("/mse/stream") {
-                    val id = call.request.queryParameters["id"]?.toLongOrNull()
-                        ?: return@get call.respondText("Missing id", status = HttpStatusCode.BadRequest)
-
-                    call.response.header("Cache-Control", "no-cache")
-                    call.response.header("Content-Type", "text/event-stream")
-                    call.respondTextWriter {
-                        val ch = mseStore.subscribe(id)
-                        try {
-                            for (chunk in ch) {
-                                when (chunk) {
-                                    is MseStore.SseChunk.Meta -> {
-                                        write("event: meta\ndata: ${chunk.mime}\n\n")
-                                    }
-                                    is MseStore.SseChunk.Init -> {
-                                        val b64 = Base64.getEncoder().encodeToString(chunk.data)
-                                        write("event: init\ndata: $b64\n\n")
-                                    }
-                                    is MseStore.SseChunk.Seg -> {
-                                        val b64 = Base64.getEncoder().encodeToString(chunk.data)
-                                        write("event: seg\ndata: $b64\n\n")
-                                    }
-                                }
-                                flush()
-                            }
+                        }catch(_:Exception){
+                            return@respondOutputStream
                         } finally {
                             mseStore.unsubscribe(id, ch)
                         }
