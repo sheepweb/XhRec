@@ -1,6 +1,5 @@
 package github.rikacelery.v3.components
 
-import github.rikacelery.v3.utils.ClientManager
 import github.rikacelery.v3.core.Actor
 import github.rikacelery.v3.core.DataChannel
 import github.rikacelery.v3.core.EventBus
@@ -9,6 +8,7 @@ import github.rikacelery.v3.data.DownloadMeta
 import github.rikacelery.v3.data.DownloadResult
 import github.rikacelery.v3.events.*
 import github.rikacelery.v3.hooks.DownloaderHook
+import github.rikacelery.v3.utils.ClientManager
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -106,7 +106,7 @@ class DownloaderComponent(
         active.emitter.complete(idx,  DownloadResult.CutPoint(cut))
     }
 
-    private val raceThresholdMs: Long = 10_000
+    private val raceThresholdMs: Long = 15_000
 
     private suspend fun downloadSegment(url: String, idx: Int): DownloadResult {
         val start = System.currentTimeMillis()

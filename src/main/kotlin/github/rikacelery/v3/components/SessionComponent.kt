@@ -1,6 +1,5 @@
 package github.rikacelery.v3.components
 
-import github.rikacelery.v3.utils.*
 import github.rikacelery.v3.api.ApiClient
 import github.rikacelery.v3.core.Actor
 import github.rikacelery.v3.core.DataChannel
@@ -11,6 +10,7 @@ import github.rikacelery.v3.data.StreamStart
 import github.rikacelery.v3.data.User
 import github.rikacelery.v3.events.*
 import github.rikacelery.v3.m3u8.M3u8Parser
+import github.rikacelery.v3.utils.*
 import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -256,9 +256,9 @@ class SessionComponent(
                     rs.quality = newQuality
                     rs.playlistUrl = buildPlaylistUrl(event.roomId, newQuality, rs.pkey, rs.token)
                 } else {
-                    logger.debug(
-                        "Quality unchanged for {}: {} (available: {})", rs.roomName, rs.quality, event.qualities
-                    )
+//                    logger.debug(
+//                        "Quality unchanged for {}: {} (available: {})", rs.roomName, rs.quality, event.qualities
+//                    )
                 }
             }
 

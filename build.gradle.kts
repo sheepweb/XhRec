@@ -21,7 +21,8 @@ dependencies {
     implementation("io.ktor:ktor-serialization-kotlinx-json:3.4.1")
 
     implementation("io.ktor:ktor-server-core-jvm:3.4.1")
-    implementation("io.ktor:ktor-server-cio-jvm:3.4.1")
+    implementation("io.ktor:ktor-server-netty-jvm:3.4.1")
+    implementation("io.ktor:ktor-network-tls-certificates-jvm:3.4.1")
     implementation("io.ktor:ktor-server-cors:3.4.1")
     implementation("io.ktor:ktor-server-content-negotiation-jvm:3.4.1")
 

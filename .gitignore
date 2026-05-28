@@ -59,3 +59,4 @@ users.txt
 *.m3u8
 *.log
 .java-version
+xhrec.keystore

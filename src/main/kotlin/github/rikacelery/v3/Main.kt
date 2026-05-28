@@ -79,6 +79,8 @@ fun main(vararg args: String) {
             val eventBus = EventBus()
             val requestBus = RequestBus(eventBus, appScope)
             val dataChannel = DataChannel()
+            val mseStore = MseStore()
+            dataChannel.installHook(mseStore)
             eventBus.installHook(object : EventHook {
                 override suspend fun intercept(event: Any): Any {
 
@@ -121,7 +123,8 @@ fun main(vararg args: String) {
                 requestBus,
                 metricComponent,
                 postProcessorComponent,
-                appScope
+                appScope,
+                mseStore
             )
 
 

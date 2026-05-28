@@ -25,7 +25,7 @@
         <appender-ref ref="FILE"/>
     </root>
     <logger name="org.eclipse.jetty" level="INFO"/>
-    <logger name="io.netty" level="INFO"/>
+    <logger name="io.netty" level="OFF"/>
     <logger name="ch.qos.logback" level="WARN"/>
     <logger name="io.ktor" level="OFF"/>
 </configuration>

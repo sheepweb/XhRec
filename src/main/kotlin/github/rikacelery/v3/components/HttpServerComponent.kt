@@ -5,10 +5,11 @@ import github.rikacelery.v3.core.RequestBus
 import github.rikacelery.v3.data.Room
 import github.rikacelery.v3.events.*
 import io.ktor.http.*
+import io.ktor.network.tls.certificates.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
-import io.ktor.server.cio.*
 import io.ktor.server.engine.*
+import io.ktor.server.netty.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.plugins.cors.routing.*
 import io.ktor.server.response.*
@@ -16,6 +17,9 @@ import io.ktor.server.routing.*
 import kotlinx.coroutines.*
 import kotlinx.serialization.json.*
 import org.slf4j.LoggerFactory
+import java.io.File
+import java.security.KeyStore
+import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -28,13 +32,43 @@ class HttpServerComponent(
     private val requestBus: RequestBus,
     private val metricComponent: MetricComponent,
     private val postProcessorComponent: PostProcessorComponent,
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
+    private val mseStore: MseStore = MseStore()
 ) {
     private val logger = LoggerFactory.getLogger("v3.HttpServer")
     private val stopping = AtomicBoolean(false)
 
-    fun start(): EmbeddedServer<CIOApplicationEngine, CIOApplicationEngine.Configuration> {
-        val engine = embeddedServer(CIO, port = port) {
+    fun start(): EmbeddedServer<NettyApplicationEngine, NettyApplicationEngine.Configuration> {
+        val keyStoreFile = File("xhrec.keystore")
+        if (!keyStoreFile.exists()) {
+            val ks = buildKeyStore {
+                certificate("xhrec") {
+                    password = "changeit"
+                    domains = listOf("127.0.0.1", "0.0.0.0", "localhost")
+                }
+            }
+            ks.saveToFile(keyStoreFile, "changeit")
+            logger.info("Generated self-signed certificate: {}", keyStoreFile.absolutePath)
+        }
+        val keyStore = KeyStore.getInstance(KeyStore.getDefaultType()).apply {
+            keyStoreFile.inputStream().use { load(it, "changeit".toCharArray()) }
+        }
+
+        lateinit var engine: EmbeddedServer<NettyApplicationEngine, NettyApplicationEngine.Configuration>
+        engine = embeddedServer(Netty, applicationEnvironment {
+            log = LoggerFactory.getLogger("ktor.application")
+        }, {
+            // engine config: SSL
+            sslConnector(
+                keyStore = keyStore,
+                keyAlias = "xhrec",
+                keyStorePassword = { "changeit".toCharArray() },
+                privateKeyPassword = { "changeit".toCharArray() }
+            ) {
+                port = this@HttpServerComponent.port
+                keyStorePath = keyStoreFile
+            }
+        }) {
             install(CORS) { anyHost() }
             install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
 
@@ -300,6 +334,79 @@ class HttpServerComponent(
                 }
                 get("/metrics") {
                     call.respondText(metricComponent.prometheusText())
+                }
+                get("/mse") {
+                    val id = call.request.queryParameters["id"]?.toLongOrNull()
+                        ?: return@get call.respondText("Missing id", status = HttpStatusCode.BadRequest)
+                    val after = call.request.queryParameters["after"]?.toIntOrNull() ?: -1
+
+                    val gen = mseStore.getGeneration(id)
+                    val idx = mseStore.getLatestIdx(id)
+                    val blob = mseStore.getBlob(id, after)
+
+                    call.response.header("X-Generation", gen.toString())
+                    call.response.header("X-SegIndex", idx.toString())
+                    call.response.header("Cache-Control", "no-cache, no-store, must-revalidate")
+
+                    if (blob == null || blob.isEmpty()) {
+                        call.respondText("", ContentType.Video.MP4, HttpStatusCode.NoContent)
+                    } else {
+                        call.respondBytes(blob, ContentType.Video.MP4)
+                    }
+                }
+                get("/mse/live") {
+                    val id = call.request.queryParameters["id"]?.toLongOrNull()
+                        ?: return@get call.respondText("Missing id", status = HttpStatusCode.BadRequest)
+
+                    call.response.header("Cache-Control", "no-cache, no-store")
+                    call.respondOutputStream(ContentType.Video.MP4) {
+                        val ch = mseStore.subscribe(id)
+                        try {
+                            for (chunk in ch) {
+                                if (!coroutineContext.isActive) break
+                                when (chunk) {
+                                    is MseStore.SseChunk.Init -> write(chunk.data)
+                                    is MseStore.SseChunk.Seg -> {
+                                        write(chunk.data)
+                                    }
+                                    is MseStore.SseChunk.Meta -> {} // skip
+                                }
+                                flush()
+                            }
+                        } finally {
+                            mseStore.unsubscribe(id, ch)
+                        }
+                    }
+                }
+                get("/mse/stream") {
+                    val id = call.request.queryParameters["id"]?.toLongOrNull()
+                        ?: return@get call.respondText("Missing id", status = HttpStatusCode.BadRequest)
+
+                    call.response.header("Cache-Control", "no-cache")
+                    call.response.header("Content-Type", "text/event-stream")
+                    call.respondTextWriter {
+                        val ch = mseStore.subscribe(id)
+                        try {
+                            for (chunk in ch) {
+                                when (chunk) {
+                                    is MseStore.SseChunk.Meta -> {
+                                        write("event: meta\ndata: ${chunk.mime}\n\n")
+                                    }
+                                    is MseStore.SseChunk.Init -> {
+                                        val b64 = Base64.getEncoder().encodeToString(chunk.data)
+                                        write("event: init\ndata: $b64\n\n")
+                                    }
+                                    is MseStore.SseChunk.Seg -> {
+                                        val b64 = Base64.getEncoder().encodeToString(chunk.data)
+                                        write("event: seg\ndata: $b64\n\n")
+                                    }
+                                }
+                                flush()
+                            }
+                        } finally {
+                            mseStore.unsubscribe(id, ch)
+                        }
+                    }
                 }
                 get("/stop-server") {
                     if (stopping.getAndSet(true)) {

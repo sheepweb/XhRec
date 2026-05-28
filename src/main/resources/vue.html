@@ -70,7 +70,17 @@
             cursor: pointer;
         }
 
-        .thumb-container img:nth-child(1) {}
+        .thumb-container video {}
+        .thumb-placeholder {
+            position: relative;
+            width: 64px; height: 40px;
+            background: #1a1a2e;
+            border-radius: 4px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+        }
+        .thumb-placeholder i { color: #02ac4f; font-size: 14px; }
+        .thumb-placeholder:hover i { color: #00e060; }
 
         .thumb-preview {
             visibility: hidden;
@@ -276,14 +286,25 @@
                             </td>
                             <td class="px-4 py-2 text-center">
                                 <div class="thumb-container">
-                                    <img v-if="snapshotcache[room.name]?.url" :src="snapshotcache[room.name]?.url"
-                                        class="h-10 w-16 object-cover rounded shadow-sm border border-slate-200"
-                                        alt="thumb">
+                                    <template v-if="room.sessionStatus==='Recording'">
+                                        <div v-if="!activeVideos[room.id]" class="thumb-placeholder border border-slate-200"
+                                            @click="activateVideo(room.id)">
+                                            <i class="fa-solid fa-play"></i>
+                                        </div>
+                                        <video v-else
+                                            :src="'/mse/live?id=' + room.id"
+                                            muted autoplay playsinline
+                                            class="h-10 w-16 object-cover rounded shadow-sm border border-slate-200"
+                                            @click="deactivateVideo(room.id)">
+                                        </video>
+                                        <video v-if="activeVideos[room.id]"
+                                            :src="'/mse/live?id=' + room.id"
+                                            muted autoplay playsinline
+                                            class="thumb-preview"></video>
+                                    </template>
                                     <div v-else
                                         class="h-10 w-16 bg-slate-100 rounded border border-slate-200 flex items-center justify-center text-slate-300 text-xs">
                                         N/A</div>
-                                    <img v-if="snapshotcache[room.name]?.url" :src="snapshotcache[room.name]?.url"
-                                        class="thumb-preview" alt="preview">
                                 </div>
                             </td>
                             <td class="px-4 py-3 text-slate-500 font-mono text-xs">{{room.id || '-'}}</td>
@@ -447,6 +468,7 @@
                     editSizeLimits: {}, // Cache for size limits inputs to prevent overlap with polling
                     allUrls: [],
                     snapshotcache: {},
+                    activeVideos: {},
                 }
             },
             computed: {
@@ -686,7 +708,16 @@
                     const now = Date.now() / 1000;
                     cache[modelName] = undefined;
                     localStorage.setItem('xhrec-thumb', JSON.stringify(cache));
-                }
+                },
+                activateVideo(roomId) {
+                    this.activeVideos = { ...this.activeVideos, [roomId]: true };
+                },
+                deactivateVideo(roomId) {
+                    // abort connection before removing video element
+                    const v = document.querySelector(`video[src*="/mse/live?id=${roomId}"]`);
+                    if (v) v.src = '';
+                    this.activeVideos = { ...this.activeVideos, [roomId]: false };
+                },
             },
             async mounted() {
                 // Load cache
@@ -698,22 +729,23 @@
                 // Safe Polling
                 const pollData = async () => {
                     await this.fetchdata();
-                    setTimeout(pollData, 1000); // Relaxed to 1s for smoother UI, update if 500ms is strictly needed
+                    setTimeout(pollData, 1000);
                 };
                 setTimeout(pollData, 1000);
 
-                // Thumbnail Polling
+                // Thumbnail Polling (CDN hover preview)
                 const pollThumbs = async () => {
                     for (let model of this.roomDisplay) {
                         if (model.roomStatus != "off")
                             await this.fetchThumb(model.name)
-
                     }
                 };
                 await pollThumbs();
                 setInterval(pollThumbs, 60 * 1000);
+
             },
         }).mount('#app')
+
     </script>
 </body>
 
