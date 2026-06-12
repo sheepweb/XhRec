@@ -10,6 +10,7 @@ import github.rikacelery.v3.data.StreamStart
 import github.rikacelery.v3.data.User
 import github.rikacelery.v3.events.*
 import github.rikacelery.v3.m3u8.M3u8Parser
+import github.rikacelery.v3.m3u8.MasterPlaylist
 import github.rikacelery.v3.utils.*
 import io.ktor.client.plugins.*
 import io.ktor.client.request.*
@@ -51,7 +52,8 @@ data class RoomSession(
     var totalBytes: Long = 0,
     var timeLimit: Duration = Duration.INFINITE,
     var sizeLimitBytes: Long = 0,
-    var pollingJob: Job? = null
+    var pollingJob: Job? = null,
+    var masterPlaylist: MasterPlaylist? = null
 )
 
 class CircleCache(private val capacity: Int) {
@@ -136,9 +138,11 @@ class SessionComponent(
                             rs.initUrl?.let { rs.circleCache.remove(it) }
                         }
                     }
+
                     SessionState.Fetching -> {
                         stopSession(msg.roomId)
                     }
+
                     else -> {} // Armed, Closing, Idle — nothing to do
                 }
             }
@@ -183,10 +187,7 @@ class SessionComponent(
             }
         }
         val resolvedPkey = pkey.ifBlank { streamAuthKey }
-        val qualities = apiClient.roomQualities(name)
-        val selectedQuality = selectQuality(qualities, quality)
-        logger.info("Session starting: roomId={}, name={}, quality={}", roomId, name, selectedQuality)
-        val rs = RoomSession(roomId, name, selectedQuality, selectedQuality, pkey = resolvedPkey)
+        val rs = RoomSession(roomId, name, quality, quality, pkey = resolvedPkey)
         sessions[roomId] = rs
         rs.token = token.takeIf { !it.isNullOrEmpty() }
         val config = requestBus.request<RoomConfigResponse>(GetRoomConfig(roomId))
@@ -195,8 +196,14 @@ class SessionComponent(
         rs.state = SessionState.Fetching
         rs.startTime = Instant.now()
         dataChannel.send(StreamStart(roomId, name, rs.startTime))
+        rs.masterPlaylist = fetchAndCacheMasterPlaylist(rs)
+        val availableNames = rs.masterPlaylist!!.variants.map { it.name }
+        val selected = selectQuality(availableNames, rs.quality)
+        rs.quality = selected
+        rs.targetquality = selected
+        logger.info("Session starting: roomId={}, name={}, quality={}", roomId, name, rs.quality)
+        rs.playlistUrl = resolveVariantUrl(rs)
         rs.pollingJob = scope.launch { pollingLoop(rs) }
-        rs.playlistUrl = buildPlaylistUrl(roomId, rs.quality, rs.pkey, rs.token)
         eventBus.publish(RecordingStarted(roomId, rs.quality))
     }
 
@@ -254,7 +261,7 @@ class SessionComponent(
                         event.qualities
                     )
                     rs.quality = newQuality
-                    rs.playlistUrl = buildPlaylistUrl(event.roomId, newQuality, rs.pkey, rs.token)
+                    rs.playlistUrl = resolveVariantUrl(rs)
                 } else {
 //                    logger.debug(
 //                        "Quality unchanged for {}: {} (available: {})", rs.roomName, rs.quality, event.qualities
@@ -294,10 +301,9 @@ class SessionComponent(
     }
 
     private fun selectQuality(available: List<String>, requested: String): String {
-        if (requested == "raw") return "raw"
+        if (requested == "highest") return "highest"
         val clean = available.filterNot { it.contains("blurred") }
-        if (clean.isEmpty()) return "raw"
-        if (requested == available[0]) return "raw"
+        if (clean.isEmpty()) return requested
         if (requested in available) return requested
         val reqParts = requested.split("p").filterNot(String::isEmpty)
         val final = clean.minByOrNull { q ->
@@ -310,7 +316,6 @@ class SessionComponent(
                 abs((qParts[0].toIntOrNull() ?: 0) - (reqParts[0].toIntOrNull() ?: 0))
             }
         } ?: requested
-        if (final == available[0]) return "raw"
         return final
     }
 
@@ -323,12 +328,13 @@ class SessionComponent(
 
     private suspend fun pollQualityForRoom(rs: RoomSession) {
         try {
-            val qualities = apiClient.roomQualities(rs.roomName)
-            if (qualities.isNotEmpty()) {
-                eventBus.publish(QualitiesAvailable(rs.roomId, qualities))
+            val master = fetchAndCacheMasterPlaylist(rs)
+            val availableNames = master.variants.map { it.name }
+            if (availableNames.isNotEmpty()) {
+                eventBus.publish(QualitiesAvailable(rs.roomId, availableNames))
             }
         } catch (_: Exception) {
-            // quality polling is best-effort; ignore transient errors
+            // master playlist polling is best-effort; ignore transient errors
         }
     }
 
@@ -395,22 +401,37 @@ class SessionComponent(
         return null
     }
 
-    private fun buildPlaylistUrl(roomId: Long, quality: String, pkey: String, token: String? = null): String =
-        buildUrl {
-            protocol = URLProtocol.HTTPS
-            host = "media-hls.doppiocdn.org"
-            encodedPath = if (quality != "raw" && quality.isNotBlank()) "b-hls-%d/%d/%d_%s.m3u8".format(
-                22, roomId, roomId, quality
-            ) else "b-hls-%d/%d/%d.m3u8".format(
-                22, roomId, roomId
-            )
-            parameters["psch"] = "v2"
-            parameters["pkey"] = pkey
-            parameters["preferredVideoCodec"] = "H265"
-            if (token != null) {
-                parameters["aclAuth"] = token
-            }
-        }.toString()
+    private fun buildMasterUrl(roomId: Long): String =
+        "https://edge-hls.doppiocdn.org/hls/$roomId/master/${roomId}_auto.m3u8"
+
+    private suspend fun fetchAndCacheMasterPlaylist(rs: RoomSession): MasterPlaylist {
+        val client = ClientManager.getProxiedClient("master_${rs.roomId}")
+        val url = buildMasterUrl(rs.roomId)
+        val response = withRetry(3) { client.get(url) }
+        val text = response.bodyAsText()
+        val master = m3u8Parser.parseMaster(text)
+        rs.masterPlaylist = master
+        val keyIds = master.pschKeys.map { it.substringAfter(":") }
+        val match = requestBus.request<DecryptKeyMatch>(MatchDecryptKeys(keyIds))
+        require(match.decryptKey.isNotEmpty()) {
+            "[${rs.roomName}] No PSCH key from master playlist matched in persistedDecryptKeys. keys=$keyIds"
+        }
+        rs.pkey = match.keyName
+        return master
+    }
+
+    private fun resolveVariantUrl(rs: RoomSession): String {
+        val mp = rs.masterPlaylist!!
+        val variant = if (rs.quality == "highest") {
+            mp.variants.maxByOrNull { it.bandwidth }
+        } else {
+            val availableNames = mp.variants.map { it.name }
+            val matched = selectQuality(availableNames, rs.quality)
+            mp.variants.find { it.name == matched }
+        }
+        val baseUrl = variant?.url ?: mp.variants.maxByOrNull { it.bandwidth }!!.url
+        return "$baseUrl?psch=v2&pkey=${rs.pkey}"
+    }
 
     private fun createDiscontinuityCounter(): suspend (List<Int>) -> Int {
         var lastMax: Int? = null
@@ -528,10 +549,20 @@ class SessionComponent(
                         if (configureSession(rs.roomId, rs.roomName) == null) {
                             logger.info("[STOP] [{}] Room off or non-public after timeout", rs.roomName)
                             rs.state = SessionState.Closing
-                            downloader.tell(DoCutPoint(CutPoint(rs.roomId, rs.segmentIndex - 1, rs.roomName, Instant.now(), EndReason.UserStop)))
+                            downloader.tell(
+                                DoCutPoint(
+                                    CutPoint(
+                                        rs.roomId,
+                                        rs.segmentIndex - 1,
+                                        rs.roomName,
+                                        Instant.now(),
+                                        EndReason.UserStop
+                                    )
+                                )
+                            )
                             break
                         }
-                        rs.playlistUrl = buildPlaylistUrl(rs.roomId, rs.quality, rs.pkey, rs.token)
+                        rs.playlistUrl = resolveVariantUrl(rs)
                         continue
                     }
                     throw e
@@ -540,22 +571,52 @@ class SessionComponent(
                         val token = configureSession(rs.roomId, rs.roomName)
                         if (token != null) {
                             rs.token = token.takeIf { it.isNotEmpty() }
-                            rs.playlistUrl = buildPlaylistUrl(rs.roomId, rs.quality, rs.pkey, rs.token)
+                            rs.playlistUrl = resolveVariantUrl(rs)
                             continue
                         }
                         logger.info("[STOP] [{}] Room off or non-public (403)", rs.roomName)
                         rs.state = SessionState.Closing
-                        downloader.tell(DoCutPoint(CutPoint(rs.roomId, rs.segmentIndex - 1, rs.roomName, Instant.now(), EndReason.UserStop)))
+                        downloader.tell(
+                            DoCutPoint(
+                                CutPoint(
+                                    rs.roomId,
+                                    rs.segmentIndex - 1,
+                                    rs.roomName,
+                                    Instant.now(),
+                                    EndReason.UserStop
+                                )
+                            )
+                        )
                         break
                     } else if (e.response.status == HttpStatusCode.NotFound) {
                         logger.info("[STOP] [{}] Stream url returns 404", rs.roomName)
                         rs.state = SessionState.Closing
-                        downloader.tell(DoCutPoint(CutPoint(rs.roomId, rs.segmentIndex - 1, rs.roomName, Instant.now(), EndReason.UserStop)))
+                        downloader.tell(
+                            DoCutPoint(
+                                CutPoint(
+                                    rs.roomId,
+                                    rs.segmentIndex - 1,
+                                    rs.roomName,
+                                    Instant.now(),
+                                    EndReason.UserStop
+                                )
+                            )
+                        )
                         break
                     } else {
                         logger.error("Polling error room ${rs.roomId}: ${e.message}")
                         rs.state = SessionState.Closing
-                        downloader.tell(DoCutPoint(CutPoint(rs.roomId, rs.segmentIndex - 1, rs.roomName, Instant.now(), EndReason.UserStop)))
+                        downloader.tell(
+                            DoCutPoint(
+                                CutPoint(
+                                    rs.roomId,
+                                    rs.segmentIndex - 1,
+                                    rs.roomName,
+                                    Instant.now(),
+                                    EndReason.UserStop
+                                )
+                            )
+                        )
                         break
                     }
                 } catch (e: Exception) {
@@ -563,7 +624,12 @@ class SessionComponent(
                     if (configureSession(rs.roomId, rs.roomName) == null) {
                         logger.info("[STOP] [{}] Room off or non-public", rs.roomName)
                     }
-                    rs.playlistUrl = buildPlaylistUrl(rs.roomId, rs.quality, rs.pkey, rs.token)
+                    try {
+                        rs.masterPlaylist = fetchAndCacheMasterPlaylist(rs)
+                        rs.playlistUrl = resolveVariantUrl(rs)
+                    } catch (_: Exception) {
+                        continue
+                    }
                 }
             }
         } finally {

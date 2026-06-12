@@ -22,6 +22,7 @@ data class RemoveRoom(val roomId: Long) : Request
 // ── Config commands ──
 
 data class GetDecryptKey(val keyName: String) : Request
+data class MatchDecryptKeys(val keys: List<String>) : Request
 // ── Scheduler commands ──
 
 data class StartRecordingCmd(val roomId: Long) : Request
@@ -71,5 +72,6 @@ data class RoomConfigResponse(
     val pkey: String = ""
 ) : Response
 data class ConfigResponse(val value: Any?) : Response
+data class DecryptKeyMatch(val keyName: String, val decryptKey: String) : Response
 object OkResponse : Response
 data class ErrorResponse(val message: String) : Response

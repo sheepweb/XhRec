@@ -63,9 +63,70 @@ object M3u8Parser {
         }
         return null
     }
+
+    fun parseMaster(m3u8Text: String): MasterPlaylist {
+        val lines = m3u8Text.lines()
+        val pschKeys = mutableListOf<String>()
+        val variants = mutableListOf<VariantStream>()
+
+        var i = 0
+        while (i < lines.size) {
+            val line = lines[i].trim()
+            when {
+                line.startsWith("#EXT-X-MOUFLON:PSCH:") -> {
+                    pschKeys.add(line.substringAfter("PSCH:"))
+                }
+                line.startsWith("#EXT-X-STREAM-INF:") -> {
+                    val attrs = parseAttributes(line.substringAfter("#EXT-X-STREAM-INF:"))
+                    i++
+                    while (i < lines.size && (lines[i].isBlank() || lines[i].trimStart().startsWith("#"))) {
+                        i++
+                    }
+                    val url = if (i < lines.size) lines[i].trim() else ""
+                    variants.add(VariantStream(
+                        name = buildQualityName(attrs["RESOLUTION"] ?: "", attrs["FRAME-RATE"] ?: ""),
+                        resolution = attrs["RESOLUTION"] ?: "",
+                        bandwidth = attrs["BANDWIDTH"]?.toLongOrNull() ?: 0L,
+                        url = url
+                    ))
+                }
+            }
+            i++
+        }
+        return MasterPlaylist(variants, pschKeys)
+    }
+
+    private fun parseAttributes(attrStr: String): Map<String, String> {
+        val result = mutableMapOf<String, String>()
+        val regex = Regex("""([A-Z-]+)=("[^"]*"|[^,]+)""")
+        regex.findAll(attrStr).forEach { match ->
+            val key = match.groupValues[1]
+            val value = match.groupValues[2].removeSurrounding("\"")
+            result[key] = value
+        }
+        return result
+    }
+
+    private fun buildQualityName(resolution: String, frameRate: String): String {
+        val height = resolution.split("x").lastOrNull()?.toIntOrNull() ?: return ""
+        val fps = frameRate.split(".").firstOrNull()?.toIntOrNull() ?: 30
+        return if (fps != 30) "${height}p$fps" else "${height}p"
+    }
 }
 
 data class ParsedPlaylist(
     val initUrl: String?,
     val segments: List<Segment>
+)
+
+data class VariantStream(
+    val name: String,
+    val resolution: String,
+    val bandwidth: Long,
+    val url: String
+)
+
+data class MasterPlaylist(
+    val variants: List<VariantStream>,
+    val pschKeys: List<String>
 )

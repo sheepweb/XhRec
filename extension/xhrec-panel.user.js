@@ -178,8 +178,8 @@
     actRemove, actActivate, actDeactivate,
   ]));
 
-  panel.appendChild(mkRow(["Q:raw", "Q:1080p60", "Q:720p60", "Q:720p"], [
-    () => actQuality("raw"), () => actQuality("1080p60"),
+  panel.appendChild(mkRow(["Q:highest", "Q:1080p60", "Q:720p60", "Q:720p"], [
+    () => actQuality("highest"), () => actQuality("1080p60"),
     () => actQuality("720p60"), () => actQuality("720p"),
   ]));
   panel.appendChild(mkRow(["Q:540p","Q:480p", "Q:240p", "Q:160p"], [
