@@ -2,13 +2,15 @@ package github.rikacelery.v3.components
 
 import github.rikacelery.v3.core.Actor
 import github.rikacelery.v3.core.EventBus
-import github.rikacelery.v3.events.*
+import github.rikacelery.v3.events.LiveMessage
+import github.rikacelery.v3.events.RecordingStarted
+import github.rikacelery.v3.events.RecordingStopped
+import github.rikacelery.v3.events.RoomStatusChanged
 import io.ktor.client.*
 import io.ktor.client.plugins.websocket.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.*
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.util.concurrent.ConcurrentHashMap
@@ -93,7 +95,7 @@ class LiveEventSource(
                 throw e
             } catch (e: Exception) {
                 wsSession = null
-                logger.error("WS error: ${e.message}, reconnecting in ${backoff.inWholeMilliseconds}ms")
+//                logger.error("WS error: ${e.message}, reconnecting in ${backoff.inWholeMilliseconds}ms")
                 delay(backoff)
                 backoff = minOf(backoff.inWholeSeconds * 2, 30).seconds
             }
@@ -154,16 +156,6 @@ class LiveEventSource(
                     logger.debug("WS event: type={}, roomId={}, status={}", type, roomId, status)
                     roomStatuses[roomId] = status
                     eventBus.publish(RoomStatusChanged(roomId, oldStatus, status))
-
-                    if (type == "streamChanged") {
-                        val qualities = bc?.get("qualities")?.jsonArray?.mapNotNull {
-                            it.jsonObject["id"]?.jsonPrimitive?.content
-                        } ?: emptyList()
-                        if (qualities.isNotEmpty()) {
-                            logger.debug("WS qualities: roomId={}, qualities={}", roomId, qualities)
-                            eventBus.publish(QualitiesAvailable(roomId, qualities))
-                        }
-                    }
                 }
 
                 // Forward ALL events to the event log (matching v2 behavior)

@@ -136,7 +136,7 @@ let pathname = tab.url
   ]));
 
   // quality rows
-  const qRow1 = ["raw", "1080p60", "720p60", "720p"];
+  const qRow1 = ["highest", "1080p60", "720p60", "720p"];
   const qRow2 = ["480p", "240p", "160p"];
   for (const qs of [qRow1, qRow2]) {
     main.appendChild(mkRow(qs.map(q =>

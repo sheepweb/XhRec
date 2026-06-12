@@ -82,6 +82,11 @@ class ConfigComponent(
     private suspend fun handleQuery(env: CommandEnvelope) {
         val ack = when (env.command) {
             is GetDecryptKey -> ConfigResponse(persistedDecryptKeys[env.command.keyName])
+            is MatchDecryptKeys -> {
+                val found = env.command.keys.firstOrNull { persistedDecryptKeys.containsKey(it) }
+                if (found != null) DecryptKeyMatch(found, persistedDecryptKeys[found]!!)
+                else DecryptKeyMatch("", "")
+            }
             else -> return
         }
         eventBus.publish(CommandAck(env.id, ack))

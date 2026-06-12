@@ -79,7 +79,7 @@ class HttpServerComponent(
                 get("/add") {
                     val name = call.request.queryParameters["name"] ?: ""
                     if (name.isBlank()) return@get call.respondText("Missing name", status = HttpStatusCode.BadRequest)
-                    val quality = call.request.queryParameters["quality"] ?: "720p"
+                    val quality = call.request.queryParameters["quality"] ?: "highest"
                     val active = call.request.queryParameters["active"]?.toBooleanStrictOrNull() ?: false
                     val limit = call.request.queryParameters["limit"]?.toLongOrNull() ?: 0L
                     val autopay = call.request.queryParameters["autopay"]?.toBooleanStrictOrNull() ?: false
@@ -213,7 +213,7 @@ class HttpServerComponent(
                         "Missing id",
                         status = HttpStatusCode.BadRequest
                     )
-                    val q = call.request.queryParameters["q"] ?: "720p"
+                    val q = call.request.queryParameters["q"] ?: "highest"
                     requestBus.request<OkResponse>(SetRoomQuality(id, q))
                     persistConfig()
                     call.respondText("Quality set to $q")
@@ -320,6 +320,7 @@ class HttpServerComponent(
                                             else -> s?.state?.name ?: ""
                                         })
                                         put("active", s?.state == SessionState.Recording)
+                                        put("quality", s?.quality ?: "")
                                     })
                                     put("listening", s != null || isArmed)
                                     put("room", buildJsonObject {

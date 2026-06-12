@@ -131,7 +131,7 @@ class Bootstrap(
         obj["output"]?.jsonPrimitive?.content?.let { File(it) } ?: fallback
 
     data class ListConfLine(
-        val url: String, val quality: String = "720p",
+        val url: String, val quality: String = "highest",
         val timeLimit: Long = 0, val sizeLimit: Long = 0, val autoPay: Boolean = false, val pkey: String = "",
         val armed: Boolean
     )
@@ -180,7 +180,7 @@ class Bootstrap(
         val parts = line.trim().split(" ")
         if (parts.isEmpty()) return null
         val url = parts[0]
-        var quality = "720p"
+        var quality = "highest"
         var timeLimit = 0L
         var sizeLimit = 0L
         var autoPay = false

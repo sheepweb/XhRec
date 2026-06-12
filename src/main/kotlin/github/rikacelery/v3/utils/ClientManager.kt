@@ -4,8 +4,8 @@ import io.ktor.client.*
 import io.ktor.client.engine.okhttp.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.plugins.logging.*
 import io.ktor.client.plugins.websocket.*
-import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import okhttp3.ConnectionPool
@@ -64,6 +64,14 @@ object ClientManager {
 
     private fun HttpClientConfig<OkHttpConfig>.configureClient() {
         expectSuccess = true
+        install(Logging){
+            logger = object : Logger {
+                override fun log(message: String) {
+                    this@ClientManager.logger.trace(message)
+                }
+            }
+            level = LogLevel.INFO
+        }
         install(HttpRequestRetry) {
             retryOnException(maxRetries = 3, retryOnTimeout = true)
             constantDelay(300)
