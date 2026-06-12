@@ -41,7 +41,7 @@ object ClientManager {
                 json()
             }
 
-            install(WebSockets){
+            install(WebSockets) {
             }
 
             engine {
@@ -64,10 +64,11 @@ object ClientManager {
 
     private fun HttpClientConfig<OkHttpConfig>.configureClient() {
         expectSuccess = true
-        install(Logging){
+        install(Logging) {
             logger = object : Logger {
                 override fun log(message: String) {
-                    this@ClientManager.logger.trace(message)
+                    if (this@ClientManager.logger.isTraceEnabled)
+                        this@ClientManager.logger.trace(message.replace("\n", " "))
                 }
             }
             level = LogLevel.INFO
