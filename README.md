@@ -1,127 +1,217 @@
 # XhREC
 
-A kotlin application for automatic recording lives from StripChat.
+Kotlin application for automatic live stream recording, with a browser extension for one-click control.
 
-## Usage
-
-```plain
-usage: 
- -f,--file <arg>     Room List File [default: list.conf]
- -post <arg>         Post Processor Config File [default: postprocessor.json]
- -o,--output <arg>   Output Dir [default: out]
- -p,--port <arg>     Server Port [default: 8090]
- -t,--tmp <arg>      Temp Dir [default: tmp]
-```
+## Quick Start
 
 ```shell
-java -jar XhRec-all.jar
+./gradlew build
+java -jar build/libs/XhRec-all.jar
 ```
+
+Then open `https://localhost:8090` for the dashboard.
+
+## CLI Options
+
+| Option | Description | Default |
+|---|---|---|
+| `-f`, `--file` | Room list config | `list.conf` |
+| `-o`, `--output` | Output directory | `out` |
+| `-t`, `--tmp` | Temp directory | `tmp` |
+| `-p`, `--port` | HTTP server port | `8090` |
+| `-u`, `--users` | Users file | `users.txt` |
+| `-post` | Post processor config | `postprocessor.json` |
+
 ```shell
-java -jar XhRec-all.jar -p 12340 -f list.conf -post postprocessor.json -t /path/to/temp/folder -o /path/to/destnation/folder
+java -jar build/libs/XhRec-all.jar -p 12340 -f list.conf -post postprocessor.json -t /tmp/xhrec -o /out
 ```
-
-## Control
-
-### WebUI
-
-`http://localhost:8090`
-![img_2.png](img_2.png)
-
-### Browser extension
-
-![extension screenshot](PixPin_2025-09-01_00-31-44.png)
-
-1. Go to the Extensions page by entering `chrome://extensions` in a new tab. (By design `chrome://` URLs are not
-   linkable.)
-
-    - Alternatively, click the Extensions menu puzzle button and select **Manage Extensions** at the bottom of the menu.
-    - Or, click the Chrome menu, hover over **More Tools**, then select **Extensions**.
-
-2. Enable Developer Mode by clicking the toggle switch next to **Developer mode**.
-3. Replace `docker.lan:8090` in `extension/popup.js` to your own server address.
-4. Click the **Load unpacked** button and select the `extension` directory.
-   ![Extensions page 1(chrome://extensions)](PixPin_2025-09-01_00-38-56.png)
-   ![Extensions page 2(chrome://extensions)](PixPin_2025-09-01_00-36-07.png)
 
 ## Configuration
 
-```plain
-# https://zh.xhamsterlive.com/modelA q:720p limit:120
-; https://zh.xhamsterlive.com/modelB q:240p
-https://zh.xhamsterlive.com/modelC q:raw
+### list.conf
+
+One room per line. Lines starting with `#` or `;` are inactive (not automatically recorded).
+
+```ini
+# https://stripchat.com/modelA q:720p limit:120
+; https://stripchat.com/modelB q:240p
+https://stripchat.com/modelC q:highest
 ```
 
-- Start with `#` or `;` will be marked as `INACTIVE`, means will not automatically start recording.
-- limit:120 means record time (in seconds).
-- q:XXXX means preferred quality, raw means original quality.
-  **_If no quality matches, program will select closest one._**
-- `zh.` is optional, dont care about it.
+| Field | Description |
+|---|---|
+| `q:<quality>` | Preferred quality: `240p`, `480p`, `720p`, `720p60`, `1080p`, `1080p60`, or `highest` (default). `raw` is deprecated, use `highest` instead |
+| `limit:<sec>` | Recording time limit in seconds |
+| `size:<bytes>` | Recording size limit (supports suffixes: `K`, `M`, `G`, e.g. `500M`) |
+| `autopay` | Enable auto-payment for private shows |
+| `pkey:<key>` | Custom psch key |
 
-## Post processing
+If the requested quality is unavailable, the closest match is selected automatically.
 
-Run processors one by one.
+### xhrec.json
 
-```json lines
+Stream decryption key store. Created with defaults on first run if absent.
+
+```json
+{
+  "streamAuthKey": "default psch key, if failed to extract from master playlist",
+  "decryptKeys": {
+    "psch key 1": "decrypt key",
+    "psch key 2": "decrypt key"
+  }
+}
+```
+
+| Field | Description |
+|---|---|
+| `streamAuthKey` | Default key psch key for stream auth |
+| `decryptKeys` | Key-value map of decryption keys (psch key → key) |
+
+### users.txt
+
+User cookies for auto-payment. One cookie per line. Lines starting with `#` or `;` are ignored.
+
+Each cookie is validated against the platform API on startup to resolve the user's ID, name, and coin balance. When a private show requires payment, the system selects a user with sufficient coins.
+
+```
+# optional comments
+cookie_string_here
+```
+
+## WebUI & Browser Extension
+
+### Dashboard
+
+`https://localhost:8090` — manage rooms, view live status, and control recordings.
+
+![dashboard](image.png)
+
+### UserScript
+
+[install](https://greasyfork.org/zh-CN/scripts/582444-xhrec-control-panel)
+![user script](image-1.png)
+
+## API Reference
+
+All endpoints return JSON unless noted. Parameters are passed as query strings.
+
+### Room Management
+
+| Endpoint | Params | Description |
+|---|---|---|
+| `/add` | `name`, `quality`, `active`, `limit`, `autopay`, `pkey`, `size` | Add a room |
+| `/remove` | `id` | Remove a room |
+| `/start` | `id` | Start recording |
+| `/stop` | `id` | Stop recording |
+| `/restart` | `id` | Stop then restart recording |
+| `/break` | `id` | Temporary stop (resumes on next poll) |
+
+### Room Settings
+
+| Endpoint | Params | Description |
+|---|---|---|
+| `/activate` | `id` | Enable auto-recording |
+| `/deactivate` | `id` | Disable auto-recording |
+| `/quality` | `id`, `q` | Set quality |
+| `/autopay` | `id`, `v` (true/false) | Toggle auto-payment |
+| `/limit` | `id`, `v` (seconds) | Set time limit (0 = unlimited) |
+| `/sizelimit` | `id`, `v` | Set size limit (0 = unlimited) |
+
+### Status & Monitoring
+
+| Endpoint | Description |
+|---|---|
+| `/status` | Active room status (segments, bytes, running downloads) |
+| `/list` | All rooms with status, session state, quality |
+| `/dashboard` | Consolidated payload: rooms, statuses, listv2, metrics |
+| `/metrics` | Prometheus metrics endpoint |
+
+### Live Preview
+
+| Endpoint | Params | Description |
+|---|---|---|
+| `/mse/live` | `id` | MP4 stream of in-progress recording |
+
+### Server Control
+
+| Endpoint | Description |
+|---|---|
+| `/graceful-stop` | Finish recordings and shut down |
+| `/stop-server` | Finish recordings and post-processing, then exit |
+
+### Status Response Format
+
+```json
+{
+  "Model Name": {
+    "total": 10046,
+    "success": 9933,
+    "failed": 98,
+    "bytesWrite": 1409108341,
+    "running": {
+      "https://...part3.mp4": {
+        "type": "PROXY",
+        "startAt": 1756357723403
+      }
+    }
+  }
+}
+```
+
+## Post Processing
+
+Defined in `postprocessor.json`. Processors run in sequence after a recording finishes.
+
+### Built-in Processors
+
+| Type | Description |
+|---|---|
+| `fix_stamp` | Fix MP4 timestamps |
+| `move` | Move/rename output files |
+| `slice` | Split video into segments |
+| `shell` | Run arbitrary shell commands |
+
+### Template Variables
+
+Available in `move` destinations and `shell` arguments:
+
+| Variable | Description |
+|---|---|
+| `{{ROOM_NAME}}` | Model/room name |
+| `{{ROOM_ID}}` | Room ID |
+| `{{RECORD_START}}` | Formatted start time |
+| `{{RECORD_END}}` | Formatted end time |
+| `{{RECORD_DURATION}}` | Duration in seconds |
+| `{{RECORD_DURATION_STR}}` | Duration as `00h01m30s` |
+| `{{INPUT}}` | Input file path |
+| `{{INPUT_DIR}}` | Input directory |
+| `{{FILE_NAME}}` | Input filename |
+| `{{FILE_NAME_NOEXT}}` | Filename without extension |
+| `{{TOTAL_FRAMES}}` | Accurate frame count |
+| `{{TOTAL_FRAMES_GUESS}}` | Estimated frame count (FPS × duration) |
+
+### Example Configuration
+
+```json
 {
   "default": [
-    {
-      "type": "fix_stamp",
-      "output": "out"
-    },
+    { "type": "fix_stamp", "output": "out" },
     {
       "type": "move",
-      //{{ROOM_NAME}}                Model/Room name
-      //{{ROOM_ID}}                  12345
-      //{{RECORD_START}}             formated date time using "date_pattern"
-      //{{RECORD_END}}               formated date time using "date_pattern"
-      //{{RECORD_DURATION}}          90
-      //{{RECORD_DURATION_STR}}      00h01m30s
-      //{{INPUT}}                    /path/to/input/video/folder/a.mp4
-      //{{INPUT_DIR}}                /path/to/input/video/folder
-      //{{FILE_NAME}}                a.mp4
-      //{{FILE_NAME_NOEXT}}          a
-      //{{TOTAL_FRAMES}}             slow but accurate frame count
-      //{{TOTAL_FRAMES_GUESS}}       FPS*Duration
       "dest": "out/[{{ROOM_ID}}]{{ROOM_NAME}}@{{RECORD_START}}-{{RECORD_END}} {{RECORD_DURATION_STR}}",
-      "date_pattern": "yyyy年MM月dd日HH时mm分ss秒"
+      "date_pattern": "yyyy-MM-dd HH:mm:ss"
     },
-    {
-      "type": "slice",
-      "duration": "1m10s"
-    },
-    // generate grid thumbnail (20x20, 400pic total)
+    { "type": "slice", "duration": "1m10s" },
     {
       "type": "shell",
       "noreturn": true,
-      // default: true
       "remove_input": false,
-       //{{ROOM_NAME}}                Model/Room name
-       //{{ROOM_ID}}                  12345
-       //{{RECORD_START}}             formated date time using "ISO_DATE_TIME" format
-       //{{RECORD_END}}               formated date time using "ISO_DATE_TIME" format
-       //{{RECORD_DURATION}}          90
-       //{{RECORD_DURATION_STR}}      00h01m30s
-       //{{INPUT}}                    /path/to/input/video/folder/a.mp4
-       //{{INPUT_DIR}}                /path/to/input/video/folder
-       //{{FILE_NAME}}                a.mp4
-       //{{FILE_NAME_NOEXT}}          a
-       //{{TOTAL_FRAMES}}             slow but accurate frame count
-       //{{TOTAL_FRAMES_GUESS}}       FPS*Duration
       "args": [
-        "ffmpeg",
-        "-hide_banner",
-        "-loglevel",
-        "error",
-        "-stats",
-        "-i",
-        "{{INPUT}}",
-        "-vf",
-        // if you change grid size, please recalculate total pic size
-        // or replace '{{TOTAL_FRAMES_GUESS}}/400' to 50, which means every 50 frames will be one thumbnail
-        "thumbnail={{TOTAL_FRAMES_GUESS}}/400,scale=200:-1,tile=20x20",
-        "-vframes",
-        "1",
-        "{{INPUT_DIR}}\\{{FILE_NAME_NOEXT}}.thumb.png",
+        "ffmpeg", "-hide_banner", "-loglevel", "error", "-stats",
+        "-i", "{{INPUT}}",
+        "-vf", "thumbnail={{TOTAL_FRAMES_GUESS}}/400,scale=200:-1,tile=20x20",
+        "-vframes", "1",
+        "{{INPUT_DIR}}/{{FILE_NAME_NOEXT}}.thumb.png",
         "-y"
       ]
     }
@@ -129,120 +219,10 @@ Run processors one by one.
 }
 ```
 
-## API
+## Logging & Monitoring
 
-#### /add
+Logs are written to `./logs` with daily rotation (`xhrec.yyyy-MM-dd.log`).
 
-| Parameter | Description           |
-|-----------|-----------------------|
-| slug      | Room/Model name       |
-| quality   | Quality, default 720p |
-| active    | Start auto recording  |
-
-#### /break
-
-Temporary stop recording
-
-| Parameter | Description     |
-|-----------|-----------------|
-| slug      | Room/Model name |
-
-#### /remove
-
-| Parameter | Description     |
-|-----------|-----------------|
-| slug      | Room/Model name |
-
-#### /activate
-
-| Parameter | Description     |
-|-----------|-----------------|
-| slug      | Room/Model name |
-
-#### /deactivate
-
-| Parameter | Description     |
-|-----------|-----------------|
-| slug      | Room/Model name |
-
-#### /quality
-
-| Parameter | Description     |
-|-----------|-----------------|
-| slug      | Room/Model name |
-| quality   | Quality         |
-
-#### /list (Deprecated)
-
-Simple json status list
-
-#### /status
-
-Json status
-
-```json lines
-{
-  "Model Name": {
-    //total segments
-    "total": 10046,
-    //succeed segments
-    "success": 9933,
-    //failed segments
-    "failed": 98,
-    //total bytes
-    "bytesWrite": 1409108341,
-    //running segments
-    "running": {
-      "https://xxxx_part3.mp4": {
-        // using PROXY
-        "type": "PROXY",
-        // start download time
-        "startAt": 1756357723403
-      },
-      "https://xxxx_part1.mp4": {
-        "type": "DIRECT",
-        "startAt": 1756357716154
-      }
-    }
-  }
-}
-```
-
-#### /recorders
-
-```json lines
-[
-  {
-    "name": "Model Name",
-    "id": 12345,
-    "quality": "720p60",
-     // record limit, PT2M means 2 minutes (ISO-8601 Duration format)
-     // not recommand, may easily break you video.
-    "limit": "PT2M",
-    // useless for now
-    "lastSeen": null
-  }
-]
-```
-
-#### /stop-server
-
-Finish all recording tasks.
-The server won't shut down for some reason, but it's safe to kill the process when this api responds.
-
-#### /metrics
-
-Prometheus metrics
-
-You can build monitor like this:
+Prometheus metrics are exposed at `/metrics`. Example Grafana dashboard:
 
 ![grafana](img_1.png)
-
-
-## Logging
-
-Custom logging: [https://github.com/RikaCelery/XhRec/issues/16](https://github.com/RikaCelery/XhRec/issues/16)
-
-Logs will be saved to `./logs`.
-
-Daily rename logs to `logs/xhrec.%d{yyyy-MM-dd}.log`.

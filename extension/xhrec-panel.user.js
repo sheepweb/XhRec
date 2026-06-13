@@ -1,18 +1,20 @@
 // ==UserScript==
 // @name         XhRec Control Panel
 // @namespace    https://github.com/RikaCelery/XhRec
-// @version      1.0
+// @version      1.1
 // @description  Inject recording control panel directly into the page
 // @author       RikaCelery
 // @match        *://*/*
-// @grant        none
+// @license      MIT
+// @grant        GM_getValue
+// @grant        GM_setValue
 // @run-at       document-end
 // ==/UserScript==
 
 (function () {
   "use strict";
 
-  const HOST = "localhost:8090";
+  const HOST = GM_getValue("host", "localhost:8090");
   const PATH = window.location.pathname;
   const SLUG = PATH.split("/")[1];
   if (!SLUG || PATH.split("/").length !== 2) return;
@@ -49,6 +51,17 @@
       }
       #xhrec-panel button:hover { filter: brightness(1.2); }
       #xhrec-panel button:disabled { background: #555; cursor: not-allowed; filter: none; }
+      #xhrec-panel .xhrec-cfg {
+        display: flex; gap: 4px;
+      }
+      #xhrec-panel .xhrec-cfg input {
+        flex: 1; padding: 4px 6px; border: 1px solid #555; border-radius: 5px;
+        background: #111; color: #eee; font-size: 11px; outline: none;
+      }
+      #xhrec-panel .xhrec-cfg input:focus { border-color: #02ac4f; }
+      #xhrec-panel .xhrec-cfg button {
+        flex: 0 0 auto; padding: 4px 8px;
+      }
       #xhrec-panel .xhrec-toast {
         padding: 5px 10px; border-radius: 5px; color: #fff; font-size: 11px;
         text-align: center; word-break: break-all;
@@ -92,7 +105,7 @@
   // ── api helper ────────────────────────────────────────────────────
   async function api(path, query) {
     const qs = query ? "?" + new URLSearchParams(query).toString() : "";
-    const resp = await fetch("http://" + HOST + path + qs);
+    const resp = await fetch("https://" + HOST + path + qs);
     if (!resp.ok) throw new Error(resp.status + " " + resp.statusText);
     return resp;
   }
@@ -133,6 +146,26 @@
   statusEl.className = "xhrec-status";
   statusEl.textContent = "...";
   panel.appendChild(statusEl);
+
+  // ── host config ──────────────────────────────────────────────────
+  const cfgRow = document.createElement("div");
+  cfgRow.className = "xhrec-cfg";
+  const hostInput = document.createElement("input");
+  hostInput.type = "text";
+  hostInput.value = HOST;
+  hostInput.placeholder = "host:port";
+  const saveBtn = document.createElement("button");
+  saveBtn.textContent = "Save";
+  saveBtn.addEventListener("click", () => {
+    const v = hostInput.value.trim();
+    if (v) {
+      GM_setValue("host", v);
+      location.reload();
+    }
+  });
+  cfgRow.appendChild(hostInput);
+  cfgRow.appendChild(saveBtn);
+  panel.appendChild(cfgRow);
 
   function mkRow(labels, handlers) {
     const r = document.createElement("div");
@@ -193,7 +226,7 @@
   // /status for live metrics (only active rooms), /list for room id + fallback
   async function refreshStatus() {
     try {
-      const sResp = await fetch("http://" + HOST + "/status");
+      const sResp = await fetch("https://" + HOST + "/status");
       const statuses = await sResp.json();
       const data = statuses[SLUG]; // keyed by room name
 
@@ -215,7 +248,7 @@
         statusEl.classList.remove("recording");
         toggleBtn.style.background = "#02ac4f";
         try {
-          const lResp = await fetch("http://" + HOST + "/list");
+          const lResp = await fetch("https://" + HOST + "/list");
           const list = await lResp.json();
           const info = list.find(l => l[3] === SLUG);
           if (info) {
@@ -242,7 +275,7 @@
   // also refresh room id + quality from /list every 5s
   async function refreshRoomId() {
     try {
-      const resp = await fetch("http://" + HOST + "/list");
+      const resp = await fetch("https://" + HOST + "/list");
       const list = await resp.json();
       const info = list.find(l => l[3] === SLUG);
       if (info) {
