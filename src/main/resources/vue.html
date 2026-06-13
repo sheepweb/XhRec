@@ -381,7 +381,7 @@
                             <td class="px-2 py-1">
                                 <div class="flex flex-col gap-0.5 text-[10px]">
                                     <div class="flex items-center gap-1">
-                                        <span class="text-slate-500 text-right whitespace-nowrap">{{room.timeLimit > 0 ? (room.timeLimit / 1000) : 0}}s</span>
+                                        <span class="text-slate-500 text-right whitespace-nowrap">{{room.timeLimit > 0 ? (room.timeLimit / 1000) : 0}}</span>
                                         <input v-model.number="editLimits[room.id]" type="number" min="0"
                                             class="w-12 px-1 py-0.5 text-[10px] border border-slate-200 rounded bg-white focus:outline-none focus:border-indigo-500"
                                             placeholder="new">
@@ -392,7 +392,6 @@
                                     </div>
                                     <div class="flex items-center gap-1">
                                         <span class="text-slate-500 text-right whitespace-nowrap">{{room.sizeLimitBytes > 0 ? formatBytes(room.sizeLimitBytes) : '0'}}</span>
-                                        <i class="fa-solid fa-arrow-right-long text-slate-300 text-[8px]"></i>
                                         <input v-model="editSizeLimits[room.id]" type="text"
                                             class="w-12 px-1 py-0.5 text-[10px] border border-slate-200 rounded bg-white focus:outline-none focus:border-indigo-500"
                                             placeholder="new">
