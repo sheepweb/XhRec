@@ -183,10 +183,11 @@ Available in `move` destinations and `shell` arguments:
 | `{{RECORD_END}}` | Formatted end time |
 | `{{RECORD_DURATION}}` | Duration in seconds |
 | `{{RECORD_DURATION_STR}}` | Duration as `00h01m30s` |
-| `{{INPUT}}` | Input file path |
+| `{{RECORD_QUALITY}}` | Quality string |
+| `{{INPUT_ABS}}` | Input file path |
 | `{{INPUT_DIR}}` | Input directory |
-| `{{FILE_NAME}}` | Input filename |
-| `{{FILE_NAME_NOEXT}}` | Filename without extension |
+| `{{INPUT_NAME}}` | Input filename |
+| `{{INPUT_NAME_NOEXT}}` | Filename without extension |
 | `{{TOTAL_FRAMES}}` | Accurate frame count |
 | `{{TOTAL_FRAMES_GUESS}}` | Estimated frame count (FPS × duration) |
 
@@ -198,20 +199,21 @@ Available in `move` destinations and `shell` arguments:
     { "type": "fix_stamp", "output": "out" },
     {
       "type": "move",
-      "dest": "out/[{{ROOM_ID}}]{{ROOM_NAME}}@{{RECORD_START}}-{{RECORD_END}} {{RECORD_DURATION_STR}}",
+      "output": "out/[{{ROOM_ID}}]{{ROOM_NAME}}@{{RECORD_START}}-{{RECORD_END}} {{RECORD_DURATION_STR}}",
       "date_pattern": "yyyy-MM-dd HH:mm:ss"
     },
-    { "type": "slice", "duration": "1m10s" },
+    { "type": "slice", "output": "out", "duration": "1m10s" },
     {
       "type": "shell",
       "noreturn": true,
       "remove_input": false,
-      "args": [
+      "date_pattern": "yyyy-MM-dd_HH-mm-ss",
+      "cmd": [
         "ffmpeg", "-hide_banner", "-loglevel", "error", "-stats",
-        "-i", "{{INPUT}}",
+        "-i", "{{INPUT_ABS}}",
         "-vf", "thumbnail={{TOTAL_FRAMES_GUESS}}/400,scale=200:-1,tile=20x20",
         "-vframes", "1",
-        "{{INPUT_DIR}}/{{FILE_NAME_NOEXT}}.thumb.png",
+        "{{INPUT_DIR}}/{{INPUT_NAME_NOEXT}}.thumb.png",
         "-y"
       ]
     }

@@ -8,7 +8,8 @@ sealed interface DataChannelMsg
 data class StreamStart(
     val roomId: Long,
     val roomName: String,
-    val startTime: Instant
+    val startTime: Instant,
+    val quality: String
 ) : DataChannelMsg
 
 data class StreamData(

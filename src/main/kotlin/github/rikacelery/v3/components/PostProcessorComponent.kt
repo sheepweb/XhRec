@@ -67,9 +67,9 @@ class PostProcessorComponent(
             files = files.flatMap { f ->
                 try {
                     val ctx = ProcessorCtx(
-                        roomId = event.roomId, roomName = "unknown",
-                        startTime = 0L, endTime = System.currentTimeMillis(),
-                        durationMs = 0L, quality = ""
+                        roomId = event.roomId, roomName = event.roomName,
+                        startTime = event.startTime, endTime = event.endTime,
+                        durationMs = event.durationMs, quality = event.quality
                     )
                     processor.process(f, ctx)
                 } catch (e: Exception) {

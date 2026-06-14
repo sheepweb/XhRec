@@ -44,7 +44,7 @@ class OrderedEmitter(
                 val cut = result.cut
                 output(StreamEnd(roomId, cut.reason))
                 if (cut.reason != EndReason.UserStop)
-                    output(StreamStart(roomId, cut.roomName, cut.startTime))
+                    output(StreamStart(roomId, cut.roomName, cut.startTime, cut.quality))
             }
         }
     }

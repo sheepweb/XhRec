@@ -1,6 +1,5 @@
 package github.rikacelery.v3.postprocessors
 
-import github.rikacelery.v3.utils.runProcessGetStdoutBlocking
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -10,9 +9,12 @@ import java.time.format.DateTimeFormatter
 
 class ShellProcessor(
     private val command: List<String>,
+    datePattern: String,
     private val noreturn: Boolean = true,
     private val removeInput: Boolean = false
 ) : Processor() {
+    private val fmt = DateTimeFormatter.ofPattern(datePattern).withZone(ZoneId.systemDefault())
+
     override suspend fun process(input: File, ctx: ProcessorCtx): List<File> {
         val cmd = command.map { substitute(it, ctx, input) }
         val builder = ProcessBuilder(cmd)
@@ -43,34 +45,18 @@ class ShellProcessor(
         return template
             .replace("{{ROOM_NAME}}", ctx.roomName)
             .replace("{{ROOM_ID}}", ctx.roomId.toString())
-            .replace("{{RECORD_START}}", formatInstant(ctx.startTime))
-            .replace("{{RECORD_END}}", formatInstant(ctx.endTime))
-            .replace("{{RECORD_DURATION}}", ctx.durationMs.toString())
+            .replace("{{RECORD_START}}", fmt.format(Instant.ofEpochMilli(ctx.startTime)))
+            .replace("{{RECORD_END}}", fmt.format(Instant.ofEpochMilli(ctx.endTime)))
+            .replace("{{RECORD_DURATION}}", (ctx.durationMs / 1000).toString())
             .replace("{{RECORD_DURATION_STR}}", formatDuration(ctx.durationMs))
-            .replace("{{RECORD_quality}}", ctx.quality)
-            .replace("{{INPUT}}", file.absolutePath)
-            .replace("{{INPUT_DIR}}", file.parentFile.absolutePath)
-            .replace("{{FILE_NAME}}", file.name)
-            .replace("{{FILE_NAME_NOEXT}}", file.nameWithoutExtension)
-            .replace("\\{\\{TOTAL_FRAMES}}".toRegex()) {
-                runProcessGetStdoutBlocking(
-                    "ffprobe", "-v", "error", "-select_streams", "v:0",
-                    "-count_frames", "-show_entries", "stream=nb_frames",
-                    "-of", "default=noprint_wrappers=1:nokey=1", file.absolutePath
-                )
-            }
-            .replace("\\{\\{TOTAL_FRAMES_GUESS}}".toRegex()) {
-                runProcessGetStdoutBlocking(
-                    "ffprobe", "-v", "error", "-select_streams", "v:0",
-                    "-show_entries", "stream=r_frame_rate",
-                    "-of", "default=noprint_wrappers=1:nokey=1", file.absolutePath
-                ).split("/").map { it.toIntOrNull() ?: 1 }.reduce { a, b -> a / b }
-                    .toLong().times(ctx.durationMs / 1000).toString()
-            }
+            .replace("{{RECORD_QUALITY}}", ctx.quality)
+            .replace("{{INPUT_ABS}}", file.absolutePath)
+            .replace("{{INPUT_DIR}}", file.absoluteFile.parent)
+            .replace("{{INPUT_NAME}}", file.name)
+            .replace("{{INPUT_NAME_NOEXT}}", file.nameWithoutExtension)
+            .replace("{{TOTAL_FRAMES}}", totalFrames(file))
+            .replace("{{TOTAL_FRAMES_GUESS}}", totalFramesGuess(file, ctx.durationMs))
     }
-
-    private fun formatInstant(epochMs: Long): String =
-        Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ISO_DATE_TIME)
 
     private fun formatDuration(ms: Long): String {
         val seconds = ms / 1000
@@ -80,4 +66,23 @@ class ShellProcessor(
         return if (days > 0) "%02dd%02dh%02dm%02ds".format(days, hours % 24, minutes % 60, seconds % 60)
         else "%02dh%02dm%02ds".format(hours % 24, minutes % 60, seconds % 60)
     }
+
+    private fun totalFrames(input: File): String = runCatching {
+        ProcessBuilder(
+            "ffprobe", "-v", "error", "-select_streams", "v:0",
+            "-count_frames", "-show_entries", "stream=nb_frames",
+            "-of", "default=noprint_wrappers=1:nokey=1", input.absolutePath
+        ).start().inputStream.bufferedReader().readText().trim()
+    }.getOrElse { "" }
+
+    private fun totalFramesGuess(input: File, durationMs: Long): String = runCatching {
+        val fpsStr = ProcessBuilder(
+            "ffprobe", "-v", "error", "-select_streams", "v:0",
+            "-show_entries", "stream=r_frame_rate",
+            "-of", "default=noprint_wrappers=1:nokey=1", input.absolutePath
+        ).start().inputStream.bufferedReader().readText().trim()
+        val fps = fpsStr.split("/").mapNotNull { it.toLongOrNull() }
+            .takeIf { it.size == 2 }?.let { it[0].toDouble() / it[1] } ?: return@runCatching ""
+        (fps * durationMs / 1000).toLong().toString()
+    }.getOrElse { "" }
 }

@@ -127,7 +127,7 @@ class SessionComponent(
                             downloader.tell(
                                 DoCutPoint(
                                     CutPoint(
-                                        msg.roomId, rs.segmentIndex - 1, rs.roomName, Instant.now(), msg.reason
+                                        msg.roomId, rs.segmentIndex - 1, rs.roomName, Instant.now(), msg.reason, rs.quality
                                     )
                                 )
                             )
@@ -195,7 +195,7 @@ class SessionComponent(
         rs.sizeLimitBytes = config.sizeLimitBytes
         rs.state = SessionState.Fetching
         rs.startTime = Instant.now()
-        dataChannel.send(StreamStart(roomId, name, rs.startTime))
+        dataChannel.send(StreamStart(roomId, name, rs.startTime, rs.quality))
         try {
             rs.masterPlaylist = fetchAndCacheMasterPlaylist(rs)
             val availableNames = rs.masterPlaylist!!.variants.map { it.name }
@@ -223,7 +223,7 @@ class SessionComponent(
         logger.info("Session stopping: roomId={}, name={}, state={}", roomId, rs.roomName, rs.state)
         rs.state = SessionState.Closing
         rs.pollingJob?.cancel()
-        downloader.tell(DoCutPoint(CutPoint(roomId, rs.segmentIndex, rs.roomName, Instant.now(), EndReason.UserStop)))
+        downloader.tell(DoCutPoint(CutPoint(roomId, rs.segmentIndex, rs.roomName, Instant.now(), EndReason.UserStop, rs.quality)))
     }
 
     private suspend fun handleEvent(event: Any) {
@@ -247,7 +247,7 @@ class SessionComponent(
                         downloader.tell(
                             DoCutPoint(
                                 CutPoint(
-                                    event.roomId, rs.segmentIndex, rs.roomName, Instant.now(), EndReason.StreamEnd
+                                    event.roomId, rs.segmentIndex, rs.roomName, Instant.now(), EndReason.StreamEnd, rs.quality
                                 )
                             )
                         )
@@ -528,7 +528,7 @@ class SessionComponent(
                         downloader.tell(
                             DoCutPoint(
                                 CutPoint(
-                                    rs.roomId, rs.segmentIndex - 1, rs.roomName, Instant.now(), EndReason.NewInit
+                                    rs.roomId, rs.segmentIndex - 1, rs.roomName, Instant.now(), EndReason.NewInit, rs.quality
                                 )
                             )
                         )
@@ -568,7 +568,7 @@ class SessionComponent(
                         downloader.tell(
                             DoCutPoint(
                                 CutPoint(
-                                    rs.roomId, rs.segmentIndex - 1, rs.roomName, Instant.now(), reason
+                                    rs.roomId, rs.segmentIndex - 1, rs.roomName, Instant.now(), reason, rs.quality
                                 )
                             )
                         )
@@ -598,7 +598,7 @@ class SessionComponent(
                                         rs.segmentIndex - 1,
                                         rs.roomName,
                                         Instant.now(),
-                                        EndReason.UserStop
+                                        EndReason.UserStop, rs.quality
                                     )
                                 )
                             )
