@@ -361,16 +361,16 @@
                             </td>
                             <td class="px-2 py-1.5 text-slate-400 font-mono text-xs text-center">{{room.id || '-'}}</td>
                             <td class="px-2 py-1.5">
-                                <div class="flex flex-col items-center gap-0.5">
+                                <div class="flex items-center gap-1.5">
                                     <select @change="ev => setQuality(ev.target.value, room.id)" :value="room.quality"
-                                        class="text-xs py-0.5 px-1 border border-slate-200 rounded bg-white focus:outline-none focus:border-indigo-500 w-18">
+                                        class="text-xs py-0.5 px-1 border border-slate-200 rounded bg-white focus:outline-none focus:border-indigo-500 w-16">
                                         <option
                                             v-for="q in ['highest','160p','240p','480p','720p','720p60','540p','960p','1080p','1080p60','2560p60']"
                                             :key="q">{{q}}</option>
                                     </select>
                                     <span v-if="room.sessionStatus==='Recording' && room.sessionQuality"
-                                        class="text-xs font-mono text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200"
-                                        :title="'Actual recording quality: ' + room.sessionQuality">
+                                        class="text-[11px] font-mono text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200 whitespace-nowrap"
+                                        :title="'Actual recording quality'">
                                         ⏺{{room.sessionQuality}}
                                     </span>
                                 </div>
@@ -378,7 +378,7 @@
                             <td class="px-2 py-1.5">
                                 <div class="flex flex-col gap-1.5 items-end text-xs">
                                     <div class="flex items-center gap-1">
-                                        <span class="text-slate-500 whitespace-nowrap font-mono w-12 text-right">{{room.timeLimit > 0 ? (room.timeLimit / 1000) : '∞'}}s</span>
+                                        <span class="text-slate-500 font-mono text-right min-w-[3rem]">{{room.timeLimit > 0 ? (room.timeLimit / 1000) : '∞'}}s</span>
                                         <input v-model.number="editLimits[room.id]" type="number" min="0"
                                             class="w-14 px-1.5 py-0.5 text-xs border border-slate-200 rounded bg-white focus:outline-none focus:border-indigo-500"
                                             placeholder="sec">
@@ -388,7 +388,7 @@
                                         </button>
                                     </div>
                                     <div class="flex items-center gap-1">
-                                        <span class="text-slate-500 whitespace-nowrap font-mono w-12 text-right">{{room.sizeLimitBytes > 0 ? formatBytes(room.sizeLimitBytes) : '∞'}}</span>
+                                        <span class="text-slate-500 font-mono text-right min-w-[3rem]">{{room.sizeLimitBytes > 0 ? formatBytes(room.sizeLimitBytes) : '∞'}}</span>
                                         <input v-model="editSizeLimits[room.id]" type="text"
                                             class="w-14 px-1.5 py-0.5 text-xs border border-slate-200 rounded bg-white focus:outline-none focus:border-indigo-500"
                                             placeholder="e.g. 1G">
@@ -431,22 +431,22 @@
                                 </label>
                             </td>
                             <td class="px-2 py-1.5">
-                                <div v-if="room.sessionStatus==='Recording'" class="flex flex-col gap-0.5 items-end text-xs font-mono">
-                                    <span class="text-emerald-600 flex items-center gap-1" title="Downloading">
+                                <div v-if="room.sessionStatus==='Recording'" class="grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs font-mono">
+                                    <span class="text-emerald-600 flex items-center gap-1 justify-end" title="Downloading">
                                         <i :class="[{'animate-bounce':room.running},'fa-download','fa-solid','text-[10px]']"></i>
-                                        <span class="w-8 text-right">{{room.running || 0}}</span>
+                                        <span class="w-7 text-right">{{room.running || 0}}</span>
                                     </span>
-                                    <span class="text-blue-600 flex items-center gap-1" title="Complete">
+                                    <span class="text-blue-600 flex items-center gap-1 justify-end" title="Complete">
                                         <i class="fa-solid fa-check text-[10px]"></i>
-                                        <span class="w-8 text-right">{{room.success || 0}}</span>
+                                        <span class="w-7 text-right">{{room.success || 0}}</span>
                                     </span>
-                                    <span class="text-red-600 flex items-center gap-1" title="Failed">
+                                    <span class="text-red-600 flex items-center gap-1 justify-end" title="Failed">
                                         <i class="fa-solid fa-xmark text-[10px]"></i>
-                                        <span class="w-8 text-right">{{room.failed || 0}}</span>
+                                        <span class="w-7 text-right">{{room.failed || 0}}</span>
                                     </span>
-                                    <span class="text-amber-600 flex items-center gap-1" title="Missing">
+                                    <span class="text-amber-600 flex items-center gap-1 justify-end" title="Missing">
                                         <i class="fa-solid fa-question text-[10px]"></i>
-                                        <span class="w-8 text-right">{{room.segMissing || 0}}</span>
+                                        <span class="w-7 text-right">{{room.segMissing || 0}}</span>
                                     </span>
                                 </div>
                                 <span v-else class="text-slate-300 text-xs">-</span>
