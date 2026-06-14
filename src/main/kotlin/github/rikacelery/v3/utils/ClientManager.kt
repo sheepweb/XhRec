@@ -73,6 +73,7 @@ object ClientManager {
             }
             level = LogLevel.INFO
         }
+        install(WebSockets)
         install(HttpRequestRetry) {
             retryOnException(maxRetries = 3, retryOnTimeout = true)
             constantDelay(300)

@@ -6,7 +6,7 @@ import github.rikacelery.v3.events.LiveMessage
 import github.rikacelery.v3.events.RecordingStarted
 import github.rikacelery.v3.events.RecordingStopped
 import github.rikacelery.v3.events.RoomStatusChanged
-import io.ktor.client.*
+import github.rikacelery.v3.utils.ClientManager
 import io.ktor.client.plugins.websocket.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.*
@@ -31,21 +31,27 @@ class LiveEventSource(
     private val subscribed = ConcurrentHashMap.newKeySet<Long>()
     private val roomStatuses = ConcurrentHashMap<Long, String>()
     private var wsSession: WebSocketSession? = null
-    private val seq = AtomicInteger(1)
+    private val seq = AtomicInteger(0)
 
-    private val channels = listOf(
+    private val globalChannels = listOf(
+        "changeConfigFeature",
+//        "newModelEvent",
+        "lotteryChanged"
+    )
+
+    private val roomChannels = listOf(
         "userBanned", "broadcastChanged", "streamChanged",
         "newChatMessage", "newTip", "userJoined", "userLeft",
         "broadcastStarted", "broadcastStopped", "broadcastSettingsChanged",
         "modelShowed", "modelChanged", "moodChanged", "goalUpdated",
         "lovenseLevelChanged", "lovenseStatus", "modelAwayChanged",
         "groupShow",
-        // channels from v2 not yet in v3
         "modelDiscountActivated", "modelStatusChanged", "topicChanged",
         "tipMenuUpdated", "goalChanged", "userUpdated",
         "interactiveToyStatusChanged", "deleteChatMessages",
         "tipMenuLanguageDetected", "fanClubUpdated", "modelAppUpdated",
-        "newKing"
+        "newKing",
+        "privateStartedV3", "privateEndedV3"
     )
 
     override suspend fun onStart(scope: CoroutineScope) {
@@ -79,15 +85,20 @@ class LiveEventSource(
         var backoff = 1.seconds
         while (isActive) {
             try {
-                val client = HttpClient { install(WebSockets) }
+                val client = ClientManager.getProxiedClient("event")
                 client.webSocket("wss://websocket-v6.xhamsterlive.com/connection/websocket") {
                     wsSession = this
                     send(authFrame(authToken))
-                    subscribed.forEach { send(subscribeFrame(it)) }
-
+                    resubscribeAll()
                     for (frame in incoming) {
                         if (frame is Frame.Text) {
-                            dispatch(frame.readText())
+                            val text = frame.readText()
+                            if (text == "{}") {
+                                send("{}")
+                            } else {
+                                println(text)
+                                dispatch(text)
+                            }
                         }
                     }
                 }
@@ -95,72 +106,82 @@ class LiveEventSource(
                 throw e
             } catch (e: Exception) {
                 wsSession = null
-//                logger.error("WS error: ${e.message}, reconnecting in ${backoff.inWholeMilliseconds}ms")
+                logger.error("WS error: ${e.message}, reconnecting in ${backoff.inWholeMilliseconds}ms")
                 delay(backoff)
                 backoff = minOf(backoff.inWholeSeconds * 2, 30).seconds
             }
         }
     }
 
+    private suspend fun WebSocketSession.resubscribeAll() {
+        globalChannels.forEach { send(subscribeFrame(it)) }
+        subscribed.forEach { sendRoomChannels(it) }
+    }
+
     private fun authFrame(token: String): String {
         return """{"connect":{"token":"$token","name":"js"},"id":${seq.incrementAndGet()}}"""
     }
 
-    private fun subscribeFrame(roomId: Long): String {
-        val chans = channels.joinToString("\",\"") { "$it@${roomId}" }
-        return """{"subscribe":{"channel":"$chans"},"id":${seq.incrementAndGet()}}"""
+    private fun subscribeFrame(channel: String): String {
+        return """{"subscribe":{"channel":"$channel"},"id":${seq.incrementAndGet()}}"""
     }
 
-    private fun unsubscribeFrame(roomId: Long): String {
-        val chans = channels.joinToString("\",\"") { "$it@${roomId}" }
-        return """{"unsubscribe":{"channel":"$chans"},"id":${seq.incrementAndGet()}}"""
+    private fun unsubscribeFrame(channel: String): String {
+        return """{"unsubscribe":{"channel":"$channel"},"id":${seq.incrementAndGet()}}"""
     }
 
     private suspend fun subscribeRoom(roomId: Long) {
         if (subscribed.add(roomId)) {
-            wsSession?.let {
-                try {
-                    it.send(Frame.Text(subscribeFrame(roomId)))
-                } catch (_: Exception) {
-                }
-            }
+            wsSession?.sendRoomChannels(roomId)
         }
     }
 
     private suspend fun unsubscribeRoom(roomId: Long) {
         if (subscribed.remove(roomId)) {
-            wsSession?.let {
-                try {
-                    it.send(Frame.Text(unsubscribeFrame(roomId)))
-                } catch (_: Exception) {
-                }
-            }
+            wsSession?.sendRoomUnsubscribes(roomId)
+        }
+    }
+
+    private suspend fun WebSocketSession.sendRoomChannels(roomId: Long) {
+        roomChannels.forEach { channel ->
+            try {
+                send(Frame.Text(subscribeFrame("$channel@$roomId")))
+            } catch (_: Exception) {}
+        }
+    }
+
+    private suspend fun WebSocketSession.sendRoomUnsubscribes(roomId: Long) {
+        roomChannels.forEach { channel ->
+            try {
+                send(Frame.Text(unsubscribeFrame("$channel@$roomId")))
+            } catch (_: Exception) {}
         }
     }
 
     private suspend fun dispatch(raw: String) {
-        for (line in raw.lines())
+        for (line in raw.lines()) {
+            if (line.isBlank()) continue
             try {
                 val json = Json.parseToJsonElement(line).jsonObject
-                val data = json["data"]?.jsonObject ?: return
+                val push = json["push"]?.jsonObject ?: continue
+                val channel = push["channel"]?.jsonPrimitive?.content ?: continue
+                val type = channel.substringBefore("@")
+                val roomId = channel.substringAfter("@").toLongOrNull() ?: continue
+                val pub = push["pub"]?.jsonObject ?: continue
+                val data = pub["data"]?.jsonObject ?: continue
 
-                val type = data["type"]?.jsonPrimitive?.content ?: return
-                val channel = data["channel"]?.jsonPrimitive?.content ?: return
-                val roomId = channel.substringAfter("@").toLongOrNull() ?: return
-
-                // Special handling: broadcastChanged / streamChanged carry status + qualities
                 if (type == "broadcastChanged" || type == "streamChanged") {
-                    val bc = data["broadcast"]?.jsonObject
-                    val status = bc?.get("status")?.jsonPrimitive?.content ?: "offline"
+                    val status = data["status"]?.jsonPrimitive?.content
+                        ?: data["broadcast"]?.jsonObject?.get("status")?.jsonPrimitive?.content
+                        ?: "offline"
                     val oldStatus = roomStatuses[roomId] ?: ""
                     logger.debug("WS event: type={}, roomId={}, status={}", type, roomId, status)
                     roomStatuses[roomId] = status
                     eventBus.publish(RoomStatusChanged(roomId, oldStatus, status))
                 }
 
-                // Forward ALL events to the event log (matching v2 behavior)
                 eventBus.publish(LiveMessage(roomId, type, data))
-            } catch (_: Exception) { /* ignore malformed messages */
-            }
+            } catch (_: Exception) { /* ignore malformed messages */ }
+        }
     }
 }
