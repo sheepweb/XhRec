@@ -17,7 +17,7 @@ data class RoomStatusChanged(val roomId: Long, val oldStatus: String, val newSta
 
 data class RecordingStarted(val roomId: Long, val quality: String = "")
 data class RecordingStopped(val roomId: Long)
-data class FileReady(val roomId: Long, val file: File, val reason: EndReason)
+data class FileReady(val roomId: Long, val file: File, val reason: EndReason, val roomName: String, val startTime: Long, val endTime: Long, val durationMs: Long, val quality: String)
 data class FileProcessed(val roomId: Long, val file: File)
 
 // ── Download Events ──

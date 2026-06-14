@@ -28,6 +28,7 @@ data class ActiveFile(
     val roomId: Long,
     val roomName: String,
     val startTime: Instant,
+    val quality: String,
     var bytesWritten: Long = 0
 ) {
     fun dispose() {
@@ -84,7 +85,7 @@ class WriterComponent(
                 files[msg.roomId] = ActiveFile(
                     file = file, eventFile = eventFile,
                     fos = FileOutputStream(file), eventFos = FileOutputStream(eventFile),
-                    roomId = msg.roomId, roomName = msg.roomName, startTime = msg.startTime
+                    roomId = msg.roomId, roomName = msg.roomName, startTime = msg.startTime, quality = msg.quality
                 )
             }
             logger.info("Opened file: $path")
@@ -143,7 +144,7 @@ class WriterComponent(
             }
 
             hooks.forEach { it.afterFileClosed(msg.roomId, finalFile) }
-            eventBus.publish(FileReady(msg.roomId, finalFile, msg.reason))
+            eventBus.publish(FileReady(msg.roomId, finalFile, msg.reason, active.roomName, active.startTime.toEpochMilli(), endTime.toEpochMilli(), durationMs, active.quality))
             logger.info("Closed file: ${finalFile.absolutePath}, reason=${msg.reason}")
         } catch (e: Exception) {
             logger.error("Failed to close file for room ${msg.roomId}: ${e.message}", e)

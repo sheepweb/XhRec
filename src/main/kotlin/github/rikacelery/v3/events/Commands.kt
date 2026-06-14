@@ -41,7 +41,8 @@ data class CutPoint(
     val index: Int,
     val roomName: String,
     val startTime: java.time.Instant,
-    val reason: EndReason
+    val reason: EndReason,
+    val quality: String = ""
 )
 
 // ── Scheduler extended commands ──

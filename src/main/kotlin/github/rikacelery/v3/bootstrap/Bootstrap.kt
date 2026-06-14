@@ -94,12 +94,12 @@ class Bootstrap(
             logger.warn("postprocessor.json not found"); return
         }
         val json = file.readText()
-        val processors = parseProcessorConfig(json, File(cli.outputDir))
+        val processors = parseProcessorConfig(json)
         postProcessorComponent.setProcessors(processors)
         logger.info("Loaded ${processors.size} processors")
     }
 
-    private fun parseProcessorConfig(jsonStr: String, outputDir: File): List<Processor> {
+    private fun parseProcessorConfig(jsonStr: String): List<Processor> {
         val processors = mutableListOf<Processor>()
         val arr = Json.parseToJsonElement(jsonStr).jsonObject["default"]?.jsonArray
         requireNotNull(arr)
@@ -107,19 +107,22 @@ class Bootstrap(
             val obj = elem.jsonObject
             val type = obj["type"]?.jsonPrimitive?.content ?: continue
             processors.add(when (type) {
-                "fix_stamp" -> FixStampProcessor(outputFile(obj, outputDir))
+                "fix_stamp" -> FixStampProcessor(requireOutput(obj))
                 "move" -> MoveProcessor(
-                    obj["template"]?.jsonPrimitive?.content ?: "{{ROOM_NAME}}",
-                    outputFile(obj, outputDir)
+                    requireOutput(obj).path,
+                    obj["date_pattern"]?.jsonPrimitive?.content ?: "yyyy-MM-dd-HHmmss"
                 )
                 "shell" -> ShellProcessor(
-                    obj["cmd"]?.jsonArray?.map { it.jsonPrimitive.content } ?: listOf("echo"),
+                    requireCmd(obj),
+                    obj["date_pattern"]?.jsonPrimitive?.content ?: "yyyy-MM-dd-HHmmss",
                     obj["noreturn"]?.jsonPrimitive?.boolean ?: true,
                     obj["remove_input"]?.jsonPrimitive?.boolean ?: false
                 )
                 "slice" -> SliceProcessor(
-                    java.time.Duration.ofSeconds(obj["duration"]?.jsonPrimitive?.content?.toLongOrNull() ?: 3600),
-                    outputFile(obj, outputDir)
+                    java.time.Duration.ofSeconds(
+                        requireNotNull(obj["duration"]?.jsonPrimitive?.content?.toLongOrNull()) { "slice: duration is required" }
+                    ),
+                    requireOutput(obj)
                 )
                 else -> { logger.warn("Unknown processor: $type"); continue }
             })
@@ -127,8 +130,17 @@ class Bootstrap(
         return processors
     }
 
-    private fun outputFile(obj: JsonObject, fallback: File): File =
-        obj["output"]?.jsonPrimitive?.content?.let { File(it) } ?: fallback
+    private fun requireOutput(obj: JsonObject): File {
+        val output = obj["output"]?.jsonPrimitive?.content
+        require(!output.isNullOrBlank()) { "${obj["type"]?.jsonPrimitive?.content ?: "?"}: output is required" }
+        return File(output)
+    }
+
+    private fun requireCmd(obj: JsonObject): List<String> {
+        val cmd = obj["cmd"]?.jsonArray?.map { it.jsonPrimitive.content }
+        require(!cmd.isNullOrEmpty()) { "shell: cmd is required" }
+        return cmd
+    }
 
     data class ListConfLine(
         val url: String, val quality: String = "highest",
