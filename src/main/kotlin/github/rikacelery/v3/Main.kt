@@ -9,9 +9,7 @@ import github.rikacelery.v3.core.RequestBus
 import github.rikacelery.v3.data.SystemConfig
 import github.rikacelery.v3.hooks.EventHook
 import github.rikacelery.v3.m3u8.M3u8Parser
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -148,18 +146,17 @@ fun main(vararg args: String) {
         val engine = httpServer.start()
 
         // 6. Wait for shutdown
+        val shutdownSignal = CompletableDeferred<Unit>()
         eventBus.subscribe(appScope, String::class) { msg ->
             if (msg == "ServerShutdown") {
                 engine.stop(1000, 5000)
-                appScope.cancel()
+                shutdownSignal.complete(Unit)
             }
         }
 
         // 7. Cleanup on exit
         try {
-            awaitCancellation()
-        } catch (_: CancellationException) {
-            // normal shutdown
+            shutdownSignal.await()
         } finally {
             schedulerComponent.stop()
             sessionComponent.stop()
