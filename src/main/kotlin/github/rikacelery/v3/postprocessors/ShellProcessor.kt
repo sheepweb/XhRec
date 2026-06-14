@@ -17,6 +17,7 @@ class ShellProcessor(
 
     override suspend fun process(input: File, ctx: ProcessorCtx): List<File> {
         val cmd = command.map { substitute(it, ctx, input) }
+        logger.info("run: {}", cmd.joinToString(" "))
         val builder = ProcessBuilder(cmd)
         val p = withContext(Dispatchers.IO) {
             builder.start()
@@ -24,7 +25,7 @@ class ShellProcessor(
         p.errorStream.bufferedReader().use {
             while (true) {
                 val line = it.readLine() ?: break
-                println(line)
+                logger.warn("[ffmpeg] {}", line)
             }
         }
         if (withContext(Dispatchers.IO) {
