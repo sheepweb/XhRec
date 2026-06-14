@@ -2,6 +2,7 @@ package github.rikacelery.v3.core
 
 import github.rikacelery.v3.events.CommandAck
 import github.rikacelery.v3.events.CommandEnvelope
+import github.rikacelery.v3.events.ErrorResponse
 import github.rikacelery.v3.events.Request
 import kotlinx.coroutines.*
 import java.util.concurrent.ConcurrentHashMap
@@ -9,6 +10,9 @@ import java.util.concurrent.atomic.AtomicLong
 
 class RequestTimeoutException(cmd: Request, timeoutMs: Long) :
     RuntimeException("Request $cmd timed out after ${timeoutMs}ms")
+
+class RequestErrorException(cmd: Request, message: String) :
+    RuntimeException("Request $cmd failed: $message")
 
 class RequestBus(
     private val eventBus: EventBus,
@@ -33,7 +37,9 @@ class RequestBus(
         eventBus.publish(CommandEnvelope(id, cmd))
 
         return try {
-            withTimeout(timeoutMs) { deferred.await() as T }
+            val result = withTimeout(timeoutMs) { deferred.await() }
+            if (result is ErrorResponse) throw RequestErrorException(cmd, result.message)
+            result as T
         } catch (e: TimeoutCancellationException) {
             pending.remove(id)
             throw RequestTimeoutException(cmd, timeoutMs)

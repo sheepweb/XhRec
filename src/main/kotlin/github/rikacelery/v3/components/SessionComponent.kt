@@ -175,47 +175,48 @@ class SessionComponent(
             }
             if (blocked) return
         }
-        var token: String? = null
-        if (reconfigure) {
-            token = configureSession(roomId, name) ?: run {
-                logger.info("[{}] Session not started: configure returned false", name)
-                scope.launch {
-                    delay(5.seconds)
-                    requestBus.request<OkResponse>(RefreshRoomCmd(roomId))
-                }
-                return
-            }
-        }
-        val resolvedPkey = pkey.ifBlank { streamAuthKey }
-        val rs = RoomSession(roomId, name, quality, quality, pkey = resolvedPkey)
+        // Register session synchronously so DoStop/DoBreak can find it
+        val rs = RoomSession(roomId, name, quality, quality, pkey = pkey.ifBlank { streamAuthKey })
         sessions[roomId] = rs
-        rs.token = token.takeIf { !it.isNullOrEmpty() }
-        val config = requestBus.request<RoomConfigResponse>(GetRoomConfig(roomId))
-        rs.timeLimit = config.timeLimit
-        rs.sizeLimitBytes = config.sizeLimitBytes
         rs.state = SessionState.Fetching
         rs.startTime = Instant.now()
         dataChannel.send(StreamStart(roomId, name, rs.startTime, rs.quality))
-        try {
-            rs.masterPlaylist = fetchAndCacheMasterPlaylist(rs)
-            val availableNames = rs.masterPlaylist!!.variants.map { it.name }
-            val selected = selectQuality(availableNames, rs.quality)
-            rs.quality = selected
-            rs.targetquality = selected
-            rs.playlistUrl = resolveVariantUrl(rs)
-        } catch (e: Exception) {
-            logger.warn("[{}] Master playlist failed, falling back to API: {}", rs.roomName, e.message)
-            val qualities = apiClient.roomQualities(rs.roomName)
-            val selected = selectQuality(qualities, rs.quality)
-            val rawQuality = qualities.firstOrNull()
-            val useRaw = selected == rawQuality
-            rs.quality = selected
-            rs.targetquality = selected
-            rs.playlistUrl = buildFallbackPlaylistUrl(rs, useRaw)
+
+        scope.launch {
+            if (reconfigure) {
+                val token = configureSession(roomId, name) ?: run {
+                    logger.info("[{}] Session not started: configure returned false", name)
+                    sessions.remove(roomId)
+                    delay(5.seconds)
+                    requestBus.request<OkResponse>(RefreshRoomCmd(roomId))
+                    return@launch
+                }
+                rs.token = token.takeIf { it.isNotEmpty() }
+            }
+            val config = requestBus.request<RoomConfigResponse>(GetRoomConfig(roomId))
+            rs.timeLimit = config.timeLimit
+            rs.sizeLimitBytes = config.sizeLimitBytes
+            try {
+                rs.masterPlaylist = fetchAndCacheMasterPlaylist(rs)
+                val availableNames = rs.masterPlaylist!!.variants.map { it.name }
+                val selected = selectQuality(availableNames, rs.quality)
+                rs.quality = selected
+                rs.targetquality = selected
+                rs.playlistUrl = resolveVariantUrl(rs)
+            } catch (e: Exception) {
+                logger.warn("[{}] Master playlist failed, falling back to API: {}", rs.roomName, e.message)
+                val qualities = apiClient.roomQualities(rs.roomName)
+                val selected = selectQuality(qualities, rs.quality)
+                val rawQuality = qualities.firstOrNull()
+                val useRaw = selected == rawQuality
+                rs.quality = selected
+                rs.targetquality = selected
+                rs.playlistUrl = buildFallbackPlaylistUrl(rs, useRaw)
+            }
+            logger.info("Session starting: roomId={}, name={}, quality={}", roomId, name, rs.quality)
+            rs.pollingJob = launch { pollingLoop(rs) }
+            eventBus.publish(RecordingStarted(roomId, rs.quality))
         }
-        logger.info("Session starting: roomId={}, name={}, quality={}", roomId, name, rs.quality)
-        rs.pollingJob = scope.launch { pollingLoop(rs) }
-        eventBus.publish(RecordingStarted(roomId, rs.quality))
     }
 
     private suspend fun stopSession(roomId: Long) {

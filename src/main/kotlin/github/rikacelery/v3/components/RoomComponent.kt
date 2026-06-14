@@ -81,7 +81,13 @@ class RoomComponent(
             }
 
             is HandleRoomCommand -> {
-                scope.launch{ handleCommand(msg.env) }
+                scope.launch {
+                    try {
+                        handleCommand(msg.env)
+                    } catch (e: Exception) {
+                        eventBus.publish(CommandAck(msg.env.id, ErrorResponse(e.message ?: "error")))
+                    }
+                }
             }
 
             is RefreshRooms -> scope.launch{
@@ -94,18 +100,21 @@ class RoomComponent(
     private suspend fun handleCommand(env: CommandEnvelope) {
         val ack = when (val cmd = env.command) {
             is GetRoomName -> {
-                val r =
-                    rooms[cmd.roomId]; if (r != null) RoomNameResponse(r.name) else ErrorResponse("not found: ${cmd.roomId}")
+                val r = rooms[cmd.roomId]
+                    ?: throw NoSuchElementException("room ${cmd.roomId} not found")
+                RoomNameResponse(r.name)
             }
 
             is GetRoomConfig -> {
-                val r = rooms[cmd.roomId]; if (r != null) RoomConfigResponse(
+                val r = rooms[cmd.roomId]
+                    ?: throw NoSuchElementException("room ${cmd.roomId} not found")
+                RoomConfigResponse(
                     r.quality,
                     r.timeLimit,
                     r.sizeLimitBytes,
                     r.autoPay,
                     r.pkey
-                ) else ErrorResponse("not found: ${cmd.roomId}")
+                )
             }
 
             is SetRoomQuality -> {
