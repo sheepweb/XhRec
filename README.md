@@ -1,5 +1,7 @@
 # XhREC
 
+[简体中文](README_zh-CN.md)
+
 Kotlin application for automatic live stream recording, with a browser extension for one-click control.
 
 ## Quick Start
