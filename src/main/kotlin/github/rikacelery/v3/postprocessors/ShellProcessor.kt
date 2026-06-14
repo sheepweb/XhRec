@@ -1,6 +1,8 @@
 package github.rikacelery.v3.postprocessors
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.Instant
@@ -18,21 +20,37 @@ class ShellProcessor(
     override suspend fun process(input: File, ctx: ProcessorCtx): List<File> {
         val cmd = command.map { substitute(it, ctx, input) }
         logger.info("run: {}", cmd.joinToString(" "))
-        val builder = ProcessBuilder(cmd)
-        val p = withContext(Dispatchers.IO) {
-            builder.start()
-        }
-        p.errorStream.bufferedReader().use {
-            while (true) {
-                val line = it.readLine() ?: break
-                logger.warn("[ffmpeg] {}", line)
+        val p = withContext(Dispatchers.IO) { ProcessBuilder(cmd).start() }
+
+        val (exitCode, stdoutLines) = coroutineScope {
+            val stdoutJob = async(Dispatchers.IO) {
+                p.inputStream.bufferedReader().use { r ->
+                    val lines = mutableListOf<String>()
+                    while (true) {
+                        val line = r.readLine() ?: break
+                        logger.info("[stdout] {}", line)
+                        lines.add(line)
+                    }
+                    lines
+                }
             }
+            val stderrJob = async(Dispatchers.IO) {
+                p.errorStream.bufferedReader().use { r ->
+                    while (true) {
+                        val line = r.readLine() ?: break
+                        logger.info("[stderr] {}", line)
+                    }
+                }
+            }
+            val exitJob = async(Dispatchers.IO) { p.waitFor() }
+            val lines = stdoutJob.await()
+            stderrJob.await()
+            Pair(exitJob.await(), lines)
         }
-        if (withContext(Dispatchers.IO) {
-                p.waitFor()
-            } == 0) {
+
+        if (exitCode == 0) {
             if (noreturn) return listOf(input)
-            val outputFile = File(p.inputStream.bufferedReader().readLines().last())
+            val outputFile = File(stdoutLines.last())
             if (!outputFile.exists()) throw IllegalStateException("Output file not found: $outputFile")
             if (removeInput) input.delete()
             return listOf(outputFile)
