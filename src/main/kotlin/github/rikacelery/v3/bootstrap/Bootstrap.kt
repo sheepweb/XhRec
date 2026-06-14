@@ -211,10 +211,10 @@ class Bootstrap(
     }
 
     private fun parseSize(s: String): Long {
-        val regex = Regex("(\\d+)(Ti|Gi|Mi|Ki|Bi|T|G|M|K|B)")
+        val regex = Regex("(\\d+(?:\\.\\d+)?)(Ti|Gi|Mi|Ki|Bi|T|G|M|K|B)")
         var total = 0L
         regex.findAll(s).forEach {
-            val v = it.groupValues[1].toLong()
+            val v = it.groupValues[1].toDouble()
             total += when (it.groupValues[2]) {
                 "Ti" -> v * 1024 * 1024 * 1024 * 1024
                 "Gi" -> v * 1024 * 1024 * 1024
@@ -226,8 +226,8 @@ class Bootstrap(
                 "M" -> v * 1000_000
                 "K" -> v * 1000
                 "B" -> v
-                else -> 0
-            }
+                else -> 0L
+            }.toLong()
         }
         return total
     }
