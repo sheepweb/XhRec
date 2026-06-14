@@ -64,8 +64,10 @@ class PostProcessorComponent(
     private suspend fun processFile(event: FileReady) {
         var files = listOf(event.file)
         for (processor in processors) {
+            val processorName = processor::class.simpleName ?: "?"
             files = files.flatMap { f ->
                 try {
+                    logger.info("[{}] running {}", processorName, f.name)
                     val ctx = ProcessorCtx(
                         roomId = event.roomId, roomName = event.roomName,
                         startTime = event.startTime, endTime = event.endTime,
@@ -73,7 +75,7 @@ class PostProcessorComponent(
                     )
                     processor.process(f, ctx)
                 } catch (e: Exception) {
-                    logger.error("Processor error: ${e.message}")
+                    logger.error("[{}] error: {}", processorName, e.message)
                     listOf(f)
                 }
             }
