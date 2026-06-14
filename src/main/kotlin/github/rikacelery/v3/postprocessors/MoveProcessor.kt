@@ -27,7 +27,9 @@ class MoveProcessor(
                 .replace("{{TOTAL_FRAMES}}", totalFrames(input))
                 .replace("{{TOTAL_FRAMES_GUESS}}", totalFramesGuess(input, ctx.durationMs))
         }
-        val dest = File(replace(template))
+        val resolved = replace(template)
+        val isDir = File(resolved).extension.isEmpty()
+        val dest = if (isDir) File(resolved, input.name) else File(resolved)
         dest.parentFile.mkdirs()
 
         val eventFile = input.parentFile.resolve(input.nameWithoutExtension + ".event")
