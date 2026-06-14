@@ -18,9 +18,9 @@ class FixStampProcessor(private val destinationFolder: File) : Processor() {
         )
         input.delete()
 
-        val eventFile = input.parentFile.resolve(input.nameWithoutExtension + ".event")
+        val eventFile = input.parentFile.resolve(input.name + ".event")
         if (eventFile.exists()) {
-            val destEvent = File(destinationFolder, output.nameWithoutExtension + ".event")
+            val destEvent = File(destinationFolder, output.name + ".event")
             eventFile.copyTo(destEvent, overwrite = true)
             eventFile.delete()
         }

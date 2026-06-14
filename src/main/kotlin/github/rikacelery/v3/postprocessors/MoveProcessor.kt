@@ -1,11 +1,11 @@
 package github.rikacelery.v3.postprocessors
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 class MoveProcessor(
     private val template: String,
@@ -37,9 +37,9 @@ class MoveProcessor(
         val dest = if (isDir) File(resolved, input.name) else File(resolved)
         dest.parentFile.mkdirs()
 
-        val eventFile = input.parentFile.resolve(input.nameWithoutExtension + ".event")
+        val eventFile = input.parentFile.resolve(input.name + ".event")
         if (eventFile.exists()) {
-            val destEvent = dest.parentFile.resolve(dest.nameWithoutExtension + ".event")
+            val destEvent = dest.parentFile.resolve(dest.name + ".event")
             eventFile.copyTo(destEvent, overwrite = true)
             eventFile.delete()
         }
