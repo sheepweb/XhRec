@@ -81,6 +81,7 @@ class SessionComponent(
 ) : Actor<SessionMsg>("SessionComponent", eventBus, parentScope) {
 
     private val sessions = ConcurrentHashMap<Long, RoomSession>()
+    private val lastBlockReason = ConcurrentHashMap<Long, String>()
 
     override suspend fun onStart(scope: CoroutineScope) {
         subscribe<RoomStatusChanged>(RoomStatusChanged::class)
@@ -192,6 +193,7 @@ class SessionComponent(
                     return@launch
                 }
                 rs.token = token.takeIf { it.isNotEmpty() }
+                lastBlockReason.remove(roomId)
             }
             val config = requestBus.request<RoomConfigResponse>(GetRoomConfig(roomId))
             rs.timeLimit = config.timeLimit
@@ -382,7 +384,9 @@ class SessionComponent(
                         rs.sizeLimitBytes = config.sizeLimitBytes
                     }
                     if (!config.autoPay) {
-                        logger.warn("[{}] Room not enable autopay", roomName)
+                        val reason = "autopay disabled"
+                        if (lastBlockReason.put(roomId, reason) != reason)
+                            logger.warn("[{}] Room not enable autopay", roomName)
                         return null
                     }
                     val camInfo = apiClient.roomFetchCamInfo(roomName, "")
@@ -390,7 +394,9 @@ class SessionComponent(
                     val users = requestBus.request<List<User>>(GetValidPaymentAccount(price.toLong()))
                     val u = users.firstOrNull()
                     if (u == null) {
-                        logger.warn("[{}] No account to pay. price={}", roomName, price)
+                        val reason = "insufficient balance"
+                        if (lastBlockReason.put(roomId, reason) != reason)
+                            logger.warn("[{}] No account to pay. price={}", roomName, price)
                         return null
                     }
                     var token = apiClient.roomFetchModelToken(roomName, u)
