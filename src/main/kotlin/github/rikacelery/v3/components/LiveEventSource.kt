@@ -96,7 +96,6 @@ class LiveEventSource(
                             if (text == "{}") {
                                 send("{}")
                             } else {
-                                println(text)
                                 dispatch(text)
                             }
                         }
