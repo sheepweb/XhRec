@@ -19,7 +19,7 @@ class ShellProcessor(
 
     override suspend fun process(input: File, ctx: ProcessorCtx): List<File> {
         val cmd = command.map { substitute(it, ctx, input) }
-        logger.info("run: {}", cmd.joinToString(" "))
+        logger.debug("run: {}", cmd.joinToString(" "))
         val p = withContext(Dispatchers.IO) { ProcessBuilder(cmd).start() }
 
         val (exitCode, lastLine) = coroutineScope {
