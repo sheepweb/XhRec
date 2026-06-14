@@ -4,6 +4,8 @@ import java.io.File
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class MoveProcessor(
     private val template: String,
@@ -12,8 +14,10 @@ class MoveProcessor(
     private val fmt = DateTimeFormatter.ofPattern(datePattern).withZone(ZoneId.systemDefault())
 
     override suspend fun process(input: File, ctx: ProcessorCtx): List<File> {
-        val replace: (String) -> String = { arg ->
-            arg.replace("{{ROOM_NAME}}", ctx.roomName)
+        val needsFrames = "{{TOTAL_FRAMES}}" in template
+        val needsFramesGuess = "{{TOTAL_FRAMES_GUESS}}" in template
+        val replace: suspend (String) -> String = { arg ->
+            var s = arg.replace("{{ROOM_NAME}}", ctx.roomName)
                 .replace("{{ROOM_ID}}", ctx.roomId.toString())
                 .replace("{{RECORD_START}}", fmt.format(Instant.ofEpochMilli(ctx.startTime)))
                 .replace("{{RECORD_END}}", fmt.format(Instant.ofEpochMilli(ctx.endTime)))
@@ -24,8 +28,9 @@ class MoveProcessor(
                 .replace("{{INPUT_DIR}}", input.absoluteFile.parent)
                 .replace("{{INPUT_NAME}}", input.name)
                 .replace("{{INPUT_NAME_NOEXT}}", input.nameWithoutExtension)
-                .replace("{{TOTAL_FRAMES}}", totalFrames(input))
-                .replace("{{TOTAL_FRAMES_GUESS}}", totalFramesGuess(input, ctx.durationMs))
+            if (needsFrames) s = s.replace("{{TOTAL_FRAMES}}", totalFrames(input))
+            if (needsFramesGuess) s = s.replace("{{TOTAL_FRAMES_GUESS}}", totalFramesGuess(input, ctx.durationMs))
+            s
         }
         val resolved = replace(template)
         val isDir = File(resolved).extension.isEmpty()
@@ -57,22 +62,26 @@ class MoveProcessor(
         }
     }
 
-    private fun totalFrames(input: File): String = runCatching {
-        ProcessBuilder(
-            "ffprobe", "-v", "error", "-select_streams", "v:0",
-            "-count_frames", "-show_entries", "stream=nb_frames",
-            "-of", "default=noprint_wrappers=1:nokey=1", input.absolutePath
-        ).start().inputStream.bufferedReader().readText().trim()
-    }.getOrElse { "" }
+    private suspend fun totalFrames(input: File): String = withContext(Dispatchers.IO) {
+        runCatching {
+            ProcessBuilder(
+                "ffprobe", "-v", "error", "-select_streams", "v:0",
+                "-count_frames", "-show_entries", "stream=nb_frames",
+                "-of", "default=noprint_wrappers=1:nokey=1", input.absolutePath
+            ).start().inputStream.bufferedReader().readText().trim()
+        }.getOrElse { "" }
+    }
 
-    private fun totalFramesGuess(input: File, durationMs: Long): String = runCatching {
-        val fpsStr = ProcessBuilder(
-            "ffprobe", "-v", "error", "-select_streams", "v:0",
-            "-show_entries", "stream=r_frame_rate",
-            "-of", "default=noprint_wrappers=1:nokey=1", input.absolutePath
-        ).start().inputStream.bufferedReader().readText().trim()
-        val fps = fpsStr.split("/").mapNotNull { it.toLongOrNull() }
-            .takeIf { it.size == 2 }?.let { it[0].toDouble() / it[1] } ?: return@runCatching ""
-        (fps * durationMs / 1000).toLong().toString()
-    }.getOrElse { "" }
+    private suspend fun totalFramesGuess(input: File, durationMs: Long): String = withContext(Dispatchers.IO) {
+        runCatching {
+            val fpsStr = ProcessBuilder(
+                "ffprobe", "-v", "error", "-select_streams", "v:0",
+                "-show_entries", "stream=r_frame_rate",
+                "-of", "default=noprint_wrappers=1:nokey=1", input.absolutePath
+            ).start().inputStream.bufferedReader().readText().trim()
+            val fps = fpsStr.split("/").mapNotNull { it.toLongOrNull() }
+                .takeIf { it.size == 2 }?.let { it[0].toDouble() / it[1] } ?: return@withContext ""
+            (fps * durationMs / 1000).toLong().toString()
+        }.getOrElse { "" }
+    }
 }

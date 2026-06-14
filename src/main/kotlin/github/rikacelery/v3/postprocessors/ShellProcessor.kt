@@ -41,8 +41,8 @@ class ShellProcessor(
         }
     }
 
-    private fun substitute(template: String, ctx: ProcessorCtx, file: File): String {
-        return template
+    private suspend fun substitute(template: String, ctx: ProcessorCtx, file: File): String {
+        var s = template
             .replace("{{ROOM_NAME}}", ctx.roomName)
             .replace("{{ROOM_ID}}", ctx.roomId.toString())
             .replace("{{RECORD_START}}", fmt.format(Instant.ofEpochMilli(ctx.startTime)))
@@ -54,8 +54,9 @@ class ShellProcessor(
             .replace("{{INPUT_DIR}}", file.absoluteFile.parent)
             .replace("{{INPUT_NAME}}", file.name)
             .replace("{{INPUT_NAME_NOEXT}}", file.nameWithoutExtension)
-            .replace("{{TOTAL_FRAMES}}", totalFrames(file))
-            .replace("{{TOTAL_FRAMES_GUESS}}", totalFramesGuess(file, ctx.durationMs))
+        if ("{{TOTAL_FRAMES}}" in s) s = s.replace("{{TOTAL_FRAMES}}", totalFrames(file))
+        if ("{{TOTAL_FRAMES_GUESS}}" in s) s = s.replace("{{TOTAL_FRAMES_GUESS}}", totalFramesGuess(file, ctx.durationMs))
+        return s
     }
 
     private fun formatDuration(ms: Long): String {
@@ -67,22 +68,26 @@ class ShellProcessor(
         else "%02dh%02dm%02ds".format(hours % 24, minutes % 60, seconds % 60)
     }
 
-    private fun totalFrames(input: File): String = runCatching {
-        ProcessBuilder(
-            "ffprobe", "-v", "error", "-select_streams", "v:0",
-            "-count_frames", "-show_entries", "stream=nb_frames",
-            "-of", "default=noprint_wrappers=1:nokey=1", input.absolutePath
-        ).start().inputStream.bufferedReader().readText().trim()
-    }.getOrElse { "" }
+    private suspend fun totalFrames(input: File): String = withContext(Dispatchers.IO) {
+        runCatching {
+            ProcessBuilder(
+                "ffprobe", "-v", "error", "-select_streams", "v:0",
+                "-count_frames", "-show_entries", "stream=nb_frames",
+                "-of", "default=noprint_wrappers=1:nokey=1", input.absolutePath
+            ).start().inputStream.bufferedReader().readText().trim()
+        }.getOrElse { "" }
+    }
 
-    private fun totalFramesGuess(input: File, durationMs: Long): String = runCatching {
-        val fpsStr = ProcessBuilder(
-            "ffprobe", "-v", "error", "-select_streams", "v:0",
-            "-show_entries", "stream=r_frame_rate",
-            "-of", "default=noprint_wrappers=1:nokey=1", input.absolutePath
-        ).start().inputStream.bufferedReader().readText().trim()
-        val fps = fpsStr.split("/").mapNotNull { it.toLongOrNull() }
-            .takeIf { it.size == 2 }?.let { it[0].toDouble() / it[1] } ?: return@runCatching ""
-        (fps * durationMs / 1000).toLong().toString()
-    }.getOrElse { "" }
+    private suspend fun totalFramesGuess(input: File, durationMs: Long): String = withContext(Dispatchers.IO) {
+        runCatching {
+            val fpsStr = ProcessBuilder(
+                "ffprobe", "-v", "error", "-select_streams", "v:0",
+                "-show_entries", "stream=r_frame_rate",
+                "-of", "default=noprint_wrappers=1:nokey=1", input.absolutePath
+            ).start().inputStream.bufferedReader().readText().trim()
+            val fps = fpsStr.split("/").mapNotNull { it.toLongOrNull() }
+                .takeIf { it.size == 2 }?.let { it[0].toDouble() / it[1] } ?: return@withContext ""
+            (fps * durationMs / 1000).toLong().toString()
+        }.getOrElse { "" }
+    }
 }
