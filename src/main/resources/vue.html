@@ -266,78 +266,75 @@
 
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             <div class="overflow-x-auto">
-                <table class="w-full text-sm text-left">
+                <table class="w-full text-xs text-left">
                     <thead
-                        class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200 uppercase text-xs tracking-wider text-nowrap">
+                        class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200 uppercase tracking-wider text-nowrap">
                         <tr>
-                            <th class="px-2 py-2 cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                            <th class="px-3 py-2.5 cursor-pointer hover:bg-slate-100 transition-colors select-none text-xs"
                                 @click="sortToggle('Room')">
-                                Room <i class="fa-solid ml-0.5 text-[8px]"
+                                Room <i class="fa-solid ml-0.5 text-[9px]"
                                     :class="!sort['Room'] ? 'fa-sort text-slate-300' : (sort['Room'] === 1 ? 'fa-sort-down text-indigo-500' : 'fa-sort-up text-indigo-500')"></i>
                             </th>
-                            <th class="px-1 py-2 text-center text-[10px] cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                            <th class="px-2 py-2.5 text-center cursor-pointer hover:bg-slate-100 transition-colors select-none text-xs"
                                 @click="sortToggle('RoomStatus')">
-                                Room <i class="fa-solid ml-0.5 text-[8px]"
+                                Status <i class="fa-solid ml-0.5 text-[9px]"
                                     :class="!sort['RoomStatus'] ? 'fa-sort text-slate-300' : (sort['RoomStatus'] === 1 ? 'fa-sort-down text-indigo-500' : 'fa-sort-up text-indigo-500')"></i>
                             </th>
-                            <th class="px-1 py-2 text-center text-[10px]">Preview</th>
-                            <th class="px-1 py-2 cursor-pointer hover:bg-slate-100 transition-colors select-none text-[10px]"
+                            <th class="px-2 py-2.5 text-center text-xs">Preview</th>
+                            <th class="px-2 py-2.5 cursor-pointer hover:bg-slate-100 transition-colors select-none text-center text-xs"
                                 @click="sortToggle('ID')">
-                                ID <i class="fa-solid ml-0.5 text-[8px]"
+                                ID <i class="fa-solid ml-0.5 text-[9px]"
                                     :class="!sort['ID'] ? 'fa-sort text-slate-300' : (sort['ID'] === 1 ? 'fa-sort-down text-indigo-500' : 'fa-sort-up text-indigo-500')"></i>
                             </th>
-                            <th class="px-1 py-2 cursor-pointer hover:bg-slate-100 transition-colors select-none text-center text-[10px]"
+                            <th class="px-2 py-2.5 cursor-pointer hover:bg-slate-100 transition-colors select-none text-center text-xs"
                                 @click="sortToggle('Quality')">
-                                Q <i class="fa-solid ml-0.5 text-[8px]"
+                                Quality <i class="fa-solid ml-0.5 text-[9px]"
                                     :class="!sort['Quality'] ? 'fa-sort text-slate-300' : (sort['Quality'] === 1 ? 'fa-sort-down text-indigo-500' : 'fa-sort-up text-indigo-500')"></i>
                             </th>
-                            <th class="px-1 py-2 cursor-pointer hover:bg-slate-100 transition-colors select-none text-center"
+                            <th class="px-2 py-2.5 cursor-pointer hover:bg-slate-100 transition-colors select-none text-center text-xs"
                                 @click="sortToggle('Limit')">
-                                <div class="flex flex-col text-[10px] leading-tight">
-                                    <span>T <i class="fa-solid ml-0.5 text-[8px]"
-                                        :class="!sort['Limit'] ? 'fa-sort text-slate-300' : (sort['Limit'] === 1 ? 'fa-sort-down text-indigo-500' : 'fa-sort-up text-indigo-500')"></i></span>
-                                    <span>Size</span>
-                                </div>
+                                Limit <i class="fa-solid ml-0.5 text-[9px]"
+                                    :class="!sort['Limit'] ? 'fa-sort text-slate-300' : (sort['Limit'] === 1 ? 'fa-sort-down text-indigo-500' : 'fa-sort-up text-indigo-500')"></i>
                             </th>
-                            <th class="px-1 py-2 cursor-pointer hover:bg-slate-100 transition-colors select-none text-center text-[10px]"
+                            <th class="px-2 py-2.5 cursor-pointer hover:bg-slate-100 transition-colors select-none text-center text-xs"
                                 @click="sortToggle('Status')">
-                                St <i class="fa-solid ml-0.5 text-[8px]"
+                                State <i class="fa-solid ml-0.5 text-[9px]"
                                     :class="!sort['Status'] ? 'fa-sort text-slate-300' : (sort['Status'] === 1 ? 'fa-sort-down text-indigo-500' : 'fa-sort-up text-indigo-500')"></i>
                             </th>
-                            <th class="px-1 py-2 cursor-pointer hover:bg-slate-100 transition-colors select-none text-center text-[10px]"
+                            <th class="px-2 py-2.5 cursor-pointer hover:bg-slate-100 transition-colors select-none text-center text-xs"
                                 @click="sortToggle('AutoPay')">
-                                AP <i class="fa-solid ml-0.5 text-[8px]"
+                                Auto Pay <i class="fa-solid ml-0.5 text-[9px]"
                                     :class="!sort['AutoPay'] ? 'fa-sort text-slate-300' : (sort['AutoPay'] === 1 ? 'fa-sort-down text-indigo-500' : 'fa-sort-up text-indigo-500')"></i>
                             </th>
-                            <th class="px-1 py-2 text-[10px] text-center">Seg</th>
-                            <th class="px-1 py-2 cursor-pointer hover:bg-slate-100 transition-colors select-none text-right text-[10px]"
+                            <th class="px-2 py-2.5 text-center text-xs">Segments</th>
+                            <th class="px-2 py-2.5 cursor-pointer hover:bg-slate-100 transition-colors select-none text-right text-xs"
                                 @click="sortToggle('Size')">
-                                Sz <i class="fa-solid ml-0.5 text-[8px]"
+                                Size <i class="fa-solid ml-0.5 text-[9px]"
                                     :class="!sort['Size'] ? 'fa-sort text-slate-300' : (sort['Size'] === 1 ? 'fa-sort-down text-indigo-500' : 'fa-sort-up text-indigo-500')"></i>
                             </th>
-                            <th class="px-1 py-2 text-center text-[10px]">Act</th>
+                            <th class="px-2 py-2.5 text-center text-xs">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                         <tr v-if="roomDisplay.length === 0">
-                            <td colspan="9" class="px-4 py-12 text-center text-slate-400">
+                            <td colspan="11" class="px-4 py-12 text-center text-slate-400">
                                 <i class="fa-solid fa-inbox text-3xl mb-2"></i>
                                 <p>No rooms found. Add a room to start recording.</p>
                             </td>
                         </tr>
                         <tr v-for="room in roomDisplay" :key="room.name"
                             class="hover:bg-slate-50 transition-colors group">
-                            <td class="px-2 py-1 font-medium text-indigo-600 text-xs">
+                            <td class="px-3 py-1.5 font-medium text-indigo-600 text-xs">
                                 <a :href="`https://xhamsterlive.com/${room.name}`" target="_blank"
                                     class="hover:underline flex items-center gap-0.5">
                                     {{room.name}} <i
                                         class="fa-solid fa-arrow-up-right-from-square text-[0.6rem] text-slate-400"></i>
                                 </a>
                             </td>
-                            <td class="px-1 py-1 text-center text-[10px] text-slate-500">
+                            <td class="px-2 py-1.5 text-center text-xs text-slate-500">
                                 {{room.roomStatus}}
                             </td>
-                            <td class="px-1 py-1 text-center">
+                            <td class="px-2 py-1.5 text-center">
                                 <div class="thumb-container">
                                     <template v-if="room.sessionStatus==='Recording'">
                                         <div v-if="!activeVideos[room.id]" class="thumb-placeholder border border-slate-200"
@@ -362,61 +359,65 @@
                                         N/A</div>
                                 </div>
                             </td>
-                            <td class="px-1 py-1 text-slate-400 font-mono text-[10px] text-center">{{room.id || '-'}}</td>
-                            <td class="px-2 py-1">
+                            <td class="px-2 py-1.5 text-slate-400 font-mono text-xs text-center">{{room.id || '-'}}</td>
+                            <td class="px-2 py-1.5">
                                 <div class="flex flex-col items-center gap-0.5">
                                     <select @change="ev => setQuality(ev.target.value, room.id)" :value="room.quality"
-                                        class="text-[10px] py-0.5 px-1 border border-slate-200 rounded bg-white focus:outline-none focus:border-indigo-500 w-16">
+                                        class="text-xs py-0.5 px-1 border border-slate-200 rounded bg-white focus:outline-none focus:border-indigo-500 w-18">
                                         <option
                                             v-for="q in ['highest','160p','240p','480p','720p','720p60','540p','960p','1080p','1080p60','2560p60']"
                                             :key="q">{{q}}</option>
                                     </select>
                                     <span v-if="room.sessionStatus==='Recording' && room.sessionQuality"
-                                        class="text-[10px] font-mono text-emerald-600 bg-emerald-50 px-1 rounded border border-emerald-200"
-                                        :title="'实际录制清晰度: ' + room.sessionQuality">
+                                        class="text-xs font-mono text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200"
+                                        :title="'Actual recording quality: ' + room.sessionQuality">
                                         ⏺{{room.sessionQuality}}
                                     </span>
                                 </div>
                             </td>
-                            <td class="px-2 py-1">
-                                <div class="flex flex-col gap-0.5 text-[10px]">
+                            <td class="px-2 py-1.5">
+                                <div class="flex flex-col gap-1.5 items-end text-xs">
                                     <div class="flex items-center gap-1">
-                                        <span class="text-slate-500 text-right whitespace-nowrap">{{room.timeLimit > 0 ? (room.timeLimit / 1000) : 0}}</span>
+                                        <span class="text-slate-500 whitespace-nowrap font-mono w-12 text-right">{{room.timeLimit > 0 ? (room.timeLimit / 1000) : '∞'}}s</span>
                                         <input v-model.number="editLimits[room.id]" type="number" min="0"
-                                            class="w-12 px-1 py-0.5 text-[10px] border border-slate-200 rounded bg-white focus:outline-none focus:border-indigo-500"
-                                            placeholder="new">
+                                            class="w-14 px-1.5 py-0.5 text-xs border border-slate-200 rounded bg-white focus:outline-none focus:border-indigo-500"
+                                            placeholder="sec">
                                         <button @click="setLimit(room.id)" title="Set Time"
                                             class="text-emerald-600 hover:text-emerald-800 p-0.5 leading-none">
-                                            <i class="fa-solid fa-check text-[10px]"></i>
+                                            <i class="fa-solid fa-check text-[11px]"></i>
                                         </button>
                                     </div>
                                     <div class="flex items-center gap-1">
-                                        <span class="text-slate-500 text-right whitespace-nowrap">{{room.sizeLimitBytes > 0 ? formatBytes(room.sizeLimitBytes) : '0'}}</span>
+                                        <span class="text-slate-500 whitespace-nowrap font-mono w-12 text-right">{{room.sizeLimitBytes > 0 ? formatBytes(room.sizeLimitBytes) : '∞'}}</span>
                                         <input v-model="editSizeLimits[room.id]" type="text"
-                                            class="w-12 px-1 py-0.5 text-[10px] border border-slate-200 rounded bg-white focus:outline-none focus:border-indigo-500"
-                                            placeholder="new">
+                                            class="w-14 px-1.5 py-0.5 text-xs border border-slate-200 rounded bg-white focus:outline-none focus:border-indigo-500"
+                                            placeholder="e.g. 1G">
                                         <button @click="setSizeLimit(room.id)" title="Set Size"
                                             class="text-emerald-600 hover:text-emerald-800 p-0.5 leading-none">
-                                            <i class="fa-solid fa-check text-[10px]"></i>
+                                            <i class="fa-solid fa-check text-[11px]"></i>
                                         </button>
                                     </div>
                                 </div>
                             </td>
-                            <td class="px-1 py-1 text-center">
+                            <td class="px-2 py-1.5 text-center">
                                 <span v-if="room.sessionStatus==='Recording'"
-                                    class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-red-100 text-red-700">
+                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
                                     <span class="w-1.5 h-1.5 rounded-full bg-red-500 status-recording"></span>REC
                                 </span>
+                                <span v-else-if="room.sessionStatus==='Fetching'"
+                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
+                                    <i class="fa-solid fa-arrow-down text-[10px]"></i>FETCH
+                                </span>
                                 <span v-else-if="room.sessionStatus==='Listening'"
-                                    class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-blue-100 text-blue-700">
+                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
                                     <i class="fa-solid fa-hourglass-half fa-spin-pulse text-[10px]"></i>ARM
                                 </span>
                                 <span v-else-if="room.sessionStatus===''"
-                                    class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-500">
+                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500">
                                     <i class="fa-solid fa-video-slash text-[10px]"></i>OFF
                                 </span>
                                 <span v-else
-                                    class="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-700">
+                                    class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
                                     {{room.sessionStatus}}
                                 </span>
                             </td>
@@ -429,49 +430,52 @@
                                     </div>
                                 </label>
                             </td>
-                            <td class="px-1 py-1">
-                                <div v-if="room.sessionStatus==='Recording'" class="flex items-center gap-1 text-[10px] font-mono">
-                                    <span class="text-emerald-600 flex items-center gap-0.5" title="Running"><i
-                                            :class="[{'animate-bounce':room.running},'fa-download','fa-solid','text-[9px]']"></i>{{room.running
-                                        || 0}}</span>
-                                    <span class="text-blue-600 flex items-center gap-0.5" title="Success"><i
-                                            class="fa-solid fa-check text-[9px]"></i>{{room.success || 0}}</span>
-                                    <span class="text-red-600 flex items-center gap-0.5" title="Failed"><i
-                                            class="fa-solid fa-xmark text-[9px]"></i>{{room.failed || 0}}</span>
-                                    <span class="text-yellow-600 flex items-center gap-0.5" title="Missing"><i
-                                            class="fa-solid fa-question text-[9px]"></i>{{room.segMissing || 0}}</span>
+                            <td class="px-2 py-1.5">
+                                <div v-if="room.sessionStatus==='Recording'" class="flex flex-col gap-0.5 items-end text-xs font-mono">
+                                    <span class="text-emerald-600 flex items-center gap-1" title="Downloading">
+                                        <i :class="[{'animate-bounce':room.running},'fa-download','fa-solid','text-[10px]']"></i>
+                                        <span class="w-8 text-right">{{room.running || 0}}</span>
+                                    </span>
+                                    <span class="text-blue-600 flex items-center gap-1" title="Complete">
+                                        <i class="fa-solid fa-check text-[10px]"></i>
+                                        <span class="w-8 text-right">{{room.success || 0}}</span>
+                                    </span>
+                                    <span class="text-red-600 flex items-center gap-1" title="Failed">
+                                        <i class="fa-solid fa-xmark text-[10px]"></i>
+                                        <span class="w-8 text-right">{{room.failed || 0}}</span>
+                                    </span>
+                                    <span class="text-amber-600 flex items-center gap-1" title="Missing">
+                                        <i class="fa-solid fa-question text-[10px]"></i>
+                                        <span class="w-8 text-right">{{room.segMissing || 0}}</span>
+                                    </span>
                                 </div>
-                                <span v-else class="text-slate-300 text-[10px]">-</span>
+                                <span v-else class="text-slate-300 text-xs">-</span>
                             </td>
-                            <td class="px-1 py-1 text-right font-mono text-[10px] text-slate-600">
+                            <td class="px-2 py-1.5 text-right font-mono text-xs text-slate-600">
                                 {{formatBytes(room.bytesWrite)}}
                             </td>
-                            <td class="px-1 py-1">
+                            <td class="px-2 py-1.5">
                                 <div
-                                    class="flex items-center justify-center gap-1.5 opacity-70 group-hover:opacity-100 transition-opacity">
+                                    class="flex items-center justify-center gap-1 opacity-70 group-hover:opacity-100 transition-opacity">
                                     <button @click="action('activate',room.id)" title="Activate"
-                                        class="w-7 h-7 rounded bg-slate-100 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-colors flex items-center justify-center">
-                                        <i class="fa-solid fa-play text-xs"></i>
+                                        class="w-6 h-6 rounded bg-slate-100 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-colors flex items-center justify-center">
+                                        <i class="fa-solid fa-play text-[10px]"></i>
                                     </button>
-
                                     <button @click="action('deactivate',room.id)" title="Deactivate"
-                                        class="w-7 h-7 rounded bg-slate-100 text-amber-600 hover:bg-amber-600 hover:text-white transition-colors flex items-center justify-center">
-                                        <i class="fa-solid fa-stop text-xs"></i>
+                                        class="w-6 h-6 rounded bg-slate-100 text-amber-600 hover:bg-amber-600 hover:text-white transition-colors flex items-center justify-center">
+                                        <i class="fa-solid fa-stop text-[10px]"></i>
                                     </button>
-
-                                    <button @click="action('restart',room.id)" title="Save & Restart (Full)"
-                                        class="w-7 h-7 rounded bg-slate-100 text-purple-600 hover:bg-purple-600 hover:text-white transition-colors flex items-center justify-center">
-                                        <i class="fa-solid fa-rotate-right text-xs"></i>
+                                    <button @click="action('restart',room.id)" title="Restart"
+                                        class="w-6 h-6 rounded bg-slate-100 text-purple-600 hover:bg-purple-600 hover:text-white transition-colors flex items-center justify-center">
+                                        <i class="fa-solid fa-rotate-right text-[10px]"></i>
                                     </button>
-
-                                    <button @click="action('break',room.id)" title="Break (Split File Only)"
-                                        class="w-7 h-7 rounded bg-slate-100 text-blue-600 hover:bg-blue-600 hover:text-white transition-colors flex items-center justify-center">
-                                        <i class="fa-solid fa-scissors text-xs"></i>
+                                    <button @click="action('break',room.id)" title="Break"
+                                        class="w-6 h-6 rounded bg-slate-100 text-blue-600 hover:bg-blue-600 hover:text-white transition-colors flex items-center justify-center">
+                                        <i class="fa-solid fa-scissors text-[10px]"></i>
                                     </button>
-
                                     <button @click="action('remove',room.id)" title="Remove"
-                                        class="w-7 h-7 rounded bg-slate-100 text-red-600 hover:bg-red-600 hover:text-white transition-colors flex items-center justify-center">
-                                        <i class="fa-solid fa-trash-can text-xs"></i>
+                                        class="w-6 h-6 rounded bg-slate-100 text-red-600 hover:bg-red-600 hover:text-white transition-colors flex items-center justify-center">
+                                        <i class="fa-solid fa-trash-can text-[10px]"></i>
                                     </button>
                                 </div>
                             </td>
