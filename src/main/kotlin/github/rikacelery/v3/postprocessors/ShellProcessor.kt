@@ -1,6 +1,8 @@
 package github.rikacelery.v3.postprocessors
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.Instant
@@ -17,21 +19,38 @@ class ShellProcessor(
 
     override suspend fun process(input: File, ctx: ProcessorCtx): List<File> {
         val cmd = command.map { substitute(it, ctx, input) }
-        val builder = ProcessBuilder(cmd)
-        val p = withContext(Dispatchers.IO) {
-            builder.start()
-        }
-        p.errorStream.bufferedReader().use {
-            while (true) {
-                val line = it.readLine() ?: break
-                println(line)
+        logger.debug("run: {}", cmd.joinToString(" "))
+        val p = withContext(Dispatchers.IO) { ProcessBuilder(cmd).start() }
+
+        val (exitCode, lastLine) = coroutineScope {
+            var outputLine: String? = null
+            val stdoutJob = async(Dispatchers.IO) {
+                p.inputStream.bufferedReader().use { r ->
+                    while (true) {
+                        val line = r.readLine() ?: break
+                        logger.info("[stdout] {}", line)
+                        outputLine = line
+                    }
+                }
             }
+            val stderrJob = async(Dispatchers.IO) {
+                p.errorStream.bufferedReader().use { r ->
+                    while (true) {
+                        val line = r.readLine() ?: break
+                        logger.info("[stderr] {}", line)
+                    }
+                }
+            }
+            val exitJob = async(Dispatchers.IO) { p.waitFor() }
+            stdoutJob.await()
+            stderrJob.await()
+            Pair(exitJob.await(), outputLine)
         }
-        if (withContext(Dispatchers.IO) {
-                p.waitFor()
-            } == 0) {
+
+        if (exitCode == 0) {
             if (noreturn) return listOf(input)
-            val outputFile = File(p.inputStream.bufferedReader().readLines().last())
+            val outputLine = lastLine ?: throw IllegalStateException("No output from shell command")
+            val outputFile = File(outputLine)
             if (!outputFile.exists()) throw IllegalStateException("Output file not found: $outputFile")
             if (removeInput) input.delete()
             return listOf(outputFile)
@@ -41,8 +60,8 @@ class ShellProcessor(
         }
     }
 
-    private fun substitute(template: String, ctx: ProcessorCtx, file: File): String {
-        return template
+    private suspend fun substitute(template: String, ctx: ProcessorCtx, file: File): String {
+        var s = template
             .replace("{{ROOM_NAME}}", ctx.roomName)
             .replace("{{ROOM_ID}}", ctx.roomId.toString())
             .replace("{{RECORD_START}}", fmt.format(Instant.ofEpochMilli(ctx.startTime)))
@@ -54,8 +73,9 @@ class ShellProcessor(
             .replace("{{INPUT_DIR}}", file.absoluteFile.parent)
             .replace("{{INPUT_NAME}}", file.name)
             .replace("{{INPUT_NAME_NOEXT}}", file.nameWithoutExtension)
-            .replace("{{TOTAL_FRAMES}}", totalFrames(file))
-            .replace("{{TOTAL_FRAMES_GUESS}}", totalFramesGuess(file, ctx.durationMs))
+        if ("{{TOTAL_FRAMES}}" in s) s = s.replace("{{TOTAL_FRAMES}}", totalFrames(file))
+        if ("{{TOTAL_FRAMES_GUESS}}" in s) s = s.replace("{{TOTAL_FRAMES_GUESS}}", totalFramesGuess(file, ctx.durationMs))
+        return s
     }
 
     private fun formatDuration(ms: Long): String {
@@ -67,22 +87,26 @@ class ShellProcessor(
         else "%02dh%02dm%02ds".format(hours % 24, minutes % 60, seconds % 60)
     }
 
-    private fun totalFrames(input: File): String = runCatching {
-        ProcessBuilder(
-            "ffprobe", "-v", "error", "-select_streams", "v:0",
-            "-count_frames", "-show_entries", "stream=nb_frames",
-            "-of", "default=noprint_wrappers=1:nokey=1", input.absolutePath
-        ).start().inputStream.bufferedReader().readText().trim()
-    }.getOrElse { "" }
+    private suspend fun totalFrames(input: File): String = withContext(Dispatchers.IO) {
+        runCatching {
+            ProcessBuilder(
+                "ffprobe", "-v", "error", "-select_streams", "v:0",
+                "-count_frames", "-show_entries", "stream=nb_frames",
+                "-of", "default=noprint_wrappers=1:nokey=1", input.absolutePath
+            ).start().inputStream.bufferedReader().readText().trim()
+        }.getOrElse { "" }
+    }
 
-    private fun totalFramesGuess(input: File, durationMs: Long): String = runCatching {
-        val fpsStr = ProcessBuilder(
-            "ffprobe", "-v", "error", "-select_streams", "v:0",
-            "-show_entries", "stream=r_frame_rate",
-            "-of", "default=noprint_wrappers=1:nokey=1", input.absolutePath
-        ).start().inputStream.bufferedReader().readText().trim()
-        val fps = fpsStr.split("/").mapNotNull { it.toLongOrNull() }
-            .takeIf { it.size == 2 }?.let { it[0].toDouble() / it[1] } ?: return@runCatching ""
-        (fps * durationMs / 1000).toLong().toString()
-    }.getOrElse { "" }
+    private suspend fun totalFramesGuess(input: File, durationMs: Long): String = withContext(Dispatchers.IO) {
+        runCatching {
+            val fpsStr = ProcessBuilder(
+                "ffprobe", "-v", "error", "-select_streams", "v:0",
+                "-show_entries", "stream=r_frame_rate",
+                "-of", "default=noprint_wrappers=1:nokey=1", input.absolutePath
+            ).start().inputStream.bufferedReader().readText().trim()
+            val fps = fpsStr.split("/").mapNotNull { it.toLongOrNull() }
+                .takeIf { it.size == 2 }?.let { it[0].toDouble() / it[1] } ?: return@withContext ""
+            (fps * durationMs / 1000).toLong().toString()
+        }.getOrElse { "" }
+    }
 }

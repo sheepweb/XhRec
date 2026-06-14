@@ -70,13 +70,13 @@ object SizeStrSerializer : KSerializer<Long> {
         while (i < upper.length) {
             val c = upper[i]
             when {
-                c.isDigit() -> { numberBuf += c; i++ }
+                c.isDigit() || c == '.' -> { numberBuf += c; i++ }
                 c.isWhitespace() -> i++
                 c.isLetter() -> {
                     val matched = keys.firstOrNull { upper.startsWith(it, i) }
                         ?: throw IllegalArgumentException("Unknown unit at '$c' in '$input'")
                     if (numberBuf.isEmpty()) throw IllegalArgumentException("Missing number before '$matched' in '$input'")
-                    total += numberBuf.toLong() * unitMap[matched]!!
+                    total += (numberBuf.toDouble() * unitMap[matched]!!).toLong()
                     numberBuf = ""
                     i += matched.length
                 }

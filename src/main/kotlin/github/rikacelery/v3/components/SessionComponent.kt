@@ -81,6 +81,7 @@ class SessionComponent(
 ) : Actor<SessionMsg>("SessionComponent", eventBus, parentScope) {
 
     private val sessions = ConcurrentHashMap<Long, RoomSession>()
+    private val lastBlockReason = ConcurrentHashMap<Long, String>()
 
     override suspend fun onStart(scope: CoroutineScope) {
         subscribe<RoomStatusChanged>(RoomStatusChanged::class)
@@ -175,47 +176,49 @@ class SessionComponent(
             }
             if (blocked) return
         }
-        var token: String? = null
-        if (reconfigure) {
-            token = configureSession(roomId, name) ?: run {
-                logger.info("[{}] Session not started: configure returned false", name)
-                scope.launch {
-                    delay(5.seconds)
-                    requestBus.request<OkResponse>(RefreshRoomCmd(roomId))
-                }
-                return
-            }
-        }
-        val resolvedPkey = pkey.ifBlank { streamAuthKey }
-        val rs = RoomSession(roomId, name, quality, quality, pkey = resolvedPkey)
+        // Register session synchronously so DoStop/DoBreak can find it
+        val rs = RoomSession(roomId, name, quality, quality, pkey = pkey.ifBlank { streamAuthKey })
         sessions[roomId] = rs
-        rs.token = token.takeIf { !it.isNullOrEmpty() }
-        val config = requestBus.request<RoomConfigResponse>(GetRoomConfig(roomId))
-        rs.timeLimit = config.timeLimit
-        rs.sizeLimitBytes = config.sizeLimitBytes
         rs.state = SessionState.Fetching
         rs.startTime = Instant.now()
         dataChannel.send(StreamStart(roomId, name, rs.startTime, rs.quality))
-        try {
-            rs.masterPlaylist = fetchAndCacheMasterPlaylist(rs)
-            val availableNames = rs.masterPlaylist!!.variants.map { it.name }
-            val selected = selectQuality(availableNames, rs.quality)
-            rs.quality = selected
-            rs.targetquality = selected
-            rs.playlistUrl = resolveVariantUrl(rs)
-        } catch (e: Exception) {
-            logger.warn("[{}] Master playlist failed, falling back to API: {}", rs.roomName, e.message)
-            val qualities = apiClient.roomQualities(rs.roomName)
-            val selected = selectQuality(qualities, rs.quality)
-            val rawQuality = qualities.firstOrNull()
-            val useRaw = selected == rawQuality
-            rs.quality = selected
-            rs.targetquality = selected
-            rs.playlistUrl = buildFallbackPlaylistUrl(rs, useRaw)
+
+        scope.launch {
+            if (reconfigure) {
+                val token = configureSession(roomId, name) ?: run {
+                    logger.info("[{}] Session not started: configure returned false", name)
+                    sessions.remove(roomId)
+                    delay(5.seconds)
+                    requestBus.request<OkResponse>(RefreshRoomCmd(roomId))
+                    return@launch
+                }
+                rs.token = token.takeIf { it.isNotEmpty() }
+                lastBlockReason.remove(roomId)
+            }
+            val config = requestBus.request<RoomConfigResponse>(GetRoomConfig(roomId))
+            rs.timeLimit = config.timeLimit
+            rs.sizeLimitBytes = config.sizeLimitBytes
+            try {
+                rs.masterPlaylist = fetchAndCacheMasterPlaylist(rs)
+                val availableNames = rs.masterPlaylist!!.variants.map { it.name }
+                val selected = selectQuality(availableNames, rs.quality)
+                rs.quality = selected
+                rs.targetquality = selected
+                rs.playlistUrl = resolveVariantUrl(rs)
+            } catch (e: Exception) {
+                logger.warn("[{}] Master playlist failed, falling back to API: {}", rs.roomName, e.message)
+                val qualities = apiClient.roomQualities(rs.roomName)
+                val selected = selectQuality(qualities, rs.quality)
+                val rawQuality = qualities.firstOrNull()
+                val useRaw = selected == rawQuality
+                rs.quality = selected
+                rs.targetquality = selected
+                rs.playlistUrl = buildFallbackPlaylistUrl(rs, useRaw)
+            }
+            logger.info("Session starting: roomId={}, name={}, quality={}", roomId, name, rs.quality)
+            rs.pollingJob = launch { pollingLoop(rs) }
+            eventBus.publish(RecordingStarted(roomId, rs.quality))
         }
-        logger.info("Session starting: roomId={}, name={}, quality={}", roomId, name, rs.quality)
-        rs.pollingJob = scope.launch { pollingLoop(rs) }
-        eventBus.publish(RecordingStarted(roomId, rs.quality))
     }
 
     private suspend fun stopSession(roomId: Long) {
@@ -381,7 +384,9 @@ class SessionComponent(
                         rs.sizeLimitBytes = config.sizeLimitBytes
                     }
                     if (!config.autoPay) {
-                        logger.warn("[{}] Room not enable autopay", roomName)
+                        val reason = "autopay disabled"
+                        if (lastBlockReason.put(roomId, reason) != reason)
+                            logger.warn("[{}] Room not enable autopay", roomName)
                         return null
                     }
                     val camInfo = apiClient.roomFetchCamInfo(roomName, "")
@@ -389,7 +394,9 @@ class SessionComponent(
                     val users = requestBus.request<List<User>>(GetValidPaymentAccount(price.toLong()))
                     val u = users.firstOrNull()
                     if (u == null) {
-                        logger.warn("[{}] No account to pay. price={}", roomName, price)
+                        val reason = "insufficient balance"
+                        if (lastBlockReason.put(roomId, reason) != reason)
+                            logger.warn("[{}] No account to pay. price={}", roomName, price)
                         return null
                     }
                     var token = apiClient.roomFetchModelToken(roomName, u)
@@ -435,7 +442,6 @@ class SessionComponent(
             )
             parameters["psch"] = "v2"
             parameters["pkey"] = rs.pkey
-            parameters["preferredVideoCodec"] = "H265"
             if (token != null) {
                 parameters["aclAuth"] = token
             }
@@ -481,20 +487,20 @@ class SessionComponent(
         val lock = Mutex()
         return counter@{ numbers: List<Int> ->
             lock.withLock {
-                if (numbers.isEmpty()) return@counter totalGaps
+                val filtered = numbers.filter { it != 0 }
+                if (filtered.isEmpty()) return@counter totalGaps
 
-                val currentMin = numbers.first()      // 连续递增，首项最小
-                val currentMax = numbers.last()       // 尾项最大
+                val currentMin = filtered.first()
+                val currentMax = filtered.last()
 
                 if (lastMax != null) {
                     val gap = currentMin - lastMax!! - 1
                     if (gap > 0) {
                         totalGaps += gap
                     }
-                    // 如果 gap <= 0，说明重叠或紧接，无新增不连续
                 }
 
-                lastMax = currentMax  // 更新状态
+                lastMax = currentMax
                 totalGaps
             }
         }
