@@ -436,7 +436,6 @@ class SessionComponent(
             )
             parameters["psch"] = "v2"
             parameters["pkey"] = rs.pkey
-            parameters["preferredVideoCodec"] = "H265"
             if (token != null) {
                 parameters["aclAuth"] = token
             }
@@ -482,20 +481,20 @@ class SessionComponent(
         val lock = Mutex()
         return counter@{ numbers: List<Int> ->
             lock.withLock {
-                if (numbers.isEmpty()) return@counter totalGaps
+                val filtered = numbers.filter { it != 0 }
+                if (filtered.isEmpty()) return@counter totalGaps
 
-                val currentMin = numbers.first()      // 连续递增，首项最小
-                val currentMax = numbers.last()       // 尾项最大
+                val currentMin = filtered.first()
+                val currentMax = filtered.last()
 
                 if (lastMax != null) {
                     val gap = currentMin - lastMax!! - 1
                     if (gap > 0) {
                         totalGaps += gap
                     }
-                    // 如果 gap <= 0，说明重叠或紧接，无新增不连续
                 }
 
-                lastMax = currentMax  // 更新状态
+                lastMax = currentMax
                 totalGaps
             }
         }
