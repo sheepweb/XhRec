@@ -22,16 +22,15 @@ class ShellProcessor(
         logger.info("run: {}", cmd.joinToString(" "))
         val p = withContext(Dispatchers.IO) { ProcessBuilder(cmd).start() }
 
-        val (exitCode, stdoutLines) = coroutineScope {
+        val (exitCode, lastLine) = coroutineScope {
+            var outputLine: String? = null
             val stdoutJob = async(Dispatchers.IO) {
                 p.inputStream.bufferedReader().use { r ->
-                    val lines = mutableListOf<String>()
                     while (true) {
                         val line = r.readLine() ?: break
                         logger.info("[stdout] {}", line)
-                        lines.add(line)
+                        outputLine = line
                     }
-                    lines
                 }
             }
             val stderrJob = async(Dispatchers.IO) {
@@ -43,14 +42,15 @@ class ShellProcessor(
                 }
             }
             val exitJob = async(Dispatchers.IO) { p.waitFor() }
-            val lines = stdoutJob.await()
+            stdoutJob.await()
             stderrJob.await()
-            Pair(exitJob.await(), lines)
+            Pair(exitJob.await(), outputLine)
         }
 
         if (exitCode == 0) {
             if (noreturn) return listOf(input)
-            val outputFile = File(stdoutLines.last())
+            val outputLine = lastLine ?: throw IllegalStateException("No output from shell command")
+            val outputFile = File(outputLine)
             if (!outputFile.exists()) throw IllegalStateException("Output file not found: $outputFile")
             if (removeInput) input.delete()
             return listOf(outputFile)
