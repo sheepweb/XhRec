@@ -7,6 +7,7 @@ import github.rikacelery.v3.data.StreamData
 import github.rikacelery.v3.data.StreamEnd
 import github.rikacelery.v3.data.StreamEvent
 import github.rikacelery.v3.data.StreamStart
+import github.rikacelery.v3.events.EndReason
 import github.rikacelery.v3.events.FileReady
 import github.rikacelery.v3.events.WriterFatal
 import github.rikacelery.v3.hooks.WriterHook
@@ -73,6 +74,12 @@ class WriterComponent(
     override suspend fun handle(msg: WriterMsg) {}
 
     private suspend fun handleStreamStart(msg: StreamStart) {
+        val existing = files.remove(msg.roomId)
+        if (existing != null) {
+            logger.info("Duplicate StreamStart for room ${msg.roomId}, closing existing file")
+            closeActiveFile(existing, EndReason.NewInit)
+        }
+
         val timestamp = timeFormatter.format(msg.startTime)
         var path = "${tmpDir.absolutePath}/${msg.roomName}-$timestamp-init.mp4"
         try {
@@ -115,43 +122,7 @@ class WriterComponent(
 
     private suspend fun handleStreamEnd(msg: StreamEnd) {
         val active = files.remove(msg.roomId) ?: return
-        withContext(NonCancellable) {
-            try {
-                if (active.bytesWritten < 1024) {
-                    active.dispose()
-                    return@withContext
-                }
-                active.fos.close()
-                active.eventFos.close()
-
-                val endTime = Instant.now()
-            val durationMs = java.time.Duration.between(active.startTime, endTime).toMillis()
-            val durFmt = formatDurationHM(durationMs)
-            val finalName = "${active.roomName}-${timeFormatter.format(active.startTime)}-${durFmt}.mp4"
-            val finalFile = File(tmpDir, finalName)
-            active.file.renameTo(finalFile)
-
-            val finalEvent = File(tmpDir, "$finalName.event")
-            active.eventFile.renameTo(finalEvent)
-
-            if (finalEvent.length() == 0L) {
-                finalEvent.delete()
-            }
-            if (finalFile.length() == 0L) {
-                finalFile.delete()
-                logger.info("Remove empty file: ${finalFile.absolutePath}, reason=${msg.reason}")
-                return@withContext
-            }
-
-            hooks.forEach { it.afterFileClosed(msg.roomId, finalFile) }
-            eventBus.publish(FileReady(msg.roomId, finalFile, msg.reason, active.roomName, active.startTime.toEpochMilli(), endTime.toEpochMilli(), durationMs, active.quality))
-            logger.info("Closed file: ${finalFile.absolutePath}, reason=${msg.reason}")
-        } catch (e: Exception) {
-            logger.error("Failed to close file for room ${msg.roomId}: ${e.message}", e)
-            eventBus.publish(WriterFatal(msg.roomId, e.message ?: "Unknown error"))
-            active.dispose()
-        }
-        }
+        closeActiveFile(active, msg.reason)
     }
 
     private suspend fun handleStreamEvent(msg: StreamEvent) {
@@ -164,6 +135,47 @@ class WriterComponent(
             logger.error("Failed to write event for room ${msg.roomId}: ${e.message}", e)
             eventBus.publish(WriterFatal(msg.roomId, e.message ?: "Unknown error"))
             files.remove(msg.roomId)?.dispose()
+        }
+    }
+
+    private suspend fun closeActiveFile(active: ActiveFile, reason: EndReason) {
+        withContext(NonCancellable) {
+            try {
+                if (active.bytesWritten < 1024) {
+                    logger.info("Closed file: ${active.file.absolutePath}, reason=$reason (empty)")
+                    active.dispose()
+                    return@withContext
+                }
+                active.fos.close()
+                active.eventFos.close()
+
+                val endTime = Instant.now()
+                val durationMs = java.time.Duration.between(active.startTime, endTime).toMillis()
+                val durFmt = formatDurationHM(durationMs)
+                val finalName = "${active.roomName}-${timeFormatter.format(active.startTime)}-${durFmt}.mp4"
+                val finalFile = File(tmpDir, finalName)
+                active.file.renameTo(finalFile)
+
+                val finalEvent = File(tmpDir, "$finalName.event")
+                active.eventFile.renameTo(finalEvent)
+
+                if (finalEvent.length() == 0L) {
+                    finalEvent.delete()
+                }
+                if (finalFile.length() == 0L) {
+                    finalFile.delete()
+                    logger.info("Remove empty file: ${finalFile.absolutePath}, reason=$reason")
+                    return@withContext
+                }
+
+                hooks.forEach { it.afterFileClosed(active.roomId, finalFile) }
+                eventBus.publish(FileReady(active.roomId, finalFile, reason, active.roomName, active.startTime.toEpochMilli(), endTime.toEpochMilli(), durationMs, active.quality))
+                logger.info("Closed file: ${finalFile.absolutePath}, reason=$reason")
+            } catch (e: Exception) {
+                logger.error("Failed to close file for room ${active.roomId}: ${e.message}", e)
+                eventBus.publish(WriterFatal(active.roomId, e.message ?: "Unknown error"))
+                active.dispose()
+            }
         }
     }
 

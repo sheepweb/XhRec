@@ -182,7 +182,6 @@ class SessionComponent(
         sessions[roomId] = rs
         rs.state = SessionState.Fetching
         rs.startTime = Instant.now()
-        dataChannel.send(StreamStart(roomId, name, rs.startTime, rs.quality))
 
         scope.launch {
             if (reconfigure) {
@@ -217,6 +216,7 @@ class SessionComponent(
                 rs.playlistUrl = buildFallbackPlaylistUrl(rs, useRaw)
             }
             logger.info("Session starting: roomId={}, name={}, quality={}", roomId, name, rs.quality)
+            dataChannel.send(StreamStart(roomId, name, rs.startTime, rs.quality))
             rs.pollingJob = launch { pollingLoop(rs) }
             eventBus.publish(RecordingStarted(roomId, rs.quality))
         }
