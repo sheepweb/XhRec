@@ -82,19 +82,26 @@ class SchedulerComponent(
 
             is RecordingStopped -> {
                 if (gracefulStop) return
-                val a = armed[event.roomId]
-                if (a != null) {
+                val a = armed[event.roomId] ?: run {
+                    logger.debug("Recording stopped for room {}", event.roomId)
+                    return
+                }
+                if (event.segmentsDispatched == 0) {
                     logger.info(
-                        "Recording stopped for armed room {} ({}), re-arming after delay",
-                        event.roomId,
-                        a.roomName
+                        "Recording stopped for armed room {} ({}) with 0 segments, NOT re-arming (waiting for RoomStatusChanged)"
+                        , event.roomId, a.roomName
                     )
-                    scope.launch {
-                        delay(30.seconds)
+                    return
+                }
+                logger.info(
+                    "Recording stopped for armed room {} ({}), {} segments dispatched, re-arming after delay"
+                    , event.roomId, a.roomName, event.segmentsDispatched
+                )
+                scope.launch {
+                    delay(30.seconds)
+                    if (armed.containsKey(event.roomId)) {
                         sessionComponent.tell(DoStart(event.roomId, a.roomName, a.quality, a.pkey))
                     }
-                } else {
-                    logger.debug("Recording stopped for room {}", event.roomId)
                 }
             }
 
