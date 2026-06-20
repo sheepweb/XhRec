@@ -30,6 +30,7 @@ class SchedulerComponent(
 ) : Actor<SchedulerMsg>("SchedulerComponent", eventBus, parentScope) {
 
     private val armed = ConcurrentHashMap<Long, ArmedRoom>()
+    private val recordableRooms = ConcurrentHashMap.newKeySet<Long>()
     private var gracefulStop = false
 
     override suspend fun onStart(scope: CoroutineScope) {
@@ -68,9 +69,14 @@ class SchedulerComponent(
                 if (gracefulStop) return
                 val a = armed[event.roomId] ?: return
                 if (event.newStatus != "public" && event.newStatus != "groupShow") {
+                    recordableRooms.remove(event.roomId)
                     return
                 }
-                if (event.newStatus == "groupShow" && !a.autoPay) return
+                if (event.newStatus == "groupShow" && !a.autoPay) {
+                    recordableRooms.remove(event.roomId)
+                    return
+                }
+                recordableRooms.add(event.roomId)
                 logger.debug(
                     "Armed room {} ({}) became {}, starting recording",
                     event.roomId,
@@ -93,7 +99,7 @@ class SchedulerComponent(
                     )
                     scope.launch {
                         delay(30.seconds)
-                        if (armed.containsKey(event.roomId)) {
+                        if (armed.containsKey(event.roomId) && recordableRooms.contains(event.roomId)) {
                             sessionComponent.tell(DoStart(event.roomId, a.roomName, a.quality, a.pkey))
                         }
                     }
@@ -104,7 +110,7 @@ class SchedulerComponent(
                     )
                     scope.launch {
                         delay(30.seconds)
-                        if (armed.containsKey(event.roomId)) {
+                        if (armed.containsKey(event.roomId) && recordableRooms.contains(event.roomId)) {
                             sessionComponent.tell(DoStart(event.roomId, a.roomName, a.quality, a.pkey))
                         }
                     }
@@ -162,6 +168,7 @@ class SchedulerComponent(
 
             is DeactivateCmd -> {
                 armed.remove(env.command.roomId)
+                recordableRooms.remove(env.command.roomId)
                 logger.info("Room {} deactivated", env.command.roomId)
                 sessionComponent.tell(DoStop(env.command.roomId))
                 OkResponse
