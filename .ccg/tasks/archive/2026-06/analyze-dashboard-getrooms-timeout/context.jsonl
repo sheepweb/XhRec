@@ -1,0 +1,4 @@
+{"path":"src/main/kotlin/github/rikacelery/v3/core/RequestBus.kt","reason":"Request timeout source"}
+{"path":"src/main/kotlin/github/rikacelery/v3/components/HttpServerComponent.kt","reason":"/dashboard route"}
+{"path":"src/main/kotlin/github/rikacelery/v3/components/RoomComponent.kt","reason":"GetRooms handler"}
+{"path":"src/main/kotlin/github/rikacelery/v3/core/EventBus.kt","reason":"CommandEnvelope delivery"}

@@ -1,0 +1,4 @@
+{"path":"src/main/kotlin/github/rikacelery/v3/core/EventBus.kt","reason":"separate reliable control-plane flow for commands"}
+{"path":"src/main/kotlin/github/rikacelery/v3/core/RequestBus.kt","reason":"request/ack timeout chain"}
+{"path":"src/main/kotlin/github/rikacelery/v3/components/HttpServerComponent.kt","reason":"/dashboard caller"}
+{"path":"src/test/kotlin/github/rikacelery/v3/core/EventBusTest.kt","reason":"regression coverage"}
