@@ -8,8 +8,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.math.min
-import kotlin.math.pow
 import kotlin.time.Duration.Companion.seconds
 
 sealed interface SchedulerMsg
@@ -34,7 +32,6 @@ class SchedulerComponent(
     private val armed = ConcurrentHashMap<Long, ArmedRoom>()
     private val consecutiveFailures = ConcurrentHashMap<Long, Int>()
     private val MAX_REARM_RETRIES = 5
-    private val BASE_REARM_DELAY_SECONDS = 30L
     private var gracefulStop = false
 
     override suspend fun onStart(scope: CoroutineScope) {
@@ -101,13 +98,12 @@ class SchedulerComponent(
                         )
                         return
                     }
-                    val delaySec = min(BASE_REARM_DELAY_SECONDS * 2.0.pow(failures - 1).toLong(), 600L)
                     logger.info(
-                        "Recording stopped for armed room {} ({}) with 0 segments, re-arm {}/{} after {}s",
-                        event.roomId, a.roomName, failures, MAX_REARM_RETRIES, delaySec
+                        "Recording stopped for armed room {} ({}) with 0 segments, re-arm {}/{} after 30s",
+                        event.roomId, a.roomName, failures, MAX_REARM_RETRIES
                     )
                     scope.launch {
-                        delay(delaySec.seconds)
+                        delay(30.seconds)
                         if (armed.containsKey(event.roomId) && consecutiveFailures[event.roomId] != null) {
                             sessionComponent.tell(DoStart(event.roomId, a.roomName, a.quality, a.pkey))
                         }
