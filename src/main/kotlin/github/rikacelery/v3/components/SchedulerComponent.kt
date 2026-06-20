@@ -8,6 +8,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.math.min
+import kotlin.math.pow
 import kotlin.time.Duration.Companion.seconds
 
 sealed interface SchedulerMsg
@@ -30,6 +32,9 @@ class SchedulerComponent(
 ) : Actor<SchedulerMsg>("SchedulerComponent", eventBus, parentScope) {
 
     private val armed = ConcurrentHashMap<Long, ArmedRoom>()
+    private val consecutiveFailures = ConcurrentHashMap<Long, Int>()
+    private val MAX_REARM_RETRIES = 5
+    private val BASE_REARM_DELAY_SECONDS = 30L
     private var gracefulStop = false
 
     override suspend fun onStart(scope: CoroutineScope) {
@@ -71,6 +76,7 @@ class SchedulerComponent(
                     return
                 }
                 if (event.newStatus == "groupShow" && !a.autoPay) return
+                consecutiveFailures.remove(event.roomId)
                 logger.debug(
                     "Armed room {} ({}) became {}, starting recording",
                     event.roomId,
@@ -87,20 +93,35 @@ class SchedulerComponent(
                     return
                 }
                 if (event.segmentsDispatched == 0) {
+                    val failures = consecutiveFailures.merge(event.roomId, 1) { old, _ -> old + 1 } ?: 1
+                    if (failures > MAX_REARM_RETRIES) {
+                        logger.warn(
+                            "Room {} ({}) exceeded max re-arm retries ({}) with 0 segments, waiting for RoomStatusChanged",
+                            event.roomId, a.roomName, MAX_REARM_RETRIES
+                        )
+                        return
+                    }
+                    val delaySec = min(BASE_REARM_DELAY_SECONDS * 2.0.pow(failures - 1).toLong(), 600L)
                     logger.info(
-                        "Recording stopped for armed room {} ({}) with 0 segments, NOT re-arming (waiting for RoomStatusChanged)"
-                        , event.roomId, a.roomName
+                        "Recording stopped for armed room {} ({}) with 0 segments, re-arm {}/{} after {}s",
+                        event.roomId, a.roomName, failures, MAX_REARM_RETRIES, delaySec
                     )
-                    return
-                }
-                logger.info(
-                    "Recording stopped for armed room {} ({}), {} segments dispatched, re-arming after delay"
-                    , event.roomId, a.roomName, event.segmentsDispatched
-                )
-                scope.launch {
-                    delay(30.seconds)
-                    if (armed.containsKey(event.roomId)) {
-                        sessionComponent.tell(DoStart(event.roomId, a.roomName, a.quality, a.pkey))
+                    scope.launch {
+                        delay(delaySec.seconds)
+                        if (armed.containsKey(event.roomId) && consecutiveFailures[event.roomId] != null) {
+                            sessionComponent.tell(DoStart(event.roomId, a.roomName, a.quality, a.pkey))
+                        }
+                    }
+                } else {
+                    logger.info(
+                        "Recording stopped for armed room {} ({}), {} segments dispatched, re-arming after delay",
+                        event.roomId, a.roomName, event.segmentsDispatched
+                    )
+                    scope.launch {
+                        delay(30.seconds)
+                        if (armed.containsKey(event.roomId)) {
+                            sessionComponent.tell(DoStart(event.roomId, a.roomName, a.quality, a.pkey))
+                        }
                     }
                 }
             }
@@ -147,6 +168,7 @@ class SchedulerComponent(
                     val config = requestBus.request<RoomConfigResponse>(GetRoomConfig(env.command.roomId))
                     armed[env.command.roomId] =
                         ArmedRoom(env.command.roomId, name, config.quality, config.pkey, config.autoPay)
+                    consecutiveFailures.remove(env.command.roomId)
                     logger.info("Room {} ({}) activated (armed)", name, env.command.roomId)
                     requestBus.request<OkResponse>(RefreshRoomCmd(env.command.roomId))
                 } catch (_: Exception) {
@@ -156,6 +178,7 @@ class SchedulerComponent(
 
             is DeactivateCmd -> {
                 armed.remove(env.command.roomId)
+                consecutiveFailures.remove(env.command.roomId)
                 logger.info("Room {} deactivated", env.command.roomId)
                 sessionComponent.tell(DoStop(env.command.roomId))
                 OkResponse
