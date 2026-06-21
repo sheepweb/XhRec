@@ -171,6 +171,8 @@ class SessionComponent(
         eventBus.publish(CommandAck(env.id, ack))
     }
 
+    fun snapshotSessions(): List<RoomSession> = sessions.values.map { it.copy() }
+
     private suspend fun startSession(
         roomId: Long, name: String, quality: String, pkey: String = "", reconfigure: Boolean = true
     ) {

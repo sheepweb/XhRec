@@ -132,6 +132,8 @@ class SchedulerComponent(
         if (isArmed) logger.info("Room {} ({}) armed and waiting", name1, room)
     }
 
+    fun snapshotArmedRoomIds(): List<Long> = armed.keys().toList()
+
     private suspend fun handleCommand(env: CommandEnvelope) {
         val ack = when (env.command) {
             is StartRecordingCmd -> {

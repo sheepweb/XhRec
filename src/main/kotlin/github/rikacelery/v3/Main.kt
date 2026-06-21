@@ -131,6 +131,9 @@ fun main(vararg args: String) {
             eventBus,
             requestBus,
             metricComponent,
+            roomComponent,
+            sessionComponent,
+            schedulerComponent,
             postProcessorComponent,
             appScope,
             mseStore
