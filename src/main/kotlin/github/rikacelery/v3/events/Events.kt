@@ -78,4 +78,3 @@ enum class EndReason { SizeLimit, TimeLimit, StreamEnd, UserStop, NewInit }
 
 interface Request
 interface Response
-
