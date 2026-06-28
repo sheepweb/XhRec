@@ -58,7 +58,8 @@ class Bootstrap(
             .addOption("post", true, "postprocessor.json path")
         val cmd = try {
             DefaultParser().parse(options, args.toList().toTypedArray())
-        }catch (_: Exception){
+        }catch (e: Exception){
+            logger.error("CLI argument parse error", e)
             HelpFormatter.builder().get().printOptions(options)
             exitProcess(1)
         }
@@ -82,7 +83,7 @@ class Bootstrap(
             try {
                 apiClient.getUserFromCookie(cookie.trim()).also { SensitiveStringRegistry.mask(it.username) }
             } catch (e: Exception) {
-                logger.warn("Failed to validate cookie: ${e.message}"); null
+                logger.error("Failed to validate cookie: ${e.message}", e); null
             }
         }
         authComponent.tell(LoadUsers(users))
@@ -165,15 +166,16 @@ class Bootstrap(
                         addRoomFromParsed(id, name, parsed)
                         logger.info("Add room {} {}/{}",name,idx.getAndIncrement(),lines.size)
                     } catch (e: RenameException) {
+                        logger.error("Room renamed during load: $line -> ${e.newName}", e)
                         try {
                             val (id, name) = apiClient.getRoomFromUrlOrSlug(e.newName)
                             addRoomFromParsed(id, name, parsed)
                             logger.info("Add room {} {}/{}",name,idx.getAndIncrement(),lines.size)
                         } catch (ex: Exception) {
-                            logger.warn("Failed to load room from '$line': ${ex.message}", ex)
+                            logger.error("Failed to load room from '$line' after rename: ${ex.message}", ex)
                         }
                     } catch (e: Exception) {
-                        logger.warn("Failed to load room from '$line': ${e.message}", e)
+                        logger.error("Failed to load room from '$line': ${e.message}", e)
                     }
                 }
             }.awaitAll()

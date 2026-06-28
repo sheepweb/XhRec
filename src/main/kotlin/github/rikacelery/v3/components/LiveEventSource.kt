@@ -145,7 +145,9 @@ class LiveEventSource(
         roomChannels.forEach { channel ->
             try {
                 send(Frame.Text(subscribeFrame("$channel@$roomId")))
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                logger.error("Failed to send subscribe frame for channel=$channel@$roomId: ${e.message}", e)
+            }
         }
     }
 
@@ -153,7 +155,9 @@ class LiveEventSource(
         roomChannels.forEach { channel ->
             try {
                 send(Frame.Text(unsubscribeFrame("$channel@$roomId")))
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                logger.error("Failed to send unsubscribe frame for channel=$channel@$roomId: ${e.message}", e)
+            }
         }
     }
 
@@ -180,7 +184,7 @@ class LiveEventSource(
                 }
 
                 eventBus.publish(LiveMessage(roomId, type, data))
-            } catch (_: Exception) { /* ignore malformed messages */ }
+            } catch (e: Exception) { logger.error("Failed to dispatch WS message: ${e.message}", e) }
         }
     }
 }

@@ -87,6 +87,7 @@ class HttpServerComponent(
                         try {
                             github.rikacelery.v3.data.SizeStrSerializer.parseSizeString(it)
                         } catch (e: IllegalArgumentException) {
+                            logger.error("Invalid size parameter in /add: ${e.message}", e)
                             return@get call.respondText(
                                 "Invalid size: ${e.message}",
                                 status = HttpStatusCode.BadRequest
@@ -114,6 +115,7 @@ class HttpServerComponent(
                         persistConfig()
                         call.respondText("Room added: ${resp.name}")
                     } catch (e: Exception) {
+                        logger.error("Failed to add room '$name'", e)
                         call.respondText("Error: ${e.message}", status = HttpStatusCode.InternalServerError)
                     }
                 }
@@ -232,6 +234,7 @@ class HttpServerComponent(
                     val bytes = try {
                         github.rikacelery.v3.data.SizeStrSerializer.parseSizeString(v)
                     } catch (e: IllegalArgumentException) {
+                        logger.error("Invalid size parameter in /sizelimit: ${e.message}", e)
                         return@get call.respondText(
                             "Invalid size format: ${e.message}",
                             status = HttpStatusCode.BadRequest
@@ -346,7 +349,8 @@ class HttpServerComponent(
                                 }
                                 flush()
                             }
-                        }catch(_:Exception){
+                        }catch(e:Exception){
+                            logger.error("SSE stream error for room $id: ${e.message}", e)
                             return@respondOutputStream
                         } finally {
                             mseStore.unsubscribe(id, ch)
@@ -419,7 +423,8 @@ class HttpServerComponent(
                     }
                 }
             }
-        } catch (_: TimeoutCancellationException) {
+        } catch (e: TimeoutCancellationException) {
+            logger.error("Timeout waiting for processors", e)
             onProgress("Timeout waiting for processors.\n")
         }
     }
@@ -452,7 +457,8 @@ class HttpServerComponent(
                 }
             }
             delay(0.5.seconds) // let CutPoint drain through pipeline
-        } catch (_: TimeoutCancellationException) {
+        } catch (e: TimeoutCancellationException) {
+            logger.error("Timeout waiting for sessions", e)
             onProgress("Timeout waiting for sessions.\n")
         }
     }

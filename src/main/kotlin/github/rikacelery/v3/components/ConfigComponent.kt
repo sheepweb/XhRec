@@ -45,7 +45,7 @@ class ConfigComponent(
             SensitiveStringRegistry.enabled = maskSensitiveLogs
             logger.info("Loaded config from ${config.configPath}")
         } catch (e: Exception) {
-            logger.warn("Failed to load config.json: ${e.message}")
+            logger.error("Failed to load config from ${config.configPath}: ${e.message}", e)
         }
     }
 
@@ -64,7 +64,7 @@ class ConfigComponent(
                 ))
                 logger.info("Saved config to ${config.configPath}")
             } catch (e: Exception) {
-                logger.warn("Failed to save config.json: ${e.message}")
+                logger.error("Failed to save config to ${config.configPath}: ${e.message}", e)
             }
         }
     }

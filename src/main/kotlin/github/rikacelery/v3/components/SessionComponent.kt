@@ -213,7 +213,7 @@ class SessionComponent(
                 rs.targetquality = selected
                 rs.playlistUrl = resolveVariantUrl(rs)
             } catch (e: Exception) {
-                logger.warn("[{}] Master playlist failed, falling back to API: {}", rs.roomName, e.message)
+                logger.error("[{}] Master playlist failed, falling back to API: {}", rs.roomName, e.message, e)
                 val qualities = apiClient.roomQualities(rs.roomName)
                 val selected = selectQuality(qualities, rs.quality)
                 val rawQuality = qualities.firstOrNull()
@@ -356,13 +356,14 @@ class SessionComponent(
                 eventBus.publish(QualitiesAvailable(rs.roomId, availableNames))
             }
         } catch (e: Exception) {
-            logger.warn("[{}] Master playlist poll failed, falling back to API: {}", rs.roomName, e.message)
+            logger.error("[{}] Master playlist poll failed, falling back to API: {}", rs.roomName, e.message, e)
             try {
                 val qualities = apiClient.roomQualities(rs.roomName)
                 if (qualities.isNotEmpty()) {
                     eventBus.publish(QualitiesAvailable(rs.roomId, qualities))
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                logger.error("[{}] Both master and API quality poll failed", rs.roomName, e)
                 // both master and API failed; ignore
             }
         }
@@ -427,9 +428,9 @@ class SessionComponent(
                 }
             }
         } catch (e: ClientRequestException) {
-            logger.warn("Room configure failed for {}: {}", roomName, e.message)
+            logger.error("Room configure failed for {}: client error {}", roomName, e.message, e)
         } catch (e: Exception) {
-            logger.warn("Room configure failed for {}: {}", roomName, e.message)
+            logger.error("Room configure failed for {}: {}", roomName, e.message, e)
         }
 
         return null
@@ -612,7 +613,7 @@ class SessionComponent(
 
                 } catch (e: CancellationException) {
                     if (e is TimeoutCancellationException) {
-                        logger.warn("[{}] Refresh list timeout", rs.roomName)
+                        logger.error("[{}] Refresh list timeout", rs.roomName, e)
                         if (configureSession(rs.roomId, rs.roomName) == null) {
                             logger.info("[STOP] [{}] Room off or non-public after timeout", rs.roomName)
                             rs.state = SessionState.Closing
@@ -634,6 +635,7 @@ class SessionComponent(
                     }
                     throw e
                 } catch (e: ClientRequestException) {
+                    logger.error("[${rs.roomName}] Client request error in polling: status=${e.response.status}", e)
                     if (e.response.status == HttpStatusCode.Forbidden) {
                         val token = configureSession(rs.roomId, rs.roomName)
                         if (token != null) {
@@ -694,7 +696,8 @@ class SessionComponent(
                     try {
                         rs.masterPlaylist = fetchAndCacheMasterPlaylist(rs)
                         rs.playlistUrl = resolveVariantUrl(rs)
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
+                        logger.error("[{}] Failed to refresh master playlist during recovery", rs.roomName, e)
                         continue
                     }
                 }

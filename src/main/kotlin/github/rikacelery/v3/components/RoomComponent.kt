@@ -86,6 +86,7 @@ class RoomComponent(
                     try {
                         handleCommand(msg.env)
                     } catch (e: Exception) {
+                        logger.error("handleCommand failed for ${msg.env.command}", e)
                         eventBus.publish(CommandAck(msg.env.id, ErrorResponse(e.message ?: "error")))
                     }
                 }
@@ -157,7 +158,7 @@ class RoomComponent(
                         RoomNameResponse(name)
                     }
                 } catch (e: Exception) {
-                    logger.warn("Failed to add room '{}': {}", cmd.name, e.message)
+                    logger.error("Failed to add room '{}': {}", cmd.name, e.message, e)
                     ErrorResponse("failed to add room: ${e.message}")
                 }
             }
@@ -184,7 +185,9 @@ class RoomComponent(
                             rooms[room.id] = room.copy(status = status)
                         }
                         eventBus.publish(RoomStatusChanged(room.id, room.status, status))
-                    } catch (_: Exception) {}
+                    } catch (e: Exception) {
+                        logger.error("Failed to refresh status for room ${cmd.roomId}", e)
+                    }
                 }
                 OkResponse
             }
@@ -213,15 +216,15 @@ class RoomComponent(
                 }
             } catch (e: RenameException) {
                 val oldName = room.name
+                logger.error("Room ${room.id} renamed: $oldName -> ${e.newName}", e)
                 rooms[room.id] = room.copy(name = e.newName)
                 eventBus.publish(RoomRenamed(room.id, oldName, e.newName))
-                logger.info("Room ${room.id} renamed: $oldName -> ${e.newName}")
-            } catch (_: DeletedException) {
+            } catch (e: DeletedException) {
+                logger.error("Room ${room.id} deleted: ${room.name}", e)
                 rooms.remove(room.id)
                 eventBus.publish(RoomRemoved(room.id, room.name))
-                logger.info("Room ${room.id} deleted: ${room.name}")
             } catch (e: Exception) {
-                logger.warn("refreshAll error room ${room.id}: ${e.message}")
+                logger.error("refreshAll error room ${room.id}: ${e.message}", e)
             }
         }
         refreshLock.unlock()
@@ -256,7 +259,7 @@ class RoomComponent(
                 }.let { lines -> if (lines.isNotEmpty()) lines + "\n" else "" })
             }
         } catch (e: Exception) {
-            logger.warn("Failed to save list.conf: ${e.message}")
+            logger.error("Failed to save list.conf: ${e.message}", e)
         }
     }
 

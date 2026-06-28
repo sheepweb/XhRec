@@ -143,6 +143,7 @@ class DownloaderComponent(
             if (!proxyDeferred.isCompleted) proxyDeferred.cancel()
             result
         } catch (e: Exception) {
+            logger.error("downloadSegment failed: idx=$idx, url=$url", e)
             DownloadResult.Failed(idx, url, e.message ?: "download failed")
         }
     }
@@ -162,6 +163,7 @@ class DownloaderComponent(
             }
             DownloadResult.Success(bos.toByteArray(), DownloadMeta(url, 0, proxied, Instant.now()))
         } catch (e: Exception) {
+            logger.error("downloadWithClient failed: idx=$idx, url=$url, proxied=$proxied", e)
             DownloadResult.Failed(idx, url, e.message ?: "download failed")
         }
     }
