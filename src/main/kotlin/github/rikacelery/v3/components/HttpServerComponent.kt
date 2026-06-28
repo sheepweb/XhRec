@@ -19,7 +19,6 @@ import kotlinx.serialization.json.*
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.security.KeyStore
-import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -118,25 +117,6 @@ class HttpServerComponent(
                         call.respondText("Error: ${e.message}", status = HttpStatusCode.InternalServerError)
                     }
                 }
-                get("/start") {
-                    val roomId = call.request.queryParameters["id"]?.toLongOrNull() ?: 0
-                    try {
-                        requestBus.request<OkResponse>(StartRecordingCmd(roomId))
-                        persistConfig()
-                        call.respondText("Recording started for $roomId")
-                    } catch (e: Exception) {
-                        call.respondText("Error: ${e.message}", status = HttpStatusCode.InternalServerError)
-                    }
-                }
-                get("/stop") {
-                    val roomId = call.request.queryParameters["id"]?.toLongOrNull() ?: 0
-                    try {
-                        requestBus.request<OkResponse>(StopRecordingCmd(roomId))
-                        call.respondText("Recording stopped for $roomId")
-                    } catch (e: Exception) {
-                        call.respondText("Error: ${e.message}", status = HttpStatusCode.InternalServerError)
-                    }
-                }
                 get("/graceful-stop") {
                     if (stopping.getAndSet(true)) {
                         call.respondText("Already shutting down...", status = HttpStatusCode.NotAcceptable)
@@ -154,7 +134,7 @@ class HttpServerComponent(
                         if (sessions.isNotEmpty()) {
                             for (s in sessions) {
                                 write("Waiting ${s.roomName}.\n"); flush()
-                                requestBus.request<OkResponse>(StopRecordingCmd(s.roomId))
+                                requestBus.request<OkResponse>(DeactivateCmd(s.roomId))
                             }
                             waitSessionsDone(sessions, "Exited", 120_000L) { write(it); flush() }
                         }
@@ -177,9 +157,9 @@ class HttpServerComponent(
                         "Missing id",
                         status = HttpStatusCode.BadRequest
                     )
-                    requestBus.request<OkResponse>(StopRecordingCmd(id))
+                    requestBus.request<OkResponse>(DeactivateCmd(id))
                     delay(0.5.seconds)
-                    requestBus.request<OkResponse>(StartRecordingCmd(id))
+                    requestBus.request<OkResponse>(ActivateRecordingCmd(id))
                     call.respondText("Restarted")
                 }
                 get("/break") {
@@ -390,7 +370,7 @@ class HttpServerComponent(
                         if (sessions.isNotEmpty()) {
                             for (s in sessions) {
                                 write("Cancelling ${s.roomName}.\n"); flush()
-                                requestBus.request<OkResponse>(StopRecordingCmd(s.roomId))
+                                requestBus.request<OkResponse>(DeactivateCmd(s.roomId))
                             }
                             waitSessionsDone(sessions, "Cancelled", 120_000L) { write(it); flush() }
                         }
