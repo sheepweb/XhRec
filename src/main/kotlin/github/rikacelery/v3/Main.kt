@@ -10,7 +10,12 @@ import github.rikacelery.v3.data.SystemConfig
 import github.rikacelery.v3.utils.SensitiveStringRegistry
 import github.rikacelery.v3.hooks.EventHook
 import github.rikacelery.v3.m3u8.M3u8Parser
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -67,7 +72,7 @@ fun main(vararg args: String) {
     }
 
     runBlocking {
-        val appScope = this
+        val appScope = CoroutineScope(SupervisorJob(coroutineContext[Job]) + Dispatchers.Default)
 
         val configPath = "xhrec.json"
         val persisted = loadPersistedConfig(configPath)
@@ -189,6 +194,7 @@ fun main(vararg args: String) {
             authComponent.stop()
             configComponent.stop()
             dataChannel.close()
+            appScope.cancel()
             println("XhRec v3 shut down")
         }
     }

@@ -2,6 +2,7 @@ package github.rikacelery.v3.bootstrap
 
 import github.rikacelery.v3.api.ApiClient
 import github.rikacelery.v3.components.*
+import github.rikacelery.v3.exceptions.DeletedException
 import github.rikacelery.v3.utils.SensitiveStringRegistry
 import github.rikacelery.v3.exceptions.RenameException
 import github.rikacelery.v3.postprocessors.*
@@ -166,14 +167,18 @@ class Bootstrap(
                         addRoomFromParsed(id, name, parsed)
                         logger.info("Add room {} {}/{}",name,idx.getAndIncrement(),lines.size)
                     } catch (e: RenameException) {
-                        logger.error("Room renamed during load: $line -> ${e.newName}", e)
+                        logger.info("Room renamed during load: $line -> ${e.newName}")
                         try {
                             val (id, name) = apiClient.getRoomFromUrlOrSlug(e.newName)
                             addRoomFromParsed(id, name, parsed)
                             logger.info("Add room {} {}/{}",name,idx.getAndIncrement(),lines.size)
+                        } catch (ex: DeletedException) {
+                            logger.warn("Skip deleted room during load after rename: $line -> ${e.newName}")
                         } catch (ex: Exception) {
                             logger.error("Failed to load room from '$line' after rename: ${ex.message}", ex)
                         }
+                    } catch (e: DeletedException) {
+                        logger.warn("Skip deleted room during load: $line")
                     } catch (e: Exception) {
                         logger.error("Failed to load room from '$line': ${e.message}", e)
                     }
