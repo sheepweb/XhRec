@@ -97,15 +97,17 @@ object ApiClient {
     suspend fun roomFetchBroadcastInfo(roomName: String): JsonObject {
         val client = ClientManager.getProxiedClient("api")
         val response = withRetry(3) {
-            client.get("https://poplive.xyz/api/front/v1/broadcasts/$roomName")
+            client.get("https://poplive.xyz/api/front/v1/broadcasts/$roomName") {
+                expectSuccess = false
+            }
         }
-        val json = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+        val body = response.bodyAsText()
 
         if (response.status == HttpStatusCode.NotFound) {
             val reason =
-                runCatching { Json.Default.parseToJsonElement(response.bodyAsText()).String("description") }.getOrNull()
+                runCatching { Json.Default.parseToJsonElement(body).String("description") }.getOrNull()
             if (reason == null) {
-                throw IllegalStateException("request api failed")
+                throw IllegalStateException("request api failed: ${response.status}")
             }
             when {
                 reason.matches("Model has new name: newName=(.*)".toRegex()) -> {
@@ -120,6 +122,10 @@ object ApiClient {
                 }
             }
         }
+        if (!response.status.isSuccess()) {
+            throw IllegalStateException("request api failed: ${response.status} $body")
+        }
+        val json = Json.parseToJsonElement(body).jsonObject
         return json
     }
 }
