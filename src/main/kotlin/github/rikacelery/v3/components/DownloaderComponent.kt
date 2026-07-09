@@ -64,7 +64,7 @@ class DownloaderComponent(
             ActiveDownload(
                 emitter = OrderedEmitter(cmd.roomId) { dataChannel.send(it) },
                 semaphore = Semaphore(initialConcurrency),
-                runningJobs = mutableSetOf()
+                runningJobs = ConcurrentHashMap.newKeySet()
             )
         }
         if (!active.active) return
@@ -76,8 +76,10 @@ class DownloaderComponent(
 
             val job = workerScope.launch {
                 active.semaphore.withPermit {
+                    if (!active.active) return@withPermit
                     eventBus.publish(DownloadStarted(cmd.roomId, idx, url, System.currentTimeMillis()))
                     val result = downloadSegment(url, idx)
+                    if (!active.active) return@withPermit
                     val hooked = hooks.fold(result) { acc, hook -> hook.onDownloadResult(cmd.roomId, acc) }
                     active.emitter.complete(idx.toLong(), hooked)
 
@@ -99,9 +101,19 @@ class DownloaderComponent(
     }
 
     private suspend fun handleCutPoint(cut: CutPoint) {
+        if (cut.reason.isTerminal()) {
+            val active = rooms.remove(cut.roomId)
+            if (active != null) {
+                active.active = false
+                active.runningJobs.forEach { it.cancel() }
+            }
+            logger.info("CutPoint roomId={}, index={}, reason={} terminal", cut.roomId, cut.index, cut.reason)
+            dataChannel.send(StreamEnd(cut.roomId, cut.reason))
+            return
+        }
+
         val active = rooms[cut.roomId] ?: run {
             logger.info("CutPoint roomId={}, index={}, reason={} without active downloader", cut.roomId, cut.index, cut.reason)
-            dataChannel.send(StreamEnd(cut.roomId, cut.reason))
             return
         }
         val idx = active.idx.incrementAndGet().toLong()
@@ -177,6 +189,8 @@ class DownloaderComponent(
                 "direct failed: ${directFailure?.reason ?: "unavailable"}; " +
                     "proxy failed: ${proxyFailure?.reason ?: "unavailable"}"
             )
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.error("downloadSegment failed: idx=$idx, url=$url", e)
             DownloadResult.Failed(idx, url, e.message ?: "download failed")
@@ -201,9 +215,14 @@ class DownloaderComponent(
                 bos.write(buf, 0, read)
             }
             DownloadResult.Success(bos.toByteArray(), DownloadMeta(url, 0, proxied, Instant.now()))
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.debug("downloadWithClient failed: idx={}, url={}, proxied={}: {}", idx, url, proxied, e.message)
             DownloadResult.Failed(idx, url, e.message ?: "download failed")
         }
     }
 }
+
+private fun EndReason.isTerminal(): Boolean =
+    this == EndReason.UserStop || this == EndReason.StreamEnd
