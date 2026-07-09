@@ -12,6 +12,7 @@ import github.rikacelery.v3.events.FileReady
 import github.rikacelery.v3.events.WriterFatal
 import github.rikacelery.v3.hooks.WriterHook
 import kotlinx.coroutines.*
+import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.FileOutputStream
 import java.time.Instant
@@ -32,14 +33,20 @@ data class ActiveFile(
     val quality: String,
     var bytesWritten: Long = 0
 ) {
+    companion object {
+        private val log = LoggerFactory.getLogger(ActiveFile::class.java)
+    }
+
     fun dispose() {
         try {
             fos.close()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            log.error("Failed to close fos for room $roomId: ${e.message}", e)
         }
         try {
             eventFos.close()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            log.error("Failed to close eventFos for room $roomId: ${e.message}", e)
         }
         file.delete()
         eventFile.delete()

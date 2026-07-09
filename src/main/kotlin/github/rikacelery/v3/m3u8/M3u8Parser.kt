@@ -2,15 +2,19 @@ package github.rikacelery.v3.m3u8
 
 import github.rikacelery.v3.crypto.Decrypter
 import github.rikacelery.v3.events.Segment
+import org.slf4j.LoggerFactory
 
 object M3u8Parser {
+    private val logger = LoggerFactory.getLogger("v3.M3u8Parser")
     private val mapRegex = Regex("#EXT-X-MAP:URI=\"([^\"]+)\"")
     private fun parseInitUrl(lines: List<String>): String {
         return try {
             lines.first { it.startsWith("#EXT-X-MAP") }.substringAfter("#EXT-X-MAP:URI=").removeSurrounding("\"")
         } catch (e: NoSuchElementException) {
+            logger.error("Missing #EXT-X-MAP tag in playlist", e)
             throw IllegalArgumentException("Missing #EXT-X-MAP tag in playlist", e)
         } catch (e: Exception) {
+            logger.error("Failed to parse init URL", e)
             throw IllegalArgumentException("Failed to parse init URL", e)
         }
     }
@@ -39,6 +43,7 @@ object M3u8Parser {
                     }
                     result.getOrThrow()
                 } catch (e: Exception) {
+                    logger.error("Decrypter.decode failed for mouflon URI", e)
                     throw e
                 }
                 val dec = rawList[idx].substringAfterLast("#EXT-X-MOUFLON:URI:").replace(encrypted, decrypted)

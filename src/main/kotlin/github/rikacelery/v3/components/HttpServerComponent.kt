@@ -19,7 +19,6 @@ import kotlinx.serialization.json.*
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.security.KeyStore
-import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -91,6 +90,7 @@ class HttpServerComponent(
                         try {
                             github.rikacelery.v3.data.SizeStrSerializer.parseSizeString(it)
                         } catch (e: IllegalArgumentException) {
+                            logger.error("Invalid size parameter in /add: ${e.message}", e)
                             return@get call.respondText(
                                 "Invalid size: ${e.message}",
                                 status = HttpStatusCode.BadRequest
@@ -118,25 +118,7 @@ class HttpServerComponent(
                         persistConfig()
                         call.respondText("Room added: ${resp.name}")
                     } catch (e: Exception) {
-                        call.respondText("Error: ${e.message}", status = HttpStatusCode.InternalServerError)
-                    }
-                }
-                get("/start") {
-                    val roomId = call.request.queryParameters["id"]?.toLongOrNull() ?: 0
-                    try {
-                        requestBus.request<OkResponse>(StartRecordingCmd(roomId))
-                        persistConfig()
-                        call.respondText("Recording started for $roomId")
-                    } catch (e: Exception) {
-                        call.respondText("Error: ${e.message}", status = HttpStatusCode.InternalServerError)
-                    }
-                }
-                get("/stop") {
-                    val roomId = call.request.queryParameters["id"]?.toLongOrNull() ?: 0
-                    try {
-                        requestBus.request<OkResponse>(StopRecordingCmd(roomId))
-                        call.respondText("Recording stopped for $roomId")
-                    } catch (e: Exception) {
+                        logger.error("Failed to add room '$name'", e)
                         call.respondText("Error: ${e.message}", status = HttpStatusCode.InternalServerError)
                     }
                 }
@@ -157,7 +139,7 @@ class HttpServerComponent(
                         if (sessions.isNotEmpty()) {
                             for (s in sessions) {
                                 write("Waiting ${s.roomName}.\n"); flush()
-                                requestBus.request<OkResponse>(StopRecordingCmd(s.roomId))
+                                requestBus.request<OkResponse>(DeactivateCmd(s.roomId))
                             }
                             waitSessionsDone(sessions, "Exited", 120_000L) { write(it); flush() }
                         }
@@ -180,9 +162,9 @@ class HttpServerComponent(
                         "Missing id",
                         status = HttpStatusCode.BadRequest
                     )
-                    requestBus.request<OkResponse>(StopRecordingCmd(id))
+                    requestBus.request<OkResponse>(DeactivateCmd(id))
                     delay(0.5.seconds)
-                    requestBus.request<OkResponse>(StartRecordingCmd(id))
+                    requestBus.request<OkResponse>(ActivateRecordingCmd(id))
                     call.respondText("Restarted")
                 }
                 get("/break") {
@@ -255,6 +237,7 @@ class HttpServerComponent(
                     val bytes = try {
                         github.rikacelery.v3.data.SizeStrSerializer.parseSizeString(v)
                     } catch (e: IllegalArgumentException) {
+                        logger.error("Invalid size parameter in /sizelimit: ${e.message}", e)
                         return@get call.respondText(
                             "Invalid size format: ${e.message}",
                             status = HttpStatusCode.BadRequest
@@ -369,7 +352,8 @@ class HttpServerComponent(
                                 }
                                 flush()
                             }
-                        }catch(_:Exception){
+                        }catch(e:Exception){
+                            logger.error("SSE stream error for room $id: ${e.message}", e)
                             return@respondOutputStream
                         } finally {
                             mseStore.unsubscribe(id, ch)
@@ -393,7 +377,7 @@ class HttpServerComponent(
                         if (sessions.isNotEmpty()) {
                             for (s in sessions) {
                                 write("Cancelling ${s.roomName}.\n"); flush()
-                                requestBus.request<OkResponse>(StopRecordingCmd(s.roomId))
+                                requestBus.request<OkResponse>(DeactivateCmd(s.roomId))
                             }
                             waitSessionsDone(sessions, "Cancelled", 120_000L) { write(it); flush() }
                         }
@@ -442,7 +426,8 @@ class HttpServerComponent(
                     }
                 }
             }
-        } catch (_: TimeoutCancellationException) {
+        } catch (e: TimeoutCancellationException) {
+            logger.error("Timeout waiting for processors", e)
             onProgress("Timeout waiting for processors.\n")
         }
     }
@@ -475,7 +460,8 @@ class HttpServerComponent(
                 }
             }
             delay(0.5.seconds) // let CutPoint drain through pipeline
-        } catch (_: TimeoutCancellationException) {
+        } catch (e: TimeoutCancellationException) {
+            logger.error("Timeout waiting for sessions", e)
             onProgress("Timeout waiting for sessions.\n")
         }
     }

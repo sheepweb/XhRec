@@ -5,6 +5,7 @@ import github.rikacelery.v3.events.CommandEnvelope
 import github.rikacelery.v3.events.ErrorResponse
 import github.rikacelery.v3.events.Request
 import kotlinx.coroutines.*
+import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
@@ -21,6 +22,7 @@ class RequestBus(
 ) {
     private val pending = ConcurrentHashMap<Long, CompletableDeferred<Any>>()
     private val idGen = AtomicLong(0)
+    private val logger = LoggerFactory.getLogger("v3.RequestBus")
 
     init {
         eventBus.subscribe(scope, CommandAck::class) { ack ->
@@ -41,6 +43,7 @@ class RequestBus(
             if (result is ErrorResponse) throw RequestErrorException(cmd, result.message)
             result as T
         } catch (e: TimeoutCancellationException) {
+            logger.error("Request timeout: cmd=$cmd, timeout=${timeoutMs}ms", e)
             pending.remove(id)?.cancel()
             throw RequestTimeoutException(cmd, timeoutMs)
         }

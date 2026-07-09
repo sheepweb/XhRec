@@ -41,7 +41,7 @@ class AuthComponent(
                 try {
                     File(usersPath).writeText(users.values.joinToString("\n") { it.cookie })
                 } catch (e: Exception) {
-                    logger.warn("Failed to save users.txt: ${e.message}")
+                    logger.error("Failed to save users.txt: ${e.message}", e)
                 }
             }
             else -> {}

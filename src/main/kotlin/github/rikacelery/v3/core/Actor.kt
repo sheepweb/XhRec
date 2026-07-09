@@ -14,7 +14,7 @@ abstract class Actor<T : Any>(
 ) {
     private val mailbox = Channel<T>(capacity = mailboxCapacity)
     protected val scope = parentScope + SupervisorJob() + CoroutineName(name)
-    protected val logger = LoggerFactory.getLogger("v3.$name")
+    protected val logger = LoggerFactory.getLogger(name)
 
     private var started = false
 

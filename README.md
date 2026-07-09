@@ -106,8 +106,6 @@ All endpoints return JSON unless noted. Parameters are passed as query strings.
 |------------|-----------------------------------------------------------------|---------------------------------------|
 | `/add`     | `name`, `quality`, `active`, `limit`, `autopay`, `pkey`, `size` | Add a room                            |
 | `/remove`  | `id`                                                            | Remove a room                         |
-| `/start`   | `id`                                                            | Start recording                       |
-| `/stop`    | `id`                                                            | Stop recording                        |
 | `/restart` | `id`                                                            | Stop then restart recording           |
 | `/break`   | `id`                                                            | Temporary stop (resumes on next poll) |
 

@@ -19,6 +19,7 @@ import org.apache.commons.cli.DefaultParser
 import org.apache.commons.cli.Options
 import org.apache.commons.cli.ParseException
 import org.apache.commons.cli.help.HelpFormatter
+import org.slf4j.LoggerFactory
 import java.io.File
 
 private data class PersistedConfig(
@@ -26,6 +27,8 @@ private data class PersistedConfig(
     val decryptKeys: Map<String, String>,
     val maskSensitiveLogs: Boolean
 )
+
+private val mainLogger = LoggerFactory.getLogger("v3.Main")
 
 private fun loadPersistedConfig(configPath: String): PersistedConfig {
     val file = File(configPath)
@@ -40,7 +43,8 @@ private fun loadPersistedConfig(configPath: String): PersistedConfig {
         json["decryptKeys"]?.jsonObject?.forEach { (k, v) -> keys[k] = v.jsonPrimitive.content }
         val mask = json["maskSensitiveLogs"]?.jsonPrimitive?.content?.toBooleanStrictOrNull() ?: true
         return PersistedConfig(pkey, keys, mask)
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+        mainLogger.error("Failed to load persisted config from $configPath", e)
         return default
     }
 }
@@ -55,7 +59,8 @@ fun main(vararg args: String) {
         .addOption("post", true, "postprocessor.json path")
     val cli = try {
         DefaultParser().parse(cliOptions, args.toList().toTypedArray())
-    } catch (_: ParseException) {
+    } catch (e: ParseException) {
+        mainLogger.error("CLI argument parse error", e)
         val formatter = HelpFormatter.builder().get()
         formatter.printOptions(cliOptions)
         return

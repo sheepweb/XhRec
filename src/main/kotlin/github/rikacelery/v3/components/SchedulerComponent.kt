@@ -136,34 +136,17 @@ class SchedulerComponent(
 
     private suspend fun handleCommand(env: CommandEnvelope) {
         val ack = when (env.command) {
-            is StartRecordingCmd -> {
-                if (armed.contains(env.command.roomId)) {
-                    OkResponse
-                } else try {
-                    val roomName = requestBus.request<RoomNameResponse>(GetRoomName(env.command.roomId)).name
-                    val config = requestBus.request<RoomConfigResponse>(GetRoomConfig(env.command.roomId))
-                    armed[env.command.roomId] =
-                        ArmedRoom(env.command.roomId, roomName, config.quality, config.pkey, config.autoPay)
-                    requestBus.request<OkResponse>(RefreshRoomCmd(env.command.roomId))
-                    OkResponse
-                } catch (_: Exception) {
-                    ErrorResponse("failed to start recording")
-                }
-            }
-
-            is StopRecordingCmd -> {
-                sessionComponent.tell(DoStop(env.command.roomId)); OkResponse
-            }
-
             is ActivateRecordingCmd -> {
-                try {
+                val existing = armed[env.command.roomId]
+                if (existing != null) {
+                    logger.info("Room {} ({}) already activated (armed)", existing.roomName, env.command.roomId)
+                } else {
                     val name = requestBus.request<RoomNameResponse>(GetRoomName(env.command.roomId)).name
                     val config = requestBus.request<RoomConfigResponse>(GetRoomConfig(env.command.roomId))
                     armed[env.command.roomId] =
                         ArmedRoom(env.command.roomId, name, config.quality, config.pkey, config.autoPay)
                     logger.info("Room {} ({}) activated (armed)", name, env.command.roomId)
                     requestBus.request<OkResponse>(RefreshRoomCmd(env.command.roomId))
-                } catch (_: Exception) {
                 }
                 OkResponse
             }

@@ -25,10 +25,6 @@ data class GetDecryptKey(val keyName: String) : Request
 data class MatchDecryptKeys(val keys: List<String>) : Request
 object GetMaskStatus : Request
 object ToggleMask : Request
-// ── Scheduler commands ──
-
-data class StartRecordingCmd(val roomId: Long) : Request
-data class StopRecordingCmd(val roomId: Long) : Request
 // ── Downloader commands (Actor messages, not RequestBus) ──
 
 data class Download(
@@ -47,7 +43,7 @@ data class CutPoint(
     val quality: String = ""
 )
 
-// ── Scheduler extended commands ──
+// ── Scheduler commands ──
 
 data class ActivateRecordingCmd(val roomId: Long) : Request
 data class DeactivateCmd(val roomId: Long) : Request
