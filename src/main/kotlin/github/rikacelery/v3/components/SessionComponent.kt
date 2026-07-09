@@ -222,7 +222,7 @@ class SessionComponent(
                 rs.targetquality = selected
                 rs.playlistUrl = resolveVariantUrl(rs)
             } catch (e: Exception) {
-                logger.error("[{}] Master playlist failed, falling back to API: {}", rs.roomName, e.message, e)
+                logger.warn("[{}] Master playlist failed, falling back to API: {}", rs.roomName, e.message)
                 val qualities = apiClient.roomQualities(rs.roomName)
                 val selected = selectQuality(qualities, rs.quality)
                 val rawQuality = qualities.firstOrNull()
@@ -365,14 +365,14 @@ class SessionComponent(
                 eventBus.publish(QualitiesAvailable(rs.roomId, availableNames))
             }
         } catch (e: Exception) {
-            logger.error("[{}] Master playlist poll failed, falling back to API: {}", rs.roomName, e.message, e)
+            logger.warn("[{}] Master playlist poll failed, falling back to API: {}", rs.roomName, e.message)
             try {
                 val qualities = apiClient.roomQualities(rs.roomName)
                 if (qualities.isNotEmpty()) {
                     eventBus.publish(QualitiesAvailable(rs.roomId, qualities))
                 }
             } catch (e: Exception) {
-                logger.error("[{}] Both master and API quality poll failed", rs.roomName, e)
+                logger.warn("[{}] Both master and API quality poll failed: {}", rs.roomName, e.message)
                 // both master and API failed; ignore
             }
         }
@@ -644,8 +644,8 @@ class SessionComponent(
                     }
                     throw e
                 } catch (e: ClientRequestException) {
-                    logger.error("[${rs.roomName}] Client request error in polling: status=${e.response.status}", e)
                     if (e.response.status == HttpStatusCode.Forbidden) {
+                        logger.warn("[{}] Client request error in polling: status={}", rs.roomName, e.response.status)
                         val token = configureSession(rs.roomId, rs.roomName)
                         if (token != null) {
                             rs.token = token.takeIf { it.isNotEmpty() }
@@ -667,6 +667,7 @@ class SessionComponent(
                         )
                         break
                     } else if (e.response.status == HttpStatusCode.NotFound) {
+                        logger.info("[{}] Client request error in polling: status={}", rs.roomName, e.response.status)
                         logger.info("[STOP] [{}] Stream url returns 404", rs.roomName)
                         rs.state = SessionState.Closing
                         downloader.tell(
