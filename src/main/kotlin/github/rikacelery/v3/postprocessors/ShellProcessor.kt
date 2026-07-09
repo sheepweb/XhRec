@@ -1,5 +1,7 @@
 package github.rikacelery.v3.postprocessors
 
+import github.rikacelery.v3.utils.processOutputSuppressedMessage
+import github.rikacelery.v3.utils.shouldLogProcessOutputLine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -26,18 +28,34 @@ class ShellProcessor(
             var outputLine: String? = null
             val stdoutJob = async(Dispatchers.IO) {
                 p.inputStream.bufferedReader().use { r ->
+                    var lineNumber = 0
+                    var suppressionLogged = false
                     while (true) {
                         val line = r.readLine() ?: break
-                        logger.info("[stdout] {}", line)
+                        lineNumber += 1
+                        if (shouldLogProcessOutputLine(lineNumber)) {
+                            logger.info("[stdout] {}", line)
+                        } else if (!suppressionLogged) {
+                            logger.info(processOutputSuppressedMessage("stdout"))
+                            suppressionLogged = true
+                        }
                         outputLine = line
                     }
                 }
             }
             val stderrJob = async(Dispatchers.IO) {
                 p.errorStream.bufferedReader().use { r ->
+                    var lineNumber = 0
+                    var suppressionLogged = false
                     while (true) {
                         val line = r.readLine() ?: break
-                        logger.info("[stderr] {}", line)
+                        lineNumber += 1
+                        if (shouldLogProcessOutputLine(lineNumber)) {
+                            logger.info("[stderr] {}", line)
+                        } else if (!suppressionLogged) {
+                            logger.info(processOutputSuppressedMessage("stderr"))
+                            suppressionLogged = true
+                        }
                     }
                 }
             }
