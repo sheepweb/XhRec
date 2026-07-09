@@ -117,7 +117,7 @@ object ApiClient {
                     )
                 }
 
-                reason == "model already deleted" -> {
+                isDeletedBroadcastReason(reason) -> {
                     throw github.rikacelery.v3.exceptions.DeletedException()
                 }
             }
@@ -129,3 +129,7 @@ object ApiClient {
         return json
     }
 }
+
+internal fun isDeletedBroadcastReason(reason: String): Boolean =
+    reason == "model already deleted" ||
+        reason == "Entity \"Model\" not found"
