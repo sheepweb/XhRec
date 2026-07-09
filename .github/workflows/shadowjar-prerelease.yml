@@ -41,8 +41,9 @@ jobs:
 
       - name: Delete existing dev-build releases
         env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
         run: |
+          set -euo pipefail
           gh api "repos/${GITHUB_REPOSITORY}/releases" --paginate \
             --jq '.[] | select(.tag_name == "dev-build") | .id' |
           while read -r release_id; do
@@ -63,7 +64,7 @@ jobs:
       - name: Create Pre-release and Upload Asset
         if: success()
         env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
         run: |
           gh release create dev-build \
             build/libs/*-all.jar \
