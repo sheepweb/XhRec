@@ -33,7 +33,6 @@ data class ActiveDownload(
     val semaphore: Semaphore,
     val runningJobs: MutableSet<Job>,
     var idx: AtomicInteger = AtomicInteger(-1),
-    var generation: Int = 0,
     var active: Boolean = true
 )
 
@@ -68,7 +67,6 @@ class DownloaderComponent(
             )
         }
         if (!active.active) return
-        active.generation = cmd.generation
 
         for (seg in cmd.urls) {
             val idx = active.idx.incrementAndGet()
@@ -85,7 +83,7 @@ class DownloaderComponent(
                     when (result) {
                         is DownloadResult.Success -> {
                             eventBus.publish(SegmentDownloaded(cmd.roomId, idx, seg.url,
-                                result.meta.fetchDurationMs, result.meta.proxied, result.data.size, active.generation))
+                                result.meta.fetchDurationMs, result.meta.proxied, result.data.size, cmd.generation))
                         }
                         is DownloadResult.Failed -> {
                             eventBus.publish(DownloadError(cmd.roomId, idx, seg.url, result.reason))
