@@ -123,29 +123,65 @@ class DownloaderComponent(
             }
 
             logger.debug("Direct download slow/failed for idx={}, falling back to proxy race", idx)
-            // Phase 2: proxy joins the race
             val proxyDeferred = scope.async {
                 downloadWithClient(ClientManager.getProxiedClient("px_${Random.nextInt(5)}"), url, idx, true)
             }
 
-            val result = select<DownloadResult> {
-                directDeferred.onAwait { r ->
-                    (r as? DownloadResult.Success)?.copy(meta = r.meta.copy(
-                        fetchDurationMs = System.currentTimeMillis() - start, proxied = false)) ?: r
-                }
-                proxyDeferred.onAwait { r ->
-                    (r as? DownloadResult.Success)?.copy(meta = r.meta.copy(
-                        fetchDurationMs = System.currentTimeMillis() - start, proxied = true)) ?: r
+            if (directResult is DownloadResult.Failed) {
+                return when (val proxyResult = proxyDeferred.await()) {
+                    is DownloadResult.Success -> proxyResult.withFetchMeta(start, true)
+                    is DownloadResult.Failed -> DownloadResult.Failed(
+                        idx,
+                        url,
+                        "direct failed: ${directResult.reason}; proxy failed: ${proxyResult.reason}"
+                    )
+                    is DownloadResult.CutPoint -> proxyResult
                 }
             }
 
-            if (!directDeferred.isCompleted) directDeferred.cancel()
-            if (!proxyDeferred.isCompleted) proxyDeferred.cancel()
-            result
+            var directDone = false
+            var proxyDone = false
+            var directFailure: DownloadResult.Failed? = null
+            var proxyFailure: DownloadResult.Failed? = null
+
+            while (!directDone || !proxyDone) {
+                val (proxied, result) = select<Pair<Boolean, DownloadResult>> {
+                    if (!directDone) {
+                        directDeferred.onAwait { false to it }
+                    }
+                    if (!proxyDone) {
+                        proxyDeferred.onAwait { true to it }
+                    }
+                }
+
+                if (proxied) proxyDone = true else directDone = true
+                when (result) {
+                    is DownloadResult.Success -> {
+                        if (!directDeferred.isCompleted) directDeferred.cancel()
+                        if (!proxyDeferred.isCompleted) proxyDeferred.cancel()
+                        return result.withFetchMeta(start, proxied)
+                    }
+                    is DownloadResult.Failed -> {
+                        if (proxied) proxyFailure = result else directFailure = result
+                    }
+                    is DownloadResult.CutPoint -> return result
+                }
+            }
+
+            DownloadResult.Failed(
+                idx,
+                url,
+                "direct failed: ${directFailure?.reason ?: "unavailable"}; " +
+                    "proxy failed: ${proxyFailure?.reason ?: "unavailable"}"
+            )
         } catch (e: Exception) {
             logger.error("downloadSegment failed: idx=$idx, url=$url", e)
             DownloadResult.Failed(idx, url, e.message ?: "download failed")
         }
+    }
+
+    private fun DownloadResult.Success.withFetchMeta(start: Long, proxied: Boolean): DownloadResult.Success {
+        return copy(meta = meta.copy(fetchDurationMs = System.currentTimeMillis() - start, proxied = proxied))
     }
 
     private suspend fun downloadWithClient(
@@ -163,7 +199,7 @@ class DownloaderComponent(
             }
             DownloadResult.Success(bos.toByteArray(), DownloadMeta(url, 0, proxied, Instant.now()))
         } catch (e: Exception) {
-            logger.error("downloadWithClient failed: idx=$idx, url=$url, proxied=$proxied", e)
+            logger.debug("downloadWithClient failed: idx={}, url={}, proxied={}: {}", idx, url, proxied, e.message)
             DownloadResult.Failed(idx, url, e.message ?: "download failed")
         }
     }
