@@ -45,6 +45,7 @@ data class RoomSession(
     var state: SessionState = SessionState.Idle,
     var playlistUrl: String = "",
     var initUrl: String? = null,
+    var initDispatchedUrl: String? = null,
     var token: String? = null,
     var pkey: String = "",
     var segmentIndex: Int = 0,
@@ -61,10 +62,12 @@ data class RoomSession(
 class CircleCache(private val capacity: Int) {
     private val set = LinkedHashSet<String>()
     fun add(url: String): Boolean {
-        if (set.size >= capacity) {
-            set.clear(); return true
+        if (!set.add(url)) return false
+        while (set.size > capacity) {
+            val first = set.firstOrNull() ?: break
+            set.remove(first)
         }
-        return set.add(url)
+        return true
     }
 
     fun remove(url: String) = set.remove(url)
@@ -143,7 +146,7 @@ class SessionComponent(
                             rs.generation += 1
                             rs.totalBytes = 0
                             rs.segmentIndex = 0
-                            rs.initUrl?.let { rs.circleCache.remove(it) }
+                            rs.initDispatchedUrl = null
                         }
                     }
 
@@ -571,8 +574,9 @@ class SessionComponent(
                         rs.segmentIndex = 0
                         rs.circleCache.clear()
                         rs.initUrl = parsed.initUrl
+                        rs.initDispatchedUrl = null
                     }
-                    if (rs.circleCache.add(parsed.initUrl)) {
+                    if (rs.initDispatchedUrl != parsed.initUrl) {
                         downloader.tell(
                             DoDownload(
                                 Download(
@@ -581,6 +585,7 @@ class SessionComponent(
                             )
                         )
                         rs.segmentIndex += 1
+                        rs.initDispatchedUrl = parsed.initUrl
                     }
                     val unseen = parsed.segments.filter { rs.circleCache.add(it.url) }
                     if (unseen.isNotEmpty()) {
@@ -611,7 +616,7 @@ class SessionComponent(
                         rs.generation += 1
                         rs.totalBytes = 0
                         rs.segmentIndex = 0
-                        rs.circleCache.remove(parsed.initUrl)
+                        rs.initDispatchedUrl = null
                     }
 
                     if (rs.state == SessionState.Fetching) {
