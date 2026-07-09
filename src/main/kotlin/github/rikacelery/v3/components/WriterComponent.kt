@@ -31,7 +31,8 @@ data class ActiveFile(
     val roomName: String,
     val startTime: Instant,
     val quality: String,
-    var bytesWritten: Long = 0
+    var bytesWritten: Long = 0,
+    var mediaSegmentsWritten: Int = 0
 ) {
     companion object {
         private val log = LoggerFactory.getLogger(ActiveFile::class.java)
@@ -120,6 +121,9 @@ class WriterComponent(
                 active.fos.write(data)
             }
             active.bytesWritten += data.size
+            if (!isInitSegment(msg) && data.isNotEmpty()) {
+                active.mediaSegmentsWritten += 1
+            }
         } catch (e: Exception) {
             logger.error("Failed to write data for room ${msg.roomId}: ${e.message}", e)
             eventBus.publish(WriterFatal(msg.roomId, e.message ?: "Unknown error"))
@@ -150,6 +154,11 @@ class WriterComponent(
             try {
                 if (active.bytesWritten < 1024) {
                     logger.info("Closed file: ${active.file.absolutePath}, reason=$reason (empty)")
+                    active.dispose()
+                    return@withContext
+                }
+                if (active.mediaSegmentsWritten == 0) {
+                    logger.info("Closed file: ${active.file.absolutePath}, reason=$reason (no media segments)")
                     active.dispose()
                     return@withContext
                 }
@@ -192,4 +201,6 @@ class WriterComponent(
         val s = (ms % 60_000) / 1000
         return if (h > 0) "${h}h${m}m${s}s" else if (m > 0) "${m}m${s}s" else "${s}s"
     }
+
+    private fun isInitSegment(msg: StreamData): Boolean = msg.meta.url.contains("_init_")
 }
