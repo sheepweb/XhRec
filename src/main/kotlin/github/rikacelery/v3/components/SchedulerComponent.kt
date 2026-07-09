@@ -8,6 +8,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 sealed interface SchedulerMsg
@@ -22,6 +23,19 @@ data class ArmedRoom(
     val autoPay: Boolean = false
 )
 
+internal data class RearmDelay(
+    val delay: Duration,
+    val emptyStopCount: Int
+)
+
+internal fun nextRearmDelay(segmentsDispatched: Int, previousEmptyStopCount: Int): RearmDelay {
+    if (segmentsDispatched > 0) return RearmDelay(30.seconds, 0)
+
+    val emptyStopCount = (previousEmptyStopCount + 1).coerceAtMost(5)
+    val seconds = (30 * (1 shl (emptyStopCount - 1))).coerceAtMost(300)
+    return RearmDelay(seconds.seconds, emptyStopCount)
+}
+
 class SchedulerComponent(
     private val requestBus: RequestBus,
     private val sessionComponent: SessionComponent,
@@ -31,6 +45,7 @@ class SchedulerComponent(
 
     private val armed = ConcurrentHashMap<Long, ArmedRoom>()
     private val recordableRooms = ConcurrentHashMap.newKeySet<Long>()
+    private val emptyStopCounts = ConcurrentHashMap<Long, Int>()
     private var gracefulStop = false
 
     override suspend fun onStart(scope: CoroutineScope) {
@@ -70,10 +85,12 @@ class SchedulerComponent(
                 val a = armed[event.roomId] ?: return
                 if (event.newStatus != "public" && event.newStatus != "groupShow") {
                     recordableRooms.remove(event.roomId)
+                    emptyStopCounts.remove(event.roomId)
                     return
                 }
                 if (event.newStatus == "groupShow" && !a.autoPay) {
                     recordableRooms.remove(event.roomId)
+                    emptyStopCounts.remove(event.roomId)
                     return
                 }
                 recordableRooms.add(event.roomId)
@@ -92,13 +109,23 @@ class SchedulerComponent(
                     logger.debug("Recording stopped for room {}", event.roomId)
                     return
                 }
+                val rearmDelay = nextRearmDelay(
+                    event.segmentsDispatched,
+                    emptyStopCounts[event.roomId] ?: 0
+                )
+                if (rearmDelay.emptyStopCount == 0) {
+                    emptyStopCounts.remove(event.roomId)
+                } else {
+                    emptyStopCounts[event.roomId] = rearmDelay.emptyStopCount
+                }
+
                 if (event.segmentsDispatched == 0) {
                     logger.info(
-                        "Recording stopped for armed room {} ({}) with 0 segments, re-arming after 30s",
-                        event.roomId, a.roomName
+                        "Recording stopped for armed room {} ({}) with 0 segments, re-arming after {}s",
+                        event.roomId, a.roomName, rearmDelay.delay.inWholeSeconds
                     )
                     scope.launch {
-                        delay(30.seconds)
+                        delay(rearmDelay.delay)
                         if (armed.containsKey(event.roomId) && recordableRooms.contains(event.roomId)) {
                             sessionComponent.tell(DoStart(event.roomId, a.roomName, a.quality, a.pkey))
                         }
@@ -109,7 +136,7 @@ class SchedulerComponent(
                         event.roomId, a.roomName, event.segmentsDispatched
                     )
                     scope.launch {
-                        delay(30.seconds)
+                        delay(rearmDelay.delay)
                         if (armed.containsKey(event.roomId) && recordableRooms.contains(event.roomId)) {
                             sessionComponent.tell(DoStart(event.roomId, a.roomName, a.quality, a.pkey))
                         }
@@ -120,6 +147,7 @@ class SchedulerComponent(
             is DownloadError -> logger.warn("Download error room ${event.roomId}: ${event.reason}")
             is WriterFatal -> {
                 logger.error("Writer fatal room ${event.roomId}: ${event.error}"); armed.remove(event.roomId)
+                emptyStopCounts.remove(event.roomId)
             }
 
             is AuthExpired -> logger.warn("Auth expired user ${event.userId}")
@@ -154,6 +182,7 @@ class SchedulerComponent(
             is DeactivateCmd -> {
                 armed.remove(env.command.roomId)
                 recordableRooms.remove(env.command.roomId)
+                emptyStopCounts.remove(env.command.roomId)
                 logger.info("Room {} deactivated", env.command.roomId)
                 sessionComponent.tell(DoStop(env.command.roomId))
                 OkResponse
