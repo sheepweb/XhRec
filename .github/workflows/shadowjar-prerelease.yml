@@ -27,51 +27,48 @@ jobs:
       - name: chmod
         run: chmod +x gradlew
 
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
       - name: Validate Gradle wrapper
-        uses: gradle/gradle-build-action@v2
-        with:
-          arguments: help --no-daemon
+        run: ./gradlew help --no-daemon
 
       - name: Build with Gradle
-        uses: gradle/gradle-build-action@v2
-        with:
-          arguments: shadowJar --no-daemon
+        run: ./gradlew shadowJar --no-daemon
 
       - name: Pack browser extension
         run: tar -cvf extension.tar extension
 
-      - name: Delete existing Pre-release
+      - name: Delete existing dev-build releases
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
-          gh release delete dev-build --cleanup-tag --yes || true
+          gh api "repos/${GITHUB_REPOSITORY}/releases" --paginate \
+            --jq '.[] | select(.tag_name == "dev-build") | .id' |
+          while read -r release_id; do
+            if [ -n "$release_id" ]; then
+              echo "Deleting release id=$release_id for tag dev-build"
+              gh api --method DELETE "repos/${GITHUB_REPOSITORY}/releases/${release_id}"
+            fi
+          done
 
       - name: Update dev-build tag
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # remove old tag
           git tag -d dev-build || true
-          git push origin :refs/tags/dev-build || true
-          # pointer tag to new commit
-          git tag dev-build
-          git push origin dev-build
-
-      - name: Get current time
-        run: echo "CURRENT_TIME=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_ENV
+          git tag dev-build "${GITHUB_SHA}"
+          git push --force origin refs/tags/dev-build
 
       - name: Create Pre-release and Upload Asset
-        uses: softprops/action-gh-release@v2
         if: success()
-        with:
-          tag_name: dev-build
-          target_commitish: ${{ github.sha }}
-          name: CI builds
-          draft: false
-          prerelease: true
-          files: |
-            build/libs/*-all.jar
-            extension.tar
-          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          gh release create dev-build \
+            build/libs/*-all.jar \
+            extension.tar \
+            --title "CI builds" \
+            --target "${GITHUB_SHA}" \
+            --prerelease \
+            --generate-notes
