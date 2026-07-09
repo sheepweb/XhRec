@@ -13,6 +13,7 @@ import kotlinx.coroutines.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import javax.net.ssl.SSLException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.seconds
@@ -105,7 +106,12 @@ class LiveEventSource(
                 throw e
             } catch (e: Exception) {
                 wsSession = null
-                logger.error("WS error: ${e.message}, reconnecting in ${backoff.inWholeMilliseconds}ms")
+                val message = "WS error: ${e.message}, reconnecting in ${backoff.inWholeMilliseconds}ms"
+                if (isTransientWebSocketFailure(e)) {
+                    logger.warn(message)
+                } else {
+                    logger.error(message)
+                }
                 delay(backoff)
                 backoff = minOf(backoff.inWholeSeconds * 2, 30).seconds
             }
@@ -203,4 +209,15 @@ class LiveEventSource(
             } catch (e: Exception) { logger.error("Failed to dispatch WS message: ${e.message}", e) }
         }
     }
+}
+
+internal fun isTransientWebSocketFailure(error: Throwable): Boolean {
+    var current: Throwable? = error
+    while (current != null) {
+        val message = current.message.orEmpty()
+        if (message.contains("Received fatal alert: internal_error")) return true
+        if (current is SSLException && message.contains("Received fatal alert")) return true
+        current = current.cause
+    }
+    return false
 }
