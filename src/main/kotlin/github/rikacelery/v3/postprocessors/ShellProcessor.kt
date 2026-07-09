@@ -22,6 +22,7 @@ class ShellProcessor(
     override suspend fun process(input: File, ctx: ProcessorCtx): List<File> {
         val cmd = command.map { substitute(it, ctx, input) }
         logger.debug("run: {}", cmd.joinToString(" "))
+        if (!noreturn) ensureShellOutputParents(cmd)
         val p = withContext(Dispatchers.IO) { ProcessBuilder(cmd).start() }
 
         val (exitCode, lastLine) = coroutineScope {
@@ -69,7 +70,15 @@ class ShellProcessor(
             if (noreturn) return listOf(input)
             val outputLine = lastLine ?: throw IllegalStateException("No output from shell command")
             val outputFile = File(outputLine)
-            if (!outputFile.exists()) throw IllegalStateException("Output file not found: $outputFile")
+            if (!outputFile.exists()) {
+                val parent = outputFile.parentFile
+                val parentHint = if (parent != null && !parent.exists()) {
+                    " (parent directory does not exist: $parent)"
+                } else {
+                    ""
+                }
+                throw IllegalStateException("Output file not found: $outputFile$parentHint")
+            }
             if (removeInput) input.delete()
             return listOf(outputFile)
         } else {
@@ -126,5 +135,24 @@ class ShellProcessor(
                 .takeIf { it.size == 2 }?.let { it[0].toDouble() / it[1] } ?: return@withContext ""
             (fps * durationMs / 1000).toLong().toString()
         }.getOrElse { "" }
+    }
+}
+
+private val shellOutputAssignmentRegex = Regex("""\b(?:OUT|OUTPUT)=("([^"]+)"|'([^']+)'|([^;\s]+))""")
+
+internal fun shellAssignedOutputFiles(command: List<String>): List<File> =
+    command.flatMap { arg ->
+        shellOutputAssignmentRegex.findAll(arg).mapNotNull { match ->
+            val rawPath = match.groups[2]?.value
+                ?: match.groups[3]?.value
+                ?: match.groups[4]?.value
+                ?: return@mapNotNull null
+            File(rawPath).takeIf { it.isAbsolute && it.parentFile != null }
+        }
+    }
+
+internal fun ensureShellOutputParents(command: List<String>) {
+    shellAssignedOutputFiles(command).forEach { outputFile ->
+        outputFile.parentFile.mkdirs()
     }
 }
