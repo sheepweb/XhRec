@@ -145,6 +145,12 @@ class LiveEventSource(
         roomChannels.forEach { channel ->
             try {
                 send(Frame.Text(subscribeFrame("$channel@$roomId")))
+            } catch (e: CancellationException) {
+                if (e.isClosedWebSocketSend()) {
+                    logger.debug("Skip subscribe frames for roomId={} because websocket is closed: {}", roomId, e.message)
+                    return
+                }
+                throw e
             } catch (e: Exception) {
                 logger.error("Failed to send subscribe frame for channel=$channel@$roomId: ${e.message}", e)
             }
@@ -155,10 +161,20 @@ class LiveEventSource(
         roomChannels.forEach { channel ->
             try {
                 send(Frame.Text(unsubscribeFrame("$channel@$roomId")))
+            } catch (e: CancellationException) {
+                if (e.isClosedWebSocketSend()) {
+                    logger.debug("Skip unsubscribe frames for roomId={} because websocket is closed: {}", roomId, e.message)
+                    return
+                }
+                throw e
             } catch (e: Exception) {
                 logger.error("Failed to send unsubscribe frame for channel=$channel@$roomId: ${e.message}", e)
             }
         }
+    }
+
+    private fun CancellationException.isClosedWebSocketSend(): Boolean {
+        return message?.contains("WebSocket session closed", ignoreCase = true) == true
     }
 
     private suspend fun dispatch(raw: String) {
