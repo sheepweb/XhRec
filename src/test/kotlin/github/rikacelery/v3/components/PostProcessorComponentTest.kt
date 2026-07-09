@@ -7,15 +7,18 @@ import github.rikacelery.v3.events.RecordingStopped
 import github.rikacelery.v3.postprocessors.Processor
 import github.rikacelery.v3.postprocessors.ProcessorCtx
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Test
 import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class PostProcessorComponentTest {
 
     private class RecordingProcessor(
@@ -95,6 +98,38 @@ class PostProcessorComponentTest {
 
         // room B should have been dispatched and processed even though room A is blocked
         assertEquals("b.mp4", bProcessed.await())
+        aCanFinish.complete(Unit)
+        comp.stop()
+    }
+
+    @Test
+    fun `RecordingStopped for busy room does not block other room dispatch`() = runTest(UnconfinedTestDispatcher()) {
+        val bus = EventBus()
+        val comp = PostProcessorComponent(bus, backgroundScope, maxConcurrency = 2)
+        val aStarted = CompletableDeferred<Unit>()
+        val aCanFinish = CompletableDeferred<Unit>()
+        val bProcessed = CompletableDeferred<String>()
+
+        val processor = object : Processor() {
+            override suspend fun process(input: File, ctx: ProcessorCtx): List<File> {
+                if (ctx.roomId == 1L) {
+                    aStarted.complete(Unit)
+                    aCanFinish.await()
+                } else {
+                    bProcessed.complete(input.name)
+                }
+                return listOf(input)
+            }
+        }
+        comp.setProcessors(listOf(processor))
+        comp.start()
+
+        bus.publish(fileReady(1, "roomA", "a.mp4"))
+        aStarted.await()
+        bus.publish(RecordingStopped(1))
+        bus.publish(fileReady(2, "roomB", "b.mp4"))
+
+        assertEquals("b.mp4", withTimeout(1_000) { bProcessed.await() })
         aCanFinish.complete(Unit)
         comp.stop()
     }

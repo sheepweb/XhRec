@@ -86,7 +86,6 @@ class PostProcessorComponent(
                 is RecordingStopped -> {
                     val rp = rooms.remove(e.roomId) ?: return
                     rp.channel.close()
-                    rp.job?.join()
                 }
 
                 else -> {}
