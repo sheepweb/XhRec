@@ -6,6 +6,7 @@ import github.rikacelery.v3.core.EventBus
 import github.rikacelery.v3.core.OrderedEmitter
 import github.rikacelery.v3.data.DownloadMeta
 import github.rikacelery.v3.data.DownloadResult
+import github.rikacelery.v3.data.StreamEnd
 import github.rikacelery.v3.events.*
 import github.rikacelery.v3.hooks.DownloaderHook
 import github.rikacelery.v3.utils.ClientManager
@@ -98,7 +99,11 @@ class DownloaderComponent(
     }
 
     private suspend fun handleCutPoint(cut: CutPoint) {
-        val active = rooms[cut.roomId] ?: return
+        val active = rooms[cut.roomId] ?: run {
+            logger.info("CutPoint roomId={}, index={}, reason={} without active downloader", cut.roomId, cut.index, cut.reason)
+            dataChannel.send(StreamEnd(cut.roomId, cut.reason))
+            return
+        }
         val idx = active.idx.incrementAndGet().toLong()
         logger.info("CutPoint roomId={}, index={}, reason={}", cut.roomId, cut.index, cut.reason)
         active.emitter.complete(idx,  DownloadResult.CutPoint(cut))
